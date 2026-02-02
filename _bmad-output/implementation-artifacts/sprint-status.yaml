@@ -1,0 +1,163 @@
+# generated: 2026-02-02
+# project: Upwork Research Agent
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-02
+project: Upwork Research Agent
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  epic-0: backlog
+  0-1-basic-job-input-ui: backlog
+  0-2-claude-api-integration-for-basic-generation: backlog
+  0-3-streaming-ui-display: backlog
+  0-4-manual-copy-to-clipboard: backlog
+  0-5-validate-ai-detection-passing: backlog
+  epic-0-retrospective: optional
+
+  epic-1: backlog
+  1-1-sqlite-database-setup: backlog
+  1-2-proposals-table-schema: backlog
+  1-3-save-generated-proposal-to-database: backlog
+  1-4-view-past-proposals-list: backlog
+  1-5-dark-mode-basic-css: backlog
+  1-6-encryption-stack-spike: backlog
+  1-7-api-key-configuration-ui: backlog
+  1-8-settings-table-for-configuration: backlog
+  1-9-persist-user-preferences: backlog
+  1-10-export-proposals-to-json: backlog
+  1-11-database-migration-framework-setup: backlog
+  1-12-job-posts-table-schema: backlog
+  1-13-api-error-handling: backlog
+  1-14-draft-recovery-on-crash: backlog
+  1-15-onboarding-flow: backlog
+  1-16-logging-infrastructure: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-passphrase-entry-ui: backlog
+  2-2-pre-migration-automated-backup: backlog
+  2-3-sqlite-to-sqlcipher-database-migration: backlog
+  2-4-migration-verification-and-user-confirmation: backlog
+  2-5-migration-failure-recovery: backlog
+  2-6-api-key-migration-to-os-keychain: backlog
+  2-7-encrypted-database-access-on-app-restart: backlog
+  2-8-encryption-status-indicator: backlog
+  2-9-passphrase-recovery-options: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-pre-flight-perplexity-analysis: backlog
+  3-2-safety-warning-screen-with-flagged-sentences: backlog
+  3-3-humanization-injection-during-generation: backlog
+  3-4-one-click-re-humanization: backlog
+  3-5-safety-threshold-configuration: backlog
+  3-6-override-safety-warning: backlog
+  3-7-adaptive-threshold-learning-from-overrides: backlog
+  3-8-rate-limiting-enforcement: backlog
+  3-9-core-keyboard-shortcuts: backlog
+  epic-3-retrospective: optional
+
+  epic-4a: backlog
+  4a-1-job-post-input-with-url-or-text-detection: backlog
+  4a-2-client-name-extraction: backlog
+  4a-3-key-skills-extraction: backlog
+  4a-4-hidden-needs-detection: backlog
+  4a-5-job-skills-table-schema: backlog
+  4a-6-job-analysis-loading-state: backlog
+  4a-7-job-analysis-results-display: backlog
+  4a-8-save-job-analysis-to-database: backlog
+  4a-9-sanitize-job-input: backlog
+  epic-4a-retrospective: optional
+
+  epic-4b: backlog
+  4b-1-user-profile-skills-configuration: backlog
+  4b-2-skills-match-percentage-calculation: backlog
+  4b-3-client-quality-score-estimation: backlog
+  4b-4-budget-alignment-detection: backlog
+  4b-5-weighted-job-scoring-algorithm: backlog
+  4b-6-scoring-breakdown-ui: backlog
+  4b-7-rss-feed-import: backlog
+  4b-8-rss-feed-fallback-to-web-scraping: backlog
+  4b-9-job-queue-view-with-sorting: backlog
+  4b-10-report-bad-scoring-feedback-loop: backlog
+  epic-4b-retrospective: optional
+
+  epic-5: backlog
+  5-1-hook-strategies-seed-data: backlog
+  5-2-hook-strategy-selection-ui: backlog
+  5-3-golden-set-upload-ui: backlog
+  5-4-local-only-voice-analysis: backlog
+  5-5-voice-profile-display: backlog
+  5-6-privacy-indicator: backlog
+  5-7-quick-calibration-alternative: backlog
+  5-5b-persist-voice-profile-to-database: backlog
+  5-8-voice-informed-proposal-generation: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-tiptap-editor-integration: backlog
+  6-2-manual-voice-parameter-adjustments: backlog
+  6-3-proposal-revision-history: backlog
+  6-4-character-and-word-count: backlog
+  6-5-formatting-shortcuts: backlog
+  6-6-copy-edited-proposal: backlog
+  6-7-archive-old-revisions: backlog
+  6-8-delete-proposal-all-revisions: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-dark-theme-system: backlog
+  8-2-complete-keyboard-navigation: backlog
+  8-3-screen-reader-support: backlog
+  8-4-pipeline-stage-indicators-during-generation: backlog
+  8-6-expectation-management-voice-learning-timeline: backlog
+  8-7-memory-optimization-for-large-proposal-lists: backlog
+  8-9-comprehensive-e2e-test-suite: backlog
+  8-10-performance-validation-tests: backlog
+  8-11-accessibility-audit: backlog
+  8-13-network-allowlist-enforcement: backlog
+  8-14-disable-telemetry-analytics: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog
+  epic-10-retrospective: optional
