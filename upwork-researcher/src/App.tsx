@@ -27,7 +27,7 @@ function App() {
       });
       setProposal(result);
     } catch (err) {
-      setError(err as string);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }

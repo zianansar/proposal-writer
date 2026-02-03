@@ -26,7 +26,7 @@ function ProposalOutput({ proposal, loading, error }: ProposalOutputProps) {
   }
 
   return (
-    <div className="proposal-output">
+    <div className="proposal-output" aria-live="polite">
       <label>Generated Proposal</label>
       <div className="proposal-text">{proposal}</div>
     </div>

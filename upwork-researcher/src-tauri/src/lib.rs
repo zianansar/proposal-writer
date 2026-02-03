@@ -1,4 +1,4 @@
-mod claude;
+pub mod claude;
 
 #[tauri::command]
 async fn generate_proposal(job_content: String) -> Result<String, String> {
