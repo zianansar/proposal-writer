@@ -41,8 +41,8 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   epic-0: in-progress
-  0-1-basic-job-input-ui: review
-  0-2-claude-api-integration-for-basic-generation: review
+  0-1-basic-job-input-ui: done
+  0-2-claude-api-integration-for-basic-generation: done
   0-3-streaming-ui-display: backlog
   0-4-manual-copy-to-clipboard: backlog
   0-5-validate-ai-detection-passing: backlog
