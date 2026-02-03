@@ -153,3 +153,8 @@ Desktop.ini
 
 # Project specific
 # Add any project-specific ignores below
+
+# Claude Code
+.claude/settings.local.json
+.claude/auth.json
+.claude/

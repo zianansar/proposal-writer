@@ -1,4 +1,4 @@
-# Epic Stories - Complete Breakdown
+xx# Epic Stories - Complete Breakdown
 
 ## Epic 0: Walking Skeleton (Proof of Concept) [MVP - SPIKE]
 
@@ -17,6 +17,7 @@ So that I can start the proposal generation process quickly.
 **And** the input area has placeholder text explaining what to paste
 
 **Technical Notes:**
+
 - Simple textarea component, no database persistence yet
 - URL vs text detection not required (both treated as text)
 - No validation required in spike
@@ -38,6 +39,7 @@ So that I don't have to write from scratch.
 **And** displays the generated text in a simple output area
 
 **Technical Notes:**
+
 - Hardcoded API key for spike (will move to keychain in Epic 2)
 - Basic prompt template for generation
 - No streaming yet (get full response, then display)
@@ -60,6 +62,7 @@ So that I know the system is working and don't wait blindly.
 **And** tokens are batched at 50ms intervals (AR-10)
 
 **Technical Notes:**
+
 - **Round 6 Streaming Optimization (Performance Profiler):** Batch tokens in Rust for 50ms, emit single Tauri event with array of tokens. Frontend appends array to editor in one operation. Reduces re-renders from 20/sec to 2-3/sec, prevents jank with complex editor state.
 - Tauri events for streaming from Rust backend to React frontend
 - Simple text display (no rich formatting yet)
@@ -82,6 +85,7 @@ So that I can paste it into Upwork's proposal form.
 **And** I can paste it into any external application
 
 **Technical Notes:**
+
 - FR-13: Manual copy only, no auto-submit
 - Simple button, no safety checks yet (Epic 3)
 
@@ -102,6 +106,7 @@ So that we know the core concept works before investing in infrastructure.
 **And** findings are documented for Epic 3 safety threshold calibration
 
 **Technical Notes:**
+
 - Manual testing story (not automated)
 - Use ZeroGPT, GPTZero, or similar tools
 - If 5/5 pass, Epic 0 can be skipped per Round 4 refinement
@@ -125,6 +130,7 @@ So that we can persist user data.
 **And** app startup time remains <2 seconds (NFR-1)
 
 **Technical Notes:**
+
 - rusqlite 0.38 (AR-2)
 - Database location: OS-specific app data folder
 - UNENCRYPTED in this epic (encrypted in Epic 2)
@@ -142,6 +148,7 @@ So that users can access their past work.
 **Given** the database is initialized
 **When** the app creates the schema
 **Then** a `proposals` table exists with columns:
+
 - id (INTEGER PRIMARY KEY)
 - job_content (TEXT NOT NULL)
 - generated_text (TEXT NOT NULL)
@@ -149,6 +156,7 @@ So that users can access their past work.
 - updated_at (TIMESTAMP)
 
 **Technical Notes:**
+
 - Only create proposals table in this story (not all tables upfront)
 - Use SQL migration via refinery 0.9 (AR-18)
 
@@ -169,6 +177,7 @@ So that I can access them after closing the app.
 **And** the save operation completes in <100ms (NFR-4)
 
 **Technical Notes:**
+
 - Insert into proposals table
 - Atomic transaction (NFR-19)
 - No user confirmation needed (auto-save)
@@ -190,6 +199,7 @@ So that I can review what I've generated before.
 **And** the list loads in <500ms even with 100+ proposals (NFR-17)
 
 **Technical Notes:**
+
 - Simple list view, no search/filter yet (Epic 7)
 - **Query optimization (Round 6 Performance Profiler):** Exclude `generated_text` from list view to reduce data transfer from SQLCipher decryption. Use: `SELECT id, job_content, created_at FROM proposals ORDER BY created_at DESC LIMIT 100`
 - **Database index:** Add index on `created_at` for fast sorting
@@ -213,6 +223,7 @@ So that I can work comfortably during late-night proposal writing sessions.
 **And** no "white flash" on app startup
 
 **Technical Notes:**
+
 - Simple CSS variables, no theme switching yet (Epic 8 adds full theme system)
 - From Round 4: prevents developer eye strain during 10-week dev cycle
 - UX-1: dark mode by default
@@ -229,6 +240,7 @@ So that Epic 2 encryption migration is de-risked.
 
 **Given** a test environment on Windows 10/11 and macOS
 **When** I attempt to:
+
 1. Create an encrypted SQLCipher database
 2. Store a test key in OS keychain via keyring crate
 3. Retrieve the key and open the encrypted database
@@ -238,6 +250,7 @@ So that Epic 2 encryption migration is de-risked.
 **And** fallback strategies are identified if integration fails
 
 **Technical Notes:**
+
 - From Round 4 Thesis Defense: de-risk Epic 2 before it starts
 - Test on Windows 10 (multiple versions) and Windows 11
 - Document Windows Defender interactions (from Hindsight: 40% failure was due to Defender)
@@ -259,6 +272,7 @@ So that I can use my own account for proposal generation.
 **And** I see validation that the key format is correct (starts with "sk-ant-")
 
 **Technical Notes:**
+
 - Simple config file for now
 - Warning: "Your API key will be encrypted in a future update"
 - Basic format validation only
@@ -276,12 +290,14 @@ So that user preferences persist across sessions.
 **Given** the database exists
 **When** the settings table migration runs
 **Then** a `settings` table is created with columns:
+
 - key (TEXT PRIMARY KEY)
 - value (TEXT)
 - updated_at (TIMESTAMP)
 **And** default settings are seeded (e.g., theme: "dark", api_provider: "anthropic")
 
 **Technical Notes:**
+
 - Key-value store pattern
 - Migration includes seed data for defaults (AR-18)
 
@@ -302,6 +318,7 @@ So that I don't have to reconfigure every time I restart.
 **And** save completes in <50ms (NFR-4)
 
 **Technical Notes:**
+
 - UPSERT operation on settings table
 - Reactive updates (setting change immediately affects UI)
 
@@ -322,6 +339,7 @@ So that I have a manual backup before database migration in Epic 2.
 **And** I see confirmation: "Exported 47 proposals to proposals-backup.json"
 
 **Technical Notes:**
+
 - From Round 4 Red Team: safety net for Epic 2 migration
 - JSON format: array of proposal objects with all fields
 - Include metadata (export_date, app_version)
@@ -343,6 +361,7 @@ So that we can evolve the database schema safely over time.
 **And** failed migrations are logged with rollback capability
 
 **Technical Notes:**
+
 - refinery 0.9 setup with migration folder
 - Migrations numbered: V1__initial_schema.sql, V2__add_settings.sql, etc.
 - Atomic migrations with rollback on failure
@@ -360,6 +379,7 @@ So that users can analyze jobs before generating proposals (Epic 4).
 **Given** the database exists
 **When** the job_posts table migration runs
 **Then** a `job_posts` table is created with columns:
+
 - id (INTEGER PRIMARY KEY)
 - url (TEXT)
 - raw_content (TEXT NOT NULL)
@@ -367,6 +387,7 @@ So that users can analyze jobs before generating proposals (Epic 4).
 - created_at (TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
 
 **Technical Notes:**
+
 - Separate from proposals table (jobs are reusable, proposals are one-time)
 - Will be populated in Epic 4a
 
@@ -383,6 +404,7 @@ So that I can retry if Anthropic's service is down.
 **Given** I click "Generate Proposal"
 **When** the Anthropic API returns an error (500, timeout, rate limit)
 **Then** I see a user-friendly error message:
+
 - "Unable to generate proposal. Anthropic API is temporarily unavailable."
 - "Error: [specific error if helpful]"
 - Button: "Retry" | "Save Job for Later"
@@ -391,6 +413,7 @@ So that I can retry if Anthropic's service is down.
 **And** retry uses exponential backoff (1s, 2s, 4s delays)
 
 **Technical Notes:**
+
 - From Round 5 Chaos Monkey: API errors will happen
 - AR-23: circuit breaker (MVP = simple retry-once per stage)
 - Graceful degradation, not crash
@@ -412,6 +435,7 @@ So that I don't lose work if the app crashes.
 **And** I can continue editing or regenerate
 
 **Technical Notes:**
+
 - NFR-11: draft recovery - atomic persistence, state saved on every generation chunk
 - Save to proposals table with status: 'draft' vs 'completed'
 - Stream chunks save every 50ms (AR-10 batching)
@@ -431,19 +455,23 @@ So that I can start quickly without confusion.
 **Then** I see an onboarding wizard with 4 steps:
 
 **Step 1: Welcome**
+
 - "Welcome to Upwork Research Agent!"
 - "This tool helps you write personalized proposals faster."
 
 **Step 2: API Key**
+
 - "Enter your Anthropic API key"
 - Link: "Get a key at console.anthropic.com"
 - Validates key format (starts with "sk-ant-")
 
 **Step 3: Voice Calibration (Optional)**
+
 - "Upload 3-5 past proposals OR answer 5 quick questions"
 - "Skip for now" option clearly visible
 
 **Step 4: Ready!**
+
 - "You're all set! Paste a job post to get started."
 
 **And** onboarding can be dismissed and revisited
@@ -451,6 +479,7 @@ So that I can start quickly without confusion.
 **And** onboarding completion status saved to settings table
 
 **Technical Notes:**
+
 - **Round 6 Critical Resequencing (Shark Tank):** Moved from Epic 8 to Epic 1. Cannot ship beta test (after Epic 3) without first-launch experience. Users need guided setup from day 1.
 - UX-7: expectation management during onboarding
 - Clear, simple language
@@ -470,6 +499,7 @@ So that we can diagnose issues in production.
 **Given** the app is running
 **When** operations occur
 **Then** logs are written via Rust `tracing` crate to:
+
 - File: {app_data}/logs/app-{date}.log
 - Levels: ERROR, WARN, INFO, DEBUG
 - Daily rotation (new file each day)
@@ -480,6 +510,7 @@ So that we can diagnose issues in production.
 **And** log level configurable via settings (default: INFO)
 
 **Technical Notes:**
+
 - **Round 6 Critical Resequencing (Lessons Learned):** Moved from Epic 8 to Epic 1. Logging is infrastructure, not polish. Required for debugging beta test issues starting after Epic 3.
 - AR-19: logging with daily rotation, 7-day retention
 - tracing + tracing-subscriber crates (Rust)
@@ -501,6 +532,7 @@ So that my proposals and API key are encrypted.
 **Given** the app starts for the first time after Epic 1
 **When** I'm prompted to set up encryption
 **Then** I see a passphrase entry screen with:
+
 - Password field (**min 12 characters** - updated from 8 per Round 5 Security Audit)
 - Confirmation field
 - Strength meter showing weak/medium/strong
@@ -510,6 +542,7 @@ So that my proposals and API key are encrypted.
 **And** I must check acknowledgment: "I understand my data will be permanently lost if I forget my passphrase and lose my recovery key"
 
 **Technical Notes:**
+
 - Argon2id key derivation (AR-3)
 - Strength meter checks: length (≥12), uppercase, numbers, symbols
 - From Round 5: increased from 8 to 12 chars to prevent GPU brute force
@@ -533,6 +566,7 @@ So that I don't lose anything if migration fails.
 **And** migration does not proceed until backup confirms success
 
 **Technical Notes:**
+
 - From Round 4 Red Team + migration safety protocol
 - Automatic, not user-triggered (different from Story 1.10 manual export)
 - Verify backup file is readable before proceeding
@@ -550,6 +584,7 @@ So that user data is protected at rest.
 **Given** backup is complete and passphrase is set
 **When** migration executes
 **Then** the system:
+
 1. Creates new SQLCipher database with Argon2id-derived key
 2. Copies all tables and data from old SQLite database
 3. Verifies row counts match (proposals, settings, job_posts)
@@ -560,6 +595,7 @@ So that user data is protected at rest.
 **And** if any step fails, system rolls back and restores from backup
 
 **Technical Notes:**
+
 - From Round 4 migration safety protocol (6 steps)
 - **Round 6 Atomic Transaction Method (Rubber Duck):** Use ATTACH DATABASE to enable single transaction across unencrypted→encrypted migration:
   1. Create new encrypted database with Argon2id key (3 iterations, ~200ms derivation)
@@ -585,6 +621,7 @@ So that I can safely delete the unencrypted backup.
 **Given** migration completed successfully
 **When** I see the migration summary screen
 **Then** I see:
+
 - "Migration complete! ✓"
 - "47 proposals migrated successfully"
 - "Original database backed up to: {path}"
@@ -594,6 +631,7 @@ So that I can safely delete the unencrypted backup.
 **And** I must make explicit choice before proceeding
 
 **Technical Notes:**
+
 - From Round 4 migration safety protocol step 4
 - Conservative default: keep both until user confirms
 - Clear explanation of security implications
@@ -611,6 +649,7 @@ So that I don't lose my data.
 **Given** migration encounters an error (e.g., disk full, corruption)
 **When** the error is detected
 **Then** the system:
+
 1. Halts migration immediately
 2. Rolls back any partial changes
 3. Restores from pre-migration backup
@@ -621,6 +660,7 @@ So that I don't lose my data.
 **And** user can retry migration after fixing issue
 
 **Technical Notes:**
+
 - From Round 4 Hindsight (40% failure rate in future)
 - Detailed logging for support
 - Graceful degradation, not crash
@@ -638,6 +678,7 @@ So that it's securely stored.
 **Given** API key exists in plaintext config file from Epic 1
 **When** encryption setup completes
 **Then** the system:
+
 1. Reads API key from config file
 2. Stores it in OS keychain via keyring crate (AR-17)
 3. Deletes key from config file
@@ -647,6 +688,7 @@ So that it's securely stored.
 **And** macOS uses Keychain Access, Windows uses Credential Manager
 
 **Technical Notes:**
+
 - NFR-10: credential storage in OS keychain
 - Test keychain access on both platforms
 - Handle keychain access denied gracefully
@@ -670,6 +712,7 @@ So that I can access my encrypted data.
 **And** after 5 failed attempts, I see recovery options (restore from backup)
 
 **Technical Notes:**
+
 - Passphrase not stored anywhere (derived key only)
 - Constant-time comparison to prevent timing attacks
 - Clear button to reveal/hide passphrase
@@ -691,6 +734,7 @@ So that I have confidence in the app's security.
 **And** clicking shows encryption details: database encrypted, API key in keychain
 
 **Technical Notes:**
+
 - Simple visual confidence signal
 - NFR-7: AES-256 encryption via SQLCipher
 
@@ -707,6 +751,7 @@ So that I don't permanently lose all my proposals.
 **Given** I'm setting up encryption (Story 2.1)
 **When** I create my passphrase
 **Then** I'm offered recovery options:
+
 - **Option 1:** "Print Recovery Key" (generates one-time recovery code, user prints it)
 - **Option 2:** "Export Unencrypted Backup" (export JSON before encryption, user stores safely)
 
@@ -714,6 +759,7 @@ So that I don't permanently lose all my proposals.
 **And** I can skip recovery setup (with warning)
 
 **Technical Notes:**
+
 - From Round 5 Security Audit: passphrase forgotten = data lost without recovery
 - Recovery key: random 32-char string, can decrypt database
 - Stored separately (user's responsibility to keep safe)
@@ -739,6 +785,7 @@ So that I don't accidentally submit a proposal that gets flagged.
 **And** if score is ≥180, copy is blocked and I see warning screen
 
 **Technical Notes:**
+
 - FR-11: pre-flight scan before copy
 - Uses Claude Haiku for cost-effective analysis (AR-4)
 - Threshold 180 from Round 4 Hindsight (150 flagged 60% of proposals)
@@ -756,6 +803,7 @@ So that I can fix them before submitting.
 **Given** pre-flight scan failed (perplexity ≥180)
 **When** I see the warning screen
 **Then** I see:
+
 - "⚠️ AI Detection Risk Detected"
 - Perplexity score: 185 (threshold: 180)
 - List of flagged sentences with highlights
@@ -763,6 +811,7 @@ So that I can fix them before submitting.
 - Buttons: "Edit Proposal" | "Override (Risky)"
 
 **Technical Notes:**
+
 - FR-11: display flagged sentences with suggestions
 - Specific edit examples, not generic "add variety" (from Round 3 User Persona)
 - Clear, actionable guidance
@@ -785,6 +834,7 @@ So that they sound more human-written.
 **And** generation time remains <8 seconds (NFR-6)
 
 **Technical Notes:**
+
 - FR-7: natural imperfections injection
 - Applied during generation via prompt engineering, not post-processing
 - Subtle enough to not harm quality
@@ -807,6 +857,7 @@ So that I can pass AI detection without manual editing.
 **And** if still failing, offers to increase further
 
 **Technical Notes:**
+
 - From Round 3 User Persona: actionable solution, not just warning
 - Iterative approach: increase humanization until passing
 - Maximum 3 attempts to avoid degrading quality
@@ -830,6 +881,7 @@ So that I can balance safety vs. strictness based on my comfort level.
 **And** I see explanation: "Lower = stricter checks, Higher = more proposals pass"
 
 **Technical Notes:**
+
 - From Round 3 User Persona: configurable threshold
 - Default 180 from Round 4 Hindsight data
 - Persistent across sessions
@@ -847,6 +899,7 @@ So that I can copy a proposal even if it's flagged (at my own risk).
 **Given** I'm on the safety warning screen
 **When** I click "Override (Use at Your Own Risk)"
 **Then** I see a confirmation dialog:
+
 - "⚠️ This proposal may be detected as AI-generated."
 - "Upwork may penalize your account."
 - "Are you sure you want to copy it?"
@@ -856,6 +909,7 @@ So that I can copy a proposal even if it's flagged (at my own risk).
 **And** override is logged for adaptive learning (Story 3.7)
 
 **Technical Notes:**
+
 - From Round 3 User Persona: override capability for edge cases
 - Clear warning about consequences
 - Not encouraged, but available
@@ -873,6 +927,7 @@ So that the threshold adjusts to my risk tolerance over time.
 **Given** I have overridden the safety warning 3+ times
 **When** the system detects this pattern
 **Then** I see a notification:
+
 - "You've successfully used 3 proposals that were flagged."
 - "Would you like to adjust your threshold from 180 to 190?"
 - Buttons: "Yes, Adjust" | "No, Keep Current"
@@ -881,6 +936,7 @@ So that the threshold adjusts to my risk tolerance over time.
 **And** future proposals are evaluated against my adjusted threshold
 
 **Technical Notes:**
+
 - From Round 4 Red Team: "learn from overrides" adaptive system
 - Only suggests increase if overrides were "successful" (user confirms no issues)
 - Maximum threshold 220 to prevent completely disabling safety
@@ -902,6 +958,7 @@ So that I don't burn through API credits or raise red flags.
 **And** after 2 minutes, the button re-enables
 
 **Technical Notes:**
+
 - FR-12: cooldown max 1 generation per 2 minutes
 - Backend enforcement (not just UI disable)
 - Phase 2: UI controls in settings (for now, hardcoded)
@@ -919,6 +976,7 @@ So that I can work efficiently without reaching for my mouse.
 **Given** I'm using the app
 **When** I press keyboard shortcuts
 **Then** the following work correctly:
+
 - **Cmd/Ctrl + Enter**: Generate proposal (if job input has content)
 - **Cmd/Ctrl + C**: Copy proposal to clipboard (if generation complete and safety passed)
 - **Tab / Shift+Tab**: Navigate between UI elements in logical order
@@ -927,6 +985,7 @@ So that I can work efficiently without reaching for my mouse.
 **And** focus indicators are clearly visible
 
 **Technical Notes:**
+
 - From Round 4 Hindsight: early adopters are power users, need shortcuts NOW
 - UX-3: keyboard shortcuts for power users
 - Full keyboard nav (accessibility) comes in Epic 8
@@ -952,6 +1011,7 @@ So that I have flexibility in how I provide job information.
 **And** both are accepted and saved to job_posts table
 
 **Technical Notes:**
+
 - FR-1: paste URL or text
 - Simple detection: URL starts with http/https
 - No actual URL fetching yet (future enhancement)
@@ -975,6 +1035,7 @@ So that I can personalize my proposal.
 **And** analysis completes in <3 seconds
 
 **Technical Notes:**
+
 - FR-2: extract client name
 - Uses Claude Haiku for cost-effective analysis (AR-4)
 - Prompt caching for analysis prompts (AR-5)
@@ -997,6 +1058,7 @@ So that I can highlight relevant experience in my proposal.
 **And** skills are saved to a job_skills table (new migration)
 
 **Technical Notes:**
+
 - FR-2: extract key skills
 - Skills stored separately for future matching (Epic 4b)
 - Return structured list from Claude
@@ -1015,12 +1077,14 @@ So that I can address their real concerns in my proposal.
 **When** Claude Haiku analyzes the job post
 **Then** it identifies 2-3 hidden needs based on job language
 **And** displays them with explanations:
+
 - "Client is stressed → They mention 'urgent' and 'ASAP'"
 - "Budget-conscious → They emphasize 'cost-effective solution'"
 
 **And** hidden needs are saved to job_posts table (JSON field)
 
 **Technical Notes:**
+
 - FR-2: extract hidden needs (2-3 implied priorities)
 - Advanced analysis requiring reasoning
 - Examples help Claude identify patterns: "fast turnaround" → urgency, "proven track record" → risk-averse
@@ -1039,6 +1103,7 @@ So that we can match skills against user profile in Epic 4b.
 **Given** the database exists
 **When** the job_skills migration runs
 **Then** a `job_skills` table is created with columns:
+
 - id (INTEGER PRIMARY KEY)
 - job_post_id (INTEGER, foreign key to job_posts)
 - skill_name (TEXT NOT NULL)
@@ -1046,6 +1111,7 @@ So that we can match skills against user profile in Epic 4b.
 **And** a many-to-many relationship allows multiple skills per job
 
 **Technical Notes:**
+
 - Normalized schema for skill matching
 - Will be used in Epic 4b for scoring
 
@@ -1062,6 +1128,7 @@ So that I know the app is working and not frozen.
 **Given** I clicked "Analyze Job"
 **When** analysis is in progress
 **Then** I see a progress indicator with stages:
+
 - "Analyzing job post..." (0-2s)
 - "Extracting details..." (2-3s)
 - "Complete! ✓" (3s)
@@ -1070,6 +1137,7 @@ So that I know the app is working and not frozen.
 **And** total time is <3 seconds per performance target
 
 **Technical Notes:**
+
 - UX feedback during async operation
 - Real-time stage updates via Tauri events
 
@@ -1090,12 +1158,14 @@ So that I can quickly understand the job requirements.
 **Client:** John Smith
 **Key Skills:** [React] [TypeScript] [API Integration]
 **Hidden Needs:**
+
 - 🔥 Client is stressed (mentioned "urgent" 3 times)
 - 💰 Budget-conscious (emphasized "cost-effective")
 
 **And** I can click "Generate Proposal" to use this analysis
 
 **Technical Notes:**
+
 - Clear information hierarchy
 - Icons for visual scanning
 - Prepares context for Epic 5 (hook selection)
@@ -1113,6 +1183,7 @@ So that I can reference them later.
 **Given** job analysis has completed
 **When** the analysis finishes
 **Then** the system saves to database:
+
 - job_posts table: id, url, raw_content, client_name, created_at
 - job_skills table: extracted skills linked to job_post_id
 - hidden_needs JSON field in job_posts
@@ -1121,6 +1192,7 @@ So that I can reference them later.
 **And** I see subtle "Saved ✓" indicator
 
 **Technical Notes:**
+
 - NFR-19: atomic persistence
 - All related data saved in single transaction
 
@@ -1137,6 +1209,7 @@ So that the app remains secure.
 **Given** a user pastes job content
 **When** the content is sent to Claude API
 **Then** the system:
+
 1. **Escapes XML special characters (Round 6 Rubber Duck):** Replace `<` with `&lt;`, `>` with `&gt;`, `&` with `&amp;` in job content before wrapping
 2. Wraps job content in XML delimiters per AR-13 (`<job_post>...</job_post>`)
 3. **Limits input to 25K tokens with sentence boundary preservation (Round 6 Rubber Duck):** If >25K tokens, truncate at last complete sentence (period + space) before 25K boundary
@@ -1146,6 +1219,7 @@ So that the app remains secure.
 **And** if truncated, user sees warning: "⚠️ Job post too long. Last ~5K tokens removed. Analysis may be incomplete. Consider summarizing the job post manually."
 
 **Technical Notes:**
+
 - From Round 5 Security Audit: prompt injection is HIGH severity risk
 - AR-13: prompt boundary enforcement with XML delimiters
 - AR-6: max 25K input tokens per generation
@@ -1171,6 +1245,7 @@ So that the app can match me against job requirements.
 **And** changes save immediately
 
 **Technical Notes:**
+
 - Required for FR-4: weighted scoring
 - Autocomplete suggests common Upwork skills
 - Will be matched against job_skills in Story 4b.3
@@ -1188,15 +1263,18 @@ So that I know if this job is a good fit for me.
 **Given** I have configured my skills profile
 **When** a job is analyzed
 **Then** the system calculates skills match percentage:
+
 - Count: skills in job that I have / total skills in job
 - Example: Job requires [React, TypeScript, Testing] → I have [React, TypeScript] → 67% match
 
 **And** displays: "Skills Match: 67%" with color:
+
 - Green: ≥75%
 - Yellow: 50-74%
 - Red: <50%
 
 **Technical Notes:**
+
 - Simple intersection calculation
 - Case-insensitive matching
 - Part of FR-4 weighted scoring
@@ -1214,16 +1292,19 @@ So that I can avoid problematic clients.
 **Given** a job post is being analyzed
 **When** Claude Haiku processes the job
 **Then** it estimates client quality (0-100) based on:
+
 - Payment history indicators ("paid on time", "verified payment")
 - Hire rate signals ("0 hires" vs "100% hire rate")
 - Communication quality (well-written post vs vague)
 
 **And** displays: "Client Quality: 85%" with color:
+
 - Green: ≥80
 - Yellow: 60-79
 - Red: <60 or "0 hires"
 
 **Technical Notes:**
+
 - FR-4: client quality scoring
 - Inference-based (no access to real Upwork data)
 - Claude analyzes job post language for signals
@@ -1243,11 +1324,13 @@ So that I don't waste time on low-budget jobs.
 **Then** the system extracts budget from job post
 **And** compares to my rate
 **And** displays: "Budget Alignment: 90%" with color:
+
 - Green: budget ≥ my rate
 - Yellow: budget 70-99% of my rate
 - Red: budget <70% of my rate
 
 **Technical Notes:**
+
 - Part of FR-4 weighted scoring
 - Handles hourly ($50/hr) and project ($2000 fixed) budgets
 - If budget not mentioned, shows "Unknown"
@@ -1265,11 +1348,13 @@ So that I can quickly prioritize which jobs to pursue.
 **Given** skills match, client quality, and budget alignment are calculated
 **When** overall score is computed
 **Then** the system uses weighted formula:
+
 - Skills match: 40% weight
 - Client quality: 40% weight
 - Budget alignment: 20% weight
 
 **And** final score (0-100) determines color:
+
 - **Green:** ≥75% match AND ≥80 client score
 - **Yellow:** 50-74% match OR 60-79% client score
 - **Red:** <50% match OR <60% client score OR 0-hire client
@@ -1277,6 +1362,7 @@ So that I can quickly prioritize which jobs to pursue.
 **And** I see overall score with breakdown
 
 **Technical Notes:**
+
 - FR-4: weighted scoring with Green/Yellow/Red flags
 - Exact thresholds from PRD
 - Allows drill-down to see why job scored as it did
@@ -1297,6 +1383,7 @@ So that I can trust the scoring system.
 
 **Overall: Yellow (68%)**
 **Why Yellow?**
+
 - ✅ Skills Match: 75% (good) - You have 3/4 required skills
 - ⚠️ Client Quality: 60% (medium risk) - Only 2 previous hires
 - ✅ Budget: 90% (good) - $55/hr vs your $50/hr rate
@@ -1304,6 +1391,7 @@ So that I can trust the scoring system.
 **Recommendation:** Proceed with caution. Client is new to Upwork.
 
 **Technical Notes:**
+
 - From Round 3 User Persona (Marcus needs transparency)
 - FR-17: rationalized scoring with human-readable explanations
 - Each component shows why it scored as it did
@@ -1330,6 +1418,7 @@ So that I can batch-analyze opportunities.
 **And** I receive notification when complete: "All 23 jobs analyzed. View queue →"
 
 **Technical Notes:**
+
 - FR-3: RSS feed batch import
 - Parse standard RSS XML format
 - **Round 6 Background Processing:** Import RSS → save to queue → return immediately → background worker processes queue. Prevents UI blocking for 100+ seconds.
@@ -1354,6 +1443,7 @@ So that I can continue importing jobs.
 **And** if both fail, shows clear error with manual paste option
 
 **Technical Notes:**
+
 - From Round 4 Hindsight: "RSS will break. Upwork hates automation."
 - Graceful degradation: RSS → scraping → manual paste
 - Scraping requires HTML parsing (use scraper crate)
@@ -1371,6 +1461,7 @@ So that I can prioritize which proposals to write first.
 **Given** I have imported/analyzed multiple jobs
 **When** I view the Job Queue
 **Then** I see a list of all jobs with:
+
 - Client name
 - Skills match %
 - Client quality %
@@ -1382,6 +1473,7 @@ So that I can prioritize which proposals to write first.
 **And** queue loads in <500ms even with 100+ jobs (NFR-17)
 
 **Technical Notes:**
+
 - UX-2: Green/Yellow/Red indicators with progressive disclosure
 - Query performance critical (NFR-17)
 - **Round 6 Database Index (Performance Profiler):** Create index on `overall_score` column for fast sorting: `CREATE INDEX idx_jobs_overall_score ON job_posts(overall_score DESC)`
@@ -1401,6 +1493,7 @@ So that the system can improve over time.
 **Given** I disagree with a job's score
 **When** I click "Report Incorrect Score" on a job
 **Then** I see a form:
+
 - "What's wrong with this score?"
 - Checkboxes: Skills mismatch, Client quality wrong, Budget wrong, Other
 - Free text field for details
@@ -1409,6 +1502,7 @@ So that the system can improve over time.
 **And** I see: "Thanks! We'll use this to improve scoring."
 
 **Technical Notes:**
+
 - From Round 4 Red Team: feedback loop for bad scoring
 - Data collected for future ML improvements (v1.1+)
 - For now, just logged (not used to adjust scoring yet)
@@ -1428,6 +1522,7 @@ So that users have options immediately without configuration.
 **Given** the database is initialized
 **When** migrations run
 **Then** a `hook_strategies` table is created and seeded with:
+
 - Social Proof (examples: "I've helped 12 clients...", "My clients see 40% increase...")
 - Contrarian ("Most freelancers will..., but I...")
 - Immediate Value ("Here's a quick win you can implement today...")
@@ -1437,6 +1532,7 @@ So that users have options immediately without configuration.
 **And** each strategy includes 2-3 example openers
 
 **Technical Notes:**
+
 - AR-18: seed data for default hook strategies
 - From implementation artifacts: upwork-proposal-hook-library.md
 - FR-5: hook strategy selection
@@ -1454,6 +1550,7 @@ So that I can match my approach to the client's needs.
 **Given** I'm about to generate a proposal
 **When** I see the hook selection screen
 **Then** I see 5 hook strategies as cards:
+
 - Strategy name
 - Brief description
 - Example opening line
@@ -1463,6 +1560,7 @@ So that I can match my approach to the client's needs.
 **And** selection is saved and used for generation
 
 **Technical Notes:**
+
 - FR-5: hook strategy selection
 - Visual card interface for easy scanning
 - Strategy influences generation prompt
@@ -1486,6 +1584,7 @@ So that the app can learn my writing style quickly.
 **And** I see count: "2/5 proposals uploaded"
 
 **Technical Notes:**
+
 - FR-16: Golden Set calibration
 - Text paste OR file upload (.txt, .pdf)
 - Stored in golden_set_proposals table
@@ -1503,6 +1602,7 @@ So that my competitive writing samples stay private.
 **Given** I've uploaded 3+ Golden Set proposals
 **When** I click "Calibrate Voice"
 **Then** the system analyzes locally (frontend or Rust backend):
+
 - Tone: Professional/Casual/Friendly (sentiment analysis)
 - Average sentence length
 - Vocabulary complexity (Flesch-Kincaid)
@@ -1514,6 +1614,7 @@ So that my competitive writing samples stay private.
 **And** I see: "✓ Proposals analyzed locally in 1.2s. No text was uploaded."
 
 **Technical Notes:**
+
 - AR-12: privacy layer - send style params, not raw samples
 - All analysis happens client-side
 - Only derived parameters sent to Claude in prompts
@@ -1533,6 +1634,7 @@ So that I understand how the app will generate proposals for me.
 **Then** I see:
 
 **Your Writing Style:**
+
 - **Tone:** Professional (85% formal language)
 - **Length:** Moderate (avg 15 words/sentence)
 - **Structure:** Mixed (60% paragraphs, 40% bullets)
@@ -1542,6 +1644,7 @@ So that I understand how the app will generate proposals for me.
 **And** I can click "Recalibrate" to update
 
 **Technical Notes:**
+
 - Human-readable parameters
 - Transparent about what was learned
 - Builds trust per UX-8 (progressive trust building)
@@ -1566,6 +1669,7 @@ So that I feel comfortable uploading my best work.
 **And** clicking "How does this work?" shows detailed explanation
 
 **Technical Notes:**
+
 - From Round 4 Red Team: change "privacy layer" to "local-only"
 - Visual trust signal (lock icon, green badge)
 - Clear, non-technical language
@@ -1594,6 +1698,7 @@ So that I can start quickly without past examples.
 **And** I see: "Voice calibrated! You can always upload proposals later for better accuracy."
 
 **Technical Notes:**
+
 - From Round 3 What If Scenarios: alternative for users without past work
 - Maps questions to same parameters as Golden Set analysis
 - Less accurate but immediate
@@ -1611,6 +1716,7 @@ So that they persist across sessions and can be loaded for generation.
 **Given** voice calibration completes (Golden Set or Quick Calibration)
 **When** parameters are extracted
 **Then** they are saved to a `voice_profiles` table:
+
 - user_id (for multi-user future support)
 - tone (1-10 scale: formal to casual)
 - avg_sentence_length (integer)
@@ -1622,6 +1728,7 @@ So that they persist across sessions and can be loaded for generation.
 **And** updates when user recalibrates
 
 **Technical Notes:**
+
 - From Round 5 Thread of Thought: missing link in voice storage
 - Single row per user (UPDATE on recalibration)
 - Queried in Story 5.8 for generation
@@ -1639,6 +1746,7 @@ So that they sound like I wrote them.
 **Given** I have calibrated my voice (Golden Set or Quick Calibration)
 **When** I generate a proposal
 **Then** the system:
+
 1. **Loads voice profile AND job context in parallel (Round 6 Rubber Duck clarification):**
    - Concurrent query 1: `SELECT * FROM voice_profiles WHERE user_id = ?`
    - Concurrent query 2: `SELECT * FROM job_posts JOIN job_skills WHERE job_id = ?`
@@ -1654,6 +1762,7 @@ So that they sound like I wrote them.
 **And** before/after calibration shows noticeable difference
 
 **Technical Notes:**
+
 - AR-5: prompt caching for voice parameters
 - Voice params injected into system prompt
 - 30-second calibration time target (FR-16)
@@ -1674,6 +1783,7 @@ So that I can refine formatting and content easily.
 **Given** a proposal has been generated
 **When** I view the proposal
 **Then** I see a TipTap rich text editor with toolbar:
+
 - Bold, Italic
 - Bullet list, Numbered list
 - Clear formatting
@@ -1684,6 +1794,7 @@ So that I can refine formatting and content easily.
 **And** editor loads in <100ms (NFR-4)
 
 **Technical Notes:**
+
 - AR-9: TipTap 3.x (ProseMirror-based)
 - FR-8: rich text editor
 - Auto-save to proposals table (updated_at timestamp)
@@ -1701,6 +1812,7 @@ So that future proposals better match my style.
 **Given** I'm in Settings → Voice
 **When** I view voice settings
 **Then** I see sliders for:
+
 - Tone: Formal ←→ Casual (1-10 scale)
 - Length: Brief ←→ Detailed (1-10 scale)
 - Technical Depth: Simple ←→ Expert (1-10 scale)
@@ -1710,6 +1822,7 @@ So that future proposals better match my style.
 **And** current values are shown (e.g., Tone: 7/10 Professional)
 
 **Technical Notes:**
+
 - FR-10: voice weight updates (manual only in MVP)
 - AR-22: MVP = few-shot prompting, NO automated learning
 - Simplified from original FR-9/FR-10 scope per Round 3
@@ -1732,6 +1845,7 @@ So that I can revert if I make a mistake.
 **And** restoration creates a new revision (doesn't delete history)
 
 **Technical Notes:**
+
 - New table: proposal_revisions (proposal_id, content, created_at)
 - Immutable log (never delete revisions)
 - Each auto-save creates a revision
@@ -1749,6 +1863,7 @@ So that I can match Upwork's proposal length guidelines.
 **Given** I'm editing a proposal
 **When** I type or delete text
 **Then** I see real-time counts in status bar:
+
 - "342 characters"
 - "67 words"
 
@@ -1756,6 +1871,7 @@ So that I can match Upwork's proposal length guidelines.
 **And** if >600 words, shows warning: "Long proposals may not be fully read"
 
 **Technical Notes:**
+
 - Real-time calculation (no debounce needed for counts)
 - Based on Upwork best practices
 
@@ -1772,6 +1888,7 @@ So that I can edit quickly.
 **Given** I'm editing in TipTap
 **When** I use keyboard shortcuts
 **Then** the following work:
+
 - Cmd/Ctrl + B: Bold
 - Cmd/Ctrl + I: Italic
 - Cmd/Ctrl + Z: Undo
@@ -1780,6 +1897,7 @@ So that I can edit quickly.
 **And** shortcuts are shown in toolbar tooltips
 
 **Technical Notes:**
+
 - Standard rich text shortcuts
 - ProseMirror handles keybindings natively
 
@@ -1801,6 +1919,7 @@ So that I can paste it into Upwork.
 **And** safety check still runs (Epic 3 pre-flight)
 
 **Technical Notes:**
+
 - Strip HTML formatting, keep only text
 - Newlines preserved for paragraphs
 - Safety check applies to final edited version
@@ -1818,6 +1937,7 @@ So that the database doesn't grow unbounded.
 **Given** a proposal has >5 revisions (from Round 5 Occam's Razor: limit to 5)
 **When** a new revision is created
 **Then** the system:
+
 1. Keeps the 5 most recent revisions
 2. Archives older revisions to compressed JSON blob
 3. User can still access archived revisions (read-only)
@@ -1826,6 +1946,7 @@ So that the database doesn't grow unbounded.
 **And** archiving happens in background (doesn't block save)
 
 **Technical Notes:**
+
 - From Round 5 Code Review: prevent 1000+ revision bloat
 - Archiving after 5 revisions per Occam's Razor simplification
 - Compressed storage for historical data
@@ -1843,6 +1964,7 @@ So that I can remove content I no longer want.
 **Given** I'm viewing a proposal
 **When** I click "Delete Proposal"
 **Then** I see confirmation dialog:
+
 - "⚠️ This will permanently delete the proposal and all revisions."
 - "This cannot be undone."
 - Buttons: "Cancel" | "Delete Permanently"
@@ -1851,6 +1973,7 @@ So that I can remove content I no longer want.
 **And** I see: "Proposal deleted."
 
 **Technical Notes:**
+
 - From Round 5 Security Audit: right to deletion (GDPR-like)
 - CASCADE delete on proposal_revisions
 - Atomic transaction (all or nothing)
@@ -1870,6 +1993,7 @@ So that I can work comfortably at night.
 **Given** the app opens
 **When** I view any screen
 **Then** I see a complete dark theme with:
+
 - Background: #1a1a1a (dark gray, not pure black)
 - Text: #e0e0e0 (light gray)
 - Primary accent: #3b82f6 (blue)
@@ -1881,6 +2005,7 @@ So that I can work comfortably at night.
 **And** no bright white flashes anywhere
 
 **Technical Notes:**
+
 - Builds on Story 1.5 basic CSS
 - CSS custom properties for theme system
 - Full design system per UX-1
@@ -1899,6 +2024,7 @@ So that I never have to use my mouse.
 **Given** I'm using the app with keyboard only
 **When** I press Tab repeatedly
 **Then** focus moves through all interactive elements in logical order:
+
 1. Job input field
 2. "Analyze Job" button
 3. Results (if present)
@@ -1912,6 +2038,7 @@ So that I never have to use my mouse.
 **And** Escape closes dialogs/modals
 
 **Technical Notes:**
+
 - Builds on Story 3.9 core shortcuts
 - Full keyboard navigation (not just shortcuts)
 - NFR-20: WCAG AA compliance
@@ -1930,6 +2057,7 @@ So that I can use it independently.
 **Given** I'm using a screen reader (VoiceOver, NVDA, JAWS)
 **When** I navigate the app
 **Then** all elements are announced correctly:
+
 - Buttons announce their label and state
 - Form fields announce label + type + value
 - Status updates are announced via aria-live regions
@@ -1940,6 +2068,7 @@ So that I can use it independently.
 **And** error messages are associated with fields
 
 **Technical Notes:**
+
 - NFR-20: WCAG AA screen reader support
 - ARIA labels on all interactive elements
 - Semantic HTML (h1-h6, nav, main, article)
@@ -1971,6 +2100,7 @@ So that I understand the process and know it's working.
 **And** total time <8s (NFR-6)
 
 **Technical Notes:**
+
 - UX-4: pipeline stage indicators
 - Real-time updates via Tauri events
 - Builds confidence and shows progress
@@ -1996,6 +2126,7 @@ So that I have realistic expectations.
 **Then** I see clear messaging:
 
 "**How Voice Learning Works:**
+
 - First proposal: Uses your Quick Calibration or Golden Set
 - After 3-5 proposals: System learns your editing patterns
 - After 10+ proposals: Highly personalized to your style
@@ -2005,6 +2136,7 @@ Takes 3-5 uses to learn your voice."
 **And** progress indicator shows: "Proposals edited: 2/5 (learning in progress)"
 
 **Technical Notes:**
+
 - UX-7: "Takes 3-5 uses to learn your voice"
 - Manages expectations (not instant perfection)
 - Shows progress toward calibration goal
@@ -2027,6 +2159,7 @@ So that I can access my history quickly.
 **And** query returns in <500ms (NFR-17)
 
 **Technical Notes:**
+
 - NFR-2: RAM target <300MB
 - Virtual scrolling (react-window or similar)
 - Lazy loading (load 50 at a time)
@@ -2053,22 +2186,26 @@ So that we can ship with confidence.
 **Then** the following user journeys are covered:
 
 **Journey 1: First-Time User**
+
 1. Open app → onboarding
 2. Enter API key
 3. Quick Calibration (5 questions)
 4. Paste job → analyze → generate → copy
 
 **Journey 2: Returning User**
+
 1. Open app → enter passphrase
 2. View past proposals
 3. Paste job → analyze → generate → edit → copy
 
 **Journey 3: Golden Set Calibration**
+
 1. Upload 3 proposals
 2. Calibrate voice
 3. Generate proposal → verify voice match
 
 **Journey 4: Safety Override**
+
 1. Generate proposal that fails safety
 2. View warning
 3. Override → copy
@@ -2078,6 +2215,7 @@ So that we can ship with confidence.
 **And** tests verify accessibility (keyboard nav, screen reader)
 
 **Technical Notes:**
+
 - From Round 2: testing strategy
 - **Round 6 Effort Estimate (Shark Tank):** 24-32 hours for complete E2E suite (setup, authoring 4 journeys, cross-platform debugging, CI integration), not 8-16 hours
 - Tauri + Playwright or similar E2E framework
@@ -2097,6 +2235,7 @@ So that we don't regress on NFRs.
 **Given** performance test suite is configured
 **When** tests run
 **Then** the following are validated:
+
 - NFR-1: App startup <2 seconds
 - NFR-4: UI response <100ms (click to render)
 - NFR-5: Streaming start <1.5s
@@ -2107,6 +2246,7 @@ So that we don't regress on NFRs.
 **And** results are logged with timing data
 
 **Technical Notes:**
+
 - Automated performance regression detection
 - Run in CI on every PR
 - Alerts if performance degrades
@@ -2124,6 +2264,7 @@ So that we meet WCAG AA compliance.
 **Given** the app is feature-complete
 **When** accessibility audit is performed
 **Then** the following are validated:
+
 - ✅ Color contrast meets 4.5:1 minimum (WCAG AA)
 - ✅ All interactive elements keyboard accessible
 - ✅ Focus indicators visible (2px minimum)
@@ -2137,6 +2278,7 @@ So that we meet WCAG AA compliance.
 **And** any issues found are documented as bugs
 
 **Technical Notes:**
+
 - NFR-20: WCAG AA compliance
 - Automated audit + manual testing
 - Test with real screen readers (VoiceOver, NVDA)
@@ -2163,6 +2305,7 @@ So that my data cannot be exfiltrated by malicious code.
 **Given** the app is running
 **When** any component attempts network connection
 **Then** the system:
+
 1. Checks against allowlist: [api.anthropic.com]
 2. Blocks all other domains with error log
 3. Shows notification if blocked: "Blocked network request to unauthorized domain"
@@ -2171,6 +2314,7 @@ So that my data cannot be exfiltrated by malicious code.
 **And** Rust backend also checks domains (dual enforcement per AR-14)
 
 **Technical Notes:**
+
 - From Round 5 Security Audit: AR-14 mentioned but no story implemented it
 - NFR-9: block ALL traffic except allowlisted domains
 - Dual enforcement: CSP + Rust-side check
@@ -2188,6 +2332,7 @@ So that my proposal writing activity remains private.
 **Given** the app is configured
 **When** I check telemetry settings
 **Then** all analytics are disabled:
+
 - No crash reporting (unless explicitly opt-in)
 - No usage metrics sent
 - No error reporting to external services
@@ -2197,6 +2342,7 @@ So that my proposal writing activity remains private.
 **And** opt-in is available for crash reports only (explicit checkbox)
 
 **Technical Notes:**
+
 - From Round 5 Security Audit: NFR-8 zero telemetry default
 - Tauri may enable telemetry by default - explicitly disable
 - Opt-in crash reports acceptable, but default OFF
@@ -2206,6 +2352,7 @@ So that my proposal writing activity remains private.
 **END OF STORY GENERATION**
 
 **Stories Generated (After Round 6 Validation):**
+
 - Epic 0: 5 stories (no change)
 - Epic 1: 16 stories (+2 moved from Epic 8: onboarding flow, logging infrastructure)
 - Epic 2: 9 stories (no change)
@@ -2219,6 +2366,7 @@ So that my proposal writing activity remains private.
 **Total: 87 stories (unchanged from Round 5, but redistributed: Epic 1 +2, Epic 8 -2)**
 
 **Round 5 Validation Summary:**
+
 - **Code Review Gauntlet:** Found over-engineering (migrations debate), identified missing stories (archive revisions), deferred nice-to-haves (celebrations)
 - **Thread of Thought:** Found missing links (voice profile storage, job context loading)
 - **Security Audit:** HIGH severity issues addressed (prompt injection, API key in plaintext warning, passphrase strength, network allowlist, telemetry)
@@ -2226,6 +2374,7 @@ So that my proposal writing activity remains private.
 - **Occam's Razor:** Simplified over-engineered stories (client quality, voice analysis, logging, E2E tests)
 
 **Key Additions:**
+
 1. Story 1.13: API Error Handling
 2. Story 1.14: Draft Recovery on Crash (NFR-11)
 3. Story 2.1: Passphrase min 8→12 chars
@@ -2241,6 +2390,7 @@ So that my proposal writing activity remains private.
 ---
 
 **Round 6 Final Validation Summary:**
+
 - **Shark Tank Pitch:** Exposed timeline optimism (87 stories in 10-12 weeks unrealistic with 2 devs), Epic 4b deferral breaks FR-4 promise, Epic 8 sequencing wrong (onboarding should be Epic 1), underestimated story sizing (E2E tests = 24-32 hours not 8-16). Forced realism: 12-14 weeks for Polished MVP, Epic 4a+4b must ship together OR cut Epic 4 entirely.
 - **Performance Profiler Panel:** Found performance bottlenecks: Story 1.4 loads full generated_text (needs query optimization + index), Story 2.3 atomic transaction unclear (ATTACH DATABASE method), Story 0.3 streaming causes 20 re-renders/sec (batch tokens), Story 5.4 no performance target (<2s added), Story 4b.7 RSS blocks UI 100s (background processing), Story 4b.9 needs index on overall_score.
 - **Lessons Learned Extraction:** Validated what worked (Epic 1/2 split, distributed NFRs, Hindsight predictions, Security Audit), what didn't (Epic 0 might be throwaway, Epic 4 split confusing, Epic 8 too late, no cost/benefit), surprises (11 security stories, accessibility is 15-20% effort), lessons (onboarding/logging are infrastructure not polish, beta gate critical, Epic 4a alone is weak).
@@ -2248,6 +2398,7 @@ So that my proposal writing activity remains private.
 - **Reasoning via Planning:** Reverse-engineered optimal paths, identified Three Launch Tiers: (1) Minimal MVP 6-7 weeks (Epic 0-3, 5, basic 8), (2) Full MVP 10-11 weeks (add Epic 4 + 6), (3) Polished MVP 12-14 weeks (add full Epic 8). Clarified Epic 4 optional for Minimal but REQUIRED for Full MVP (fulfills FR-4).
 
 **Key Refinements from Round 6:**
+
 1. **Timeline Adjusted:** 12-14 weeks for Polished MVP (was 10-12), accounting for Round 5 scope growth and realistic story sizing
 2. **Three Launch Tiers:** Strategic flexibility - Minimal (6-7w) vs Full (10-11w) vs Polished (12-14w) based on market pressure
 3. **Epic Resequencing:** Moved Story 8.5 (Onboarding) → Story 1.15, Story 8.8 (Logging) → Story 1.16 (cannot ship beta without first-launch experience)
