@@ -424,6 +424,79 @@ h1 {
   cursor: not-allowed;
 }
 
+/* Settings Section */
+.settings-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #1a1a1a;
+  border: 1px solid #555;
+  border-radius: 8px;
+}
+
+.settings-section h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.settings-description {
+  color: #aaa;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+/* Export Button */
+.export-button-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #24c8db;
+  background-color: transparent;
+  border: 1px solid #24c8db;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: fit-content;
+}
+
+.export-button:hover:not(:disabled) {
+  background-color: #24c8db;
+  color: #1a1a1a;
+}
+
+.export-button:disabled {
+  color: #666;
+  border-color: #666;
+  cursor: not-allowed;
+}
+
+.export-result {
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.export-result--success {
+  color: #5cb85c;
+  background-color: rgba(92, 184, 92, 0.15);
+}
+
+.export-result--error {
+  color: #f88;
+  background-color: rgba(255, 136, 136, 0.15);
+}
+
 /* ===========================================
    Light Mode Override (for users who prefer it)
    =========================================== */
@@ -612,5 +685,35 @@ h1 {
   .api-key-setup__submit:disabled {
     background-color: #999;
     color: #fff;
+  }
+
+  /* Settings Section light mode */
+  .settings-section {
+    background-color: #fff;
+    border-color: #ccc;
+  }
+
+  .settings-description {
+    color: #666;
+  }
+
+  .export-button {
+    color: #396cd8;
+    border-color: #396cd8;
+  }
+
+  .export-button:hover:not(:disabled) {
+    background-color: #396cd8;
+    color: #fff;
+  }
+
+  .export-result--success {
+    color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+  }
+
+  .export-result--error {
+    color: #c00;
+    background-color: rgba(255, 0, 0, 0.1);
   }
 }

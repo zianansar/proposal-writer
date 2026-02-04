@@ -3,10 +3,11 @@
 //! Provides CRUD operations for the proposals table.
 
 use rusqlite::{params, Connection};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Saved proposal with its database ID (full content)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SavedProposal {
     pub id: i64,
     pub job_content: String,
@@ -72,6 +73,28 @@ pub fn list_proposals(conn: &Connection) -> Result<Vec<ProposalSummary>, rusqlit
                 id: row.get(0)?,
                 job_content: row.get(1)?,
                 created_at: row.get(2)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(proposals)
+}
+
+/// Get all proposals with full content for export.
+/// Returns all proposals ordered by id ASC (oldest first).
+/// No limit - used for backup/export purposes.
+pub fn get_all_proposals(conn: &Connection) -> Result<Vec<SavedProposal>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT id, job_content, generated_text, created_at FROM proposals ORDER BY id ASC",
+    )?;
+
+    let proposals = stmt
+        .query_map([], |row| {
+            Ok(SavedProposal {
+                id: row.get(0)?,
+                job_content: row.get(1)?,
+                generated_text: row.get(2)?,
+                created_at: row.get(3)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -199,5 +222,67 @@ mod tests {
 
         // Should be limited to 100
         assert_eq!(proposals.len(), 100);
+    }
+
+    #[test]
+    fn test_get_all_proposals_empty() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let proposals = get_all_proposals(&conn).unwrap();
+
+        assert!(proposals.is_empty());
+    }
+
+    #[test]
+    fn test_get_all_proposals_returns_full_content() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let job = "Test job content";
+        let generated = "Test generated text that is long";
+        insert_proposal(&conn, job, generated).unwrap();
+
+        let proposals = get_all_proposals(&conn).unwrap();
+
+        assert_eq!(proposals.len(), 1);
+        assert_eq!(proposals[0].job_content, job);
+        assert_eq!(proposals[0].generated_text, generated);
+        assert!(!proposals[0].created_at.is_empty());
+    }
+
+    #[test]
+    fn test_get_all_proposals_no_limit() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // Insert 105 proposals
+        for i in 0..105 {
+            insert_proposal(&conn, &format!("Job {}", i), &format!("Proposal {}", i)).unwrap();
+        }
+
+        let proposals = get_all_proposals(&conn).unwrap();
+
+        // Should return ALL proposals (no limit)
+        assert_eq!(proposals.len(), 105);
+    }
+
+    #[test]
+    fn test_get_all_proposals_ordered_by_id_asc() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id1 = insert_proposal(&conn, "First job", "First proposal").unwrap();
+        let id2 = insert_proposal(&conn, "Second job", "Second proposal").unwrap();
+        let id3 = insert_proposal(&conn, "Third job", "Third proposal").unwrap();
+
+        let proposals = get_all_proposals(&conn).unwrap();
+
+        // Oldest first (ASC order by created_at, which correlates with id for same-session inserts)
+        // Note: When timestamps are identical, SQLite may return any order, so we verify by id
+        assert_eq!(proposals.len(), 3);
+        assert_eq!(proposals[0].id, id1);
+        assert_eq!(proposals[1].id, id2);
+        assert_eq!(proposals[2].id, id3);
     }
 }

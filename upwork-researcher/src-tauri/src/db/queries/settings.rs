@@ -3,9 +3,10 @@
 //! Provides CRUD operations for the settings table (key-value store).
 
 use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
 
 /// A setting with its value and metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Setting {
     pub key: String,
     pub value: String,

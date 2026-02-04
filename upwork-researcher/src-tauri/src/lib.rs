@@ -10,6 +10,7 @@ pub mod events;
 pub mod encryption_spike;
 
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_dialog::DialogExt;
 
 /// Non-streaming proposal generation (kept for backwards compatibility/testing)
 #[tauri::command]
@@ -116,11 +117,174 @@ fn clear_api_key(config_state: State<config::ConfigState>) -> Result<(), String>
     config_state.clear_api_key()
 }
 
+// ============================================================================
+// Settings Commands (Story 1.9)
+// ============================================================================
+
+/// Get a setting value by key
+/// Returns None if the setting doesn't exist
+#[tauri::command]
+fn get_setting(database: State<db::Database>, key: String) -> Result<Option<String>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::settings::get_setting(&conn, &key)
+        .map_err(|e| format!("Failed to get setting: {}", e))
+}
+
+/// Set a setting value (insert or update)
+/// Uses UPSERT pattern for atomic operation
+#[tauri::command]
+fn set_setting(database: State<db::Database>, key: String, value: String) -> Result<(), String> {
+    // Validate key
+    let key = key.trim();
+    if key.is_empty() {
+        return Err("Setting key cannot be empty".to_string());
+    }
+    if key.len() > 255 {
+        return Err("Setting key too long (max 255 characters)".to_string());
+    }
+
+    // Validate value length
+    if value.len() > 10000 {
+        return Err("Setting value too long (max 10000 characters)".to_string());
+    }
+
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::settings::set_setting(&conn, key, &value)
+        .map_err(|e| format!("Failed to set setting: {}", e))
+}
+
+/// Get all settings as a list
+/// Returns all settings ordered by key
+#[tauri::command]
+fn get_all_settings(
+    database: State<db::Database>,
+) -> Result<Vec<db::queries::settings::Setting>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::settings::list_settings(&conn)
+        .map_err(|e| format!("Failed to get settings: {}", e))
+}
+
+// ============================================================================
+// Export Commands (Story 1.10)
+// ============================================================================
+
+/// Export result returned to frontend
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportResult {
+    success: bool,
+    file_path: Option<String>,
+    proposal_count: usize,
+    message: String,
+}
+
+/// Export metadata included in JSON file
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportMetadata {
+    export_date: String,
+    app_version: String,
+    proposal_count: usize,
+}
+
+/// Full export structure
+#[derive(serde::Serialize)]
+struct ExportData {
+    metadata: ExportMetadata,
+    proposals: Vec<db::queries::proposals::SavedProposal>,
+}
+
+/// Export all proposals to a JSON file
+/// Opens a save dialog and writes all proposals with metadata
+#[tauri::command]
+async fn export_proposals_to_json(
+    app_handle: AppHandle,
+    database: State<'_, db::Database>,
+) -> Result<ExportResult, String> {
+    // Get all proposals from database
+    let proposals = {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        db::queries::proposals::get_all_proposals(&conn)
+            .map_err(|e| format!("Failed to get proposals: {}", e))?
+    };
+
+    let proposal_count = proposals.len();
+
+    if proposal_count == 0 {
+        return Ok(ExportResult {
+            success: false,
+            file_path: None,
+            proposal_count: 0,
+            message: "No proposals to export".to_string(),
+        });
+    }
+
+    // Show save dialog
+    let file_path = app_handle
+        .dialog()
+        .file()
+        .set_title("Export Proposals")
+        .set_file_name("proposals-backup.json")
+        .add_filter("JSON Files", &["json"])
+        .blocking_save_file();
+
+    let Some(path) = file_path else {
+        return Ok(ExportResult {
+            success: false,
+            file_path: None,
+            proposal_count,
+            message: "Export cancelled".to_string(),
+        });
+    };
+
+    // Build export data with metadata
+    let export_data = ExportData {
+        metadata: ExportMetadata {
+            export_date: chrono::Utc::now().to_rfc3339(),
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            proposal_count,
+        },
+        proposals,
+    };
+
+    // Serialize and write to file
+    let json = serde_json::to_string_pretty(&export_data)
+        .map_err(|e| format!("Failed to serialize proposals: {}", e))?;
+
+    let path_str = path.to_string();
+    std::fs::write(&path_str, json)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+
+    Ok(ExportResult {
+        success: true,
+        file_path: Some(path_str.clone()),
+        proposal_count,
+        message: format!("Exported {} proposals to {}", proposal_count, path_str),
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Get app data directory
             let app_data_dir = app
@@ -159,7 +323,13 @@ pub fn run() {
             set_api_key,
             get_api_key_masked,
             validate_api_key,
-            clear_api_key
+            clear_api_key,
+            // Settings commands (Story 1.9)
+            get_setting,
+            set_setting,
+            get_all_settings,
+            // Export commands (Story 1.10)
+            export_proposals_to_json
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

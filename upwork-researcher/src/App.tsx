@@ -6,7 +6,9 @@ import ProposalOutput from "./components/ProposalOutput";
 import Navigation from "./components/Navigation";
 import HistoryList from "./components/HistoryList";
 import ApiKeySetup from "./components/ApiKeySetup";
+import ExportButton from "./components/ExportButton";
 import { useGenerationStore, getStreamedText } from "./stores/useGenerationStore";
+import { useSettingsStore } from "./stores/useSettingsStore";
 import { useGenerationStream } from "./hooks/useGenerationStream";
 import "./App.css";
 
@@ -31,21 +33,34 @@ function App() {
   // Set up event listeners for streaming
   const { ensureListenersReady } = useGenerationStream();
 
-  // Check for API key on startup
+  // Settings store
+  const { loadSettings } = useSettingsStore();
+
+  // Load settings and check for API key on startup
   useEffect(() => {
-    const checkApiKey = async () => {
-      try {
-        const result = await invoke<boolean>("has_api_key");
-        setHasApiKey(result);
-      } catch (err) {
-        console.error("Failed to check API key:", err);
-        setHasApiKey(false);
-      } finally {
-        setCheckingApiKey(false);
-      }
+    const initializeApp = async () => {
+      // Load settings first (parallel with API key check)
+      const settingsPromise = loadSettings().catch((err) => {
+        console.error("Failed to load settings:", err);
+        // Non-blocking - app can work without settings
+      });
+
+      const apiKeyPromise = invoke<boolean>("has_api_key")
+        .then((result) => {
+          setHasApiKey(result);
+        })
+        .catch((err) => {
+          console.error("Failed to check API key:", err);
+          setHasApiKey(false);
+        });
+
+      // Wait for both to complete
+      await Promise.all([settingsPromise, apiKeyPromise]);
+      setCheckingApiKey(false);
     };
-    checkApiKey();
-  }, []);
+
+    initializeApp();
+  }, [loadSettings]);
 
   // Handler for when API key setup is complete
   const handleApiKeySetupComplete = useCallback(() => {
@@ -154,10 +169,19 @@ function App() {
       {activeView === "history" && <HistoryList />}
 
       {activeView === "settings" && (
-        <ApiKeySetup
-          onComplete={() => setActiveView("generate")}
-          existingKey={null}
-        />
+        <>
+          <ApiKeySetup
+            onComplete={() => setActiveView("generate")}
+            existingKey={null}
+          />
+          <div className="settings-section">
+            <h3>Data Export</h3>
+            <p className="settings-description">
+              Export your proposals to a JSON file for backup before database migration.
+            </p>
+            <ExportButton />
+          </div>
+        </>
       )}
     </main>
   );
