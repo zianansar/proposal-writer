@@ -1,0 +1,97 @@
+.draft-recovery-modal__backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.draft-recovery-modal {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.draft-recovery-modal h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.draft-recovery-modal__message {
+  margin-bottom: 1.5rem;
+  color: #555;
+  line-height: 1.5;
+}
+
+.draft-recovery-modal__preview {
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.draft-recovery-modal__preview strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.draft-recovery-modal__preview p {
+  margin: 0 0 1rem 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.draft-recovery-modal__preview p:last-child {
+  margin-bottom: 0;
+}
+
+.draft-recovery-modal__job-preview {
+  color: #555;
+  font-weight: 500;
+}
+
+.draft-recovery-modal__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.draft-recovery-modal__actions .button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.draft-recovery-modal__actions .button--primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.draft-recovery-modal__actions .button--primary:hover {
+  background-color: #0056b3;
+}
+
+.draft-recovery-modal__actions .button--secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.draft-recovery-modal__actions .button--secondary:hover {
+  background-color: #545b62;
+}

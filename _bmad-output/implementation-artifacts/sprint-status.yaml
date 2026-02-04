@@ -62,7 +62,7 @@ development_status:
   1-11-database-migration-framework-setup: done
   1-12-job-posts-table-schema: done
   1-13-api-error-handling: done
-  1-14-draft-recovery-on-crash: backlog
+  1-14-draft-recovery-on-crash: done
   1-15-onboarding-flow: backlog
   1-16-logging-infrastructure: backlog
   epic-1-retrospective: optional

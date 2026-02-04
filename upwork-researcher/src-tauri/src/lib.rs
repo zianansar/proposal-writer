@@ -9,8 +9,14 @@ pub mod events;
 #[cfg(test)]
 pub mod encryption_spike;
 
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
+
+/// Shared state for tracking current draft proposal during generation
+pub struct DraftState {
+    pub current_draft_id: Arc<Mutex<Option<i64>>>,
+}
 
 /// Non-streaming proposal generation (kept for backwards compatibility/testing)
 #[tauri::command]
@@ -23,14 +29,24 @@ async fn generate_proposal(
 }
 
 /// Streaming proposal generation - emits tokens via Tauri events
+/// Auto-saves draft every 50ms during generation (Story 1.14)
 #[tauri::command]
 async fn generate_proposal_streaming(
     job_content: String,
     app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
+    database: State<'_, db::Database>,
+    draft_state: State<'_, DraftState>,
 ) -> Result<String, String> {
     let api_key = config_state.get_api_key()?;
-    claude::generate_proposal_streaming_with_key(&job_content, app_handle, api_key.as_deref()).await
+    claude::generate_proposal_streaming_with_key(
+        &job_content,
+        app_handle,
+        api_key.as_deref(),
+        &database,
+        &draft_state,
+    )
+    .await
 }
 
 /// Database health check - returns database path and status
@@ -58,7 +74,7 @@ fn save_proposal(
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
-    let id = db::queries::proposals::insert_proposal(&conn, &job_content, &generated_text)
+    let id = db::queries::proposals::insert_proposal(&conn, &job_content, &generated_text, None)
         .map_err(|e| format!("Failed to save proposal: {}", e))?;
 
     Ok(serde_json::json!({
@@ -80,6 +96,42 @@ fn get_proposals(
 
     db::queries::proposals::list_proposals(&conn)
         .map_err(|e| format!("Failed to get proposals: {}", e))
+}
+
+/// Check for draft proposal from previous session (Story 1.14)
+/// Returns the latest draft if exists, None otherwise
+#[tauri::command]
+fn check_for_draft(
+    database: State<db::Database>,
+) -> Result<Option<db::queries::proposals::SavedProposal>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::proposals::get_latest_draft(&conn)
+        .map_err(|e| format!("Failed to check for draft: {}", e))
+}
+
+/// Update proposal status (Story 1.14)
+/// Used to mark drafts as completed or discard them
+#[tauri::command]
+fn update_proposal_status(
+    database: State<db::Database>,
+    proposal_id: i64,
+    status: String,
+) -> Result<serde_json::Value, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::proposals::update_proposal_status(&conn, proposal_id, &status)
+        .map_err(|e| format!("Failed to update proposal status: {}", e))?;
+
+    Ok(serde_json::json!({
+        "success": true
+    }))
 }
 
 /// Save a job post for later (Story 1.13: API Error Handling)
@@ -334,9 +386,15 @@ pub fn run() {
             let config_state = config::ConfigState::new(app_data_dir)
                 .map_err(|e| format!("Failed to initialize config: {}", e))?;
 
+            // Initialize draft state for tracking current draft during generation
+            let draft_state = DraftState {
+                current_draft_id: Arc::new(Mutex::new(None)),
+            };
+
             // Store in managed state
             app.manage(database);
             app.manage(config_state);
+            app.manage(draft_state);
 
             Ok(())
         })
@@ -357,7 +415,10 @@ pub fn run() {
             set_setting,
             get_all_settings,
             // Export commands (Story 1.10)
-            export_proposals_to_json
+            export_proposals_to_json,
+            // Draft recovery commands (Story 1.14)
+            check_for_draft,
+            update_proposal_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

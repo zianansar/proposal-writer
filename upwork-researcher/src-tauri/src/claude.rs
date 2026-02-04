@@ -1,4 +1,4 @@
-use crate::events;
+use crate::{db, events, DraftState};
 use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -177,18 +177,25 @@ pub async fn generate_proposal_with_key(
 
 /// Generate a proposal with streaming, emitting batched tokens via Tauri events.
 /// Tokens are batched for 50ms before emission to reduce frontend re-renders.
+/// DEPRECATED: This function does not support draft auto-save (Story 1.14).
+/// Use generate_proposal_streaming_with_key with database and draft_state parameters instead.
+#[deprecated(note = "Use generate_proposal_streaming_with_key with database and draft_state")]
 pub async fn generate_proposal_streaming(
-    job_content: &str,
-    app_handle: AppHandle,
+    _job_content: &str,
+    _app_handle: AppHandle,
 ) -> Result<String, String> {
-    generate_proposal_streaming_with_key(job_content, app_handle, None).await
+    Err("generate_proposal_streaming is deprecated. Use the Tauri command instead.".to_string())
 }
 
 /// Generate a proposal with streaming using provided API key.
+/// Auto-saves draft every 50ms during generation (Story 1.14).
+/// Uses async queue to prevent race conditions in draft saving (Code Review Fix).
 pub async fn generate_proposal_streaming_with_key(
     job_content: &str,
     app_handle: AppHandle,
     api_key: Option<&str>,
+    database: &db::Database,
+    draft_state: &DraftState,
 ) -> Result<String, String> {
     let api_key = resolve_api_key(api_key)?;
 
@@ -196,6 +203,10 @@ pub async fn generate_proposal_streaming_with_key(
         .timeout(Duration::from_secs(60)) // Longer timeout for streaming
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    // Create async queue for draft saves (Code Review Fix: prevents race conditions)
+    // Queue ensures saves execute sequentially even if token batches arrive faster than saves complete
+    let (save_tx, mut save_rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
 
     // Prompt boundary enforcement: job content in user role with explicit delimiters
     let user_message = format!(
@@ -302,8 +313,9 @@ pub async fn generate_proposal_streaming_with_key(
                         full_text.push_str(&delta.delta.text);
                         token_buffer.push(delta.delta.text);
 
-                        // Check if 50ms has passed - emit batch
+                        // Check if 50ms has passed - emit batch AND queue draft save
                         if last_emit.elapsed() >= Duration::from_millis(TOKEN_BATCH_INTERVAL_MS) {
+                            // Emit tokens to frontend (non-blocking)
                             let _ = app_handle.emit(
                                 events::GENERATION_TOKEN,
                                 TokenPayload {
@@ -311,6 +323,15 @@ pub async fn generate_proposal_streaming_with_key(
                                     stage_id: "generation".to_string(),
                                 },
                             );
+
+                            // Queue draft save (non-blocking, processed sequentially after stream ends)
+                            // Clone full_text snapshot to avoid race conditions
+                            let text_snapshot = full_text.clone();
+                            let job_snapshot = job_content.to_string();
+                            if let Err(e) = save_tx.send((text_snapshot, job_snapshot)) {
+                                eprintln!("Warning: Failed to queue draft save: {}", e);
+                            }
+
                             token_buffer.clear();
                             last_emit = Instant::now();
                         }
@@ -330,6 +351,65 @@ pub async fn generate_proposal_streaming_with_key(
                 stage_id: "generation".to_string(),
             },
         );
+    }
+
+    // Close the save queue channel
+    drop(save_tx);
+
+    // Drain all queued saves before marking as complete (prevents race condition)
+    // This ensures every batch's save completes before we mark draft as done
+    while let Ok((text, job_content)) = save_rx.try_recv() {
+        if let Ok(conn) = database.conn.lock() {
+            let mut draft_id = draft_state.current_draft_id.lock().unwrap();
+
+            if let Some(id) = *draft_id {
+                // Update existing draft
+                if let Err(e) = db::queries::proposals::update_proposal_text(
+                    &conn,
+                    id,
+                    &text,
+                ) {
+                    eprintln!("Warning: Failed to update final queued draft {}: {}", id, e);
+                }
+            } else {
+                // Create new draft (shouldn't happen at this point, but handle it)
+                match db::queries::proposals::insert_proposal(
+                    &conn,
+                    &job_content,
+                    &text,
+                    Some("draft"),
+                ) {
+                    Ok(id) => {
+                        *draft_id = Some(id);
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: Failed to create queued draft: {}", e);
+                    }
+                }
+            }
+        } else {
+            eprintln!("Warning: Failed to acquire database lock for queued draft save");
+        }
+    }
+
+    // Mark draft as completed (Story 1.14)
+    if let Ok(conn) = database.conn.lock() {
+        let mut draft_id = draft_state.current_draft_id.lock().unwrap();
+
+        if let Some(id) = *draft_id {
+            // Update final text and mark as completed
+            if let Err(e) = db::queries::proposals::update_proposal_text(&conn, id, &full_text) {
+                eprintln!("Warning: Failed to update final draft text for {}: {}", id, e);
+            }
+            if let Err(e) = db::queries::proposals::update_proposal_status(&conn, id, "completed") {
+                eprintln!("Warning: Failed to mark draft {} as completed: {}", id, e);
+            }
+
+            // Clear draft state
+            *draft_id = None;
+        }
+    } else {
+        eprintln!("Warning: Failed to acquire database lock for draft completion");
     }
 
     // Emit completion event

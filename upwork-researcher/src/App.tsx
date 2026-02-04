@@ -7,6 +7,7 @@ import Navigation from "./components/Navigation";
 import HistoryList from "./components/HistoryList";
 import ApiKeySetup from "./components/ApiKeySetup";
 import ExportButton from "./components/ExportButton";
+import DraftRecoveryModal from "./components/DraftRecoveryModal";
 import { useGenerationStore, getStreamedText } from "./stores/useGenerationStore";
 import { useSettingsStore } from "./stores/useSettingsStore";
 import { useGenerationStream } from "./hooks/useGenerationStream";
@@ -27,10 +28,12 @@ function App() {
     fullText,
     isSaved,
     retryCount,
+    draftRecovery,
     reset,
     setStreaming,
     setSaved,
     incrementRetry,
+    setDraftRecovery,
   } = useGenerationStore();
   const streamedText = useGenerationStore(getStreamedText);
 
@@ -64,17 +67,55 @@ function App() {
           setHasApiKey(false);
         });
 
-      // Wait for both to complete
-      await Promise.all([settingsPromise, apiKeyPromise]);
+      // Check for draft from previous session (Story 1.14)
+      const draftPromise = invoke<{
+        id: number;
+        jobContent: string;
+        generatedText: string;
+        createdAt: string;
+        status: string;
+      } | null>("check_for_draft")
+        .then((draft) => {
+          if (draft) {
+            setDraftRecovery({
+              id: draft.id,
+              jobContent: draft.jobContent,
+              generatedText: draft.generatedText,
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to check for draft:", err);
+          // Non-blocking - app can work without draft recovery
+        });
+
+      // Wait for all to complete
+      await Promise.all([settingsPromise, apiKeyPromise, draftPromise]);
       setCheckingApiKey(false);
     };
 
     initializeApp();
-  }, [loadSettings]);
+  }, [loadSettings, setDraftRecovery]);
 
   // Handler for when API key setup is complete
   const handleApiKeySetupComplete = useCallback(() => {
     setHasApiKey(true);
+    setActiveView("generate");
+  }, []);
+
+  // Handler for continuing with a recovered draft (Story 1.14)
+  const handleContinueDraft = useCallback((jobContent: string, generatedText: string) => {
+    // Populate the job input
+    setJobContent(jobContent);
+
+    // Set the generated text in the store
+    useGenerationStore.getState().setComplete(generatedText);
+
+    // Mark as saved (draft already exists in DB)
+    // Note: We don't have the draft ID here, but isSaved just controls UI display
+    // The actual save happens on next generation
+
+    // Ensure we're on the generate view
     setActiveView("generate");
   }, []);
 
@@ -210,7 +251,7 @@ function App() {
 
       {activeView === "generate" && (
         <>
-          <JobInput onJobContentChange={setJobContent} />
+          <JobInput onJobContentChange={setJobContent} value={jobContent} />
           <GenerateButton
             onClick={handleGenerate}
             disabled={!jobContent.trim()}
@@ -245,6 +286,9 @@ function App() {
           </div>
         </>
       )}
+
+      {/* Draft Recovery Modal (Story 1.14) */}
+      {draftRecovery && <DraftRecoveryModal onContinue={handleContinueDraft} />}
     </main>
   );
 }

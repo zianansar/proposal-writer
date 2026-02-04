@@ -1,16 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface JobInputProps {
   onJobContentChange?: (content: string) => void;
+  value?: string; // Allow parent to control value (Story 1.14 draft recovery)
 }
 
-function JobInput({ onJobContentChange }: JobInputProps) {
+function JobInput({ onJobContentChange, value }: JobInputProps) {
   const [jobContent, setJobContent] = useState("");
 
+  // Sync with parent value when provided (draft recovery)
+  useEffect(() => {
+    if (value !== undefined && value !== jobContent) {
+      setJobContent(value);
+    }
+  }, [value]);
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setJobContent(value);
-    onJobContentChange?.(value);
+    const newValue = e.target.value;
+    setJobContent(newValue);
+    onJobContentChange?.(newValue);
   };
 
   return (

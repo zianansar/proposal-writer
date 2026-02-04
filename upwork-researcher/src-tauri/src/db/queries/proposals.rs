@@ -13,6 +13,7 @@ pub struct SavedProposal {
     pub job_content: String,
     pub generated_text: String,
     pub created_at: String,
+    pub status: String,
 }
 
 /// Proposal summary for list view (excludes full generated_text for performance)
@@ -26,14 +27,17 @@ pub struct ProposalSummary {
 
 /// Insert a new proposal into the database.
 /// Returns the ID of the inserted proposal.
+/// Status defaults to 'draft' if not provided.
 pub fn insert_proposal(
     conn: &Connection,
     job_content: &str,
     generated_text: &str,
+    status: Option<&str>,
 ) -> Result<i64, rusqlite::Error> {
+    let status = status.unwrap_or("draft");
     conn.execute(
-        "INSERT INTO proposals (job_content, generated_text) VALUES (?1, ?2)",
-        params![job_content, generated_text],
+        "INSERT INTO proposals (job_content, generated_text, status) VALUES (?1, ?2, ?3)",
+        params![job_content, generated_text, status],
     )?;
 
     Ok(conn.last_insert_rowid())
@@ -42,7 +46,7 @@ pub fn insert_proposal(
 /// Get a proposal by ID.
 pub fn get_proposal(conn: &Connection, id: i64) -> Result<Option<SavedProposal>, rusqlite::Error> {
     let mut stmt = conn.prepare(
-        "SELECT id, job_content, generated_text, created_at FROM proposals WHERE id = ?1",
+        "SELECT id, job_content, generated_text, created_at, status FROM proposals WHERE id = ?1",
     )?;
 
     let mut rows = stmt.query(params![id])?;
@@ -53,6 +57,7 @@ pub fn get_proposal(conn: &Connection, id: i64) -> Result<Option<SavedProposal>,
             job_content: row.get(1)?,
             generated_text: row.get(2)?,
             created_at: row.get(3)?,
+            status: row.get(4)?,
         }))
     } else {
         Ok(None)
@@ -85,7 +90,7 @@ pub fn list_proposals(conn: &Connection) -> Result<Vec<ProposalSummary>, rusqlit
 /// No limit - used for backup/export purposes.
 pub fn get_all_proposals(conn: &Connection) -> Result<Vec<SavedProposal>, rusqlite::Error> {
     let mut stmt = conn.prepare(
-        "SELECT id, job_content, generated_text, created_at FROM proposals ORDER BY id ASC",
+        "SELECT id, job_content, generated_text, created_at, status FROM proposals ORDER BY id ASC",
     )?;
 
     let proposals = stmt
@@ -95,11 +100,69 @@ pub fn get_all_proposals(conn: &Connection) -> Result<Vec<SavedProposal>, rusqli
                 job_content: row.get(1)?,
                 generated_text: row.get(2)?,
                 created_at: row.get(3)?,
+                status: row.get(4)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(proposals)
+}
+
+/// Get the latest draft proposal (status='draft', most recent created_at).
+/// Returns None if no draft exists.
+/// Uses id DESC as tiebreaker when timestamps are identical (common in tests).
+pub fn get_latest_draft(conn: &Connection) -> Result<Option<SavedProposal>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT id, job_content, generated_text, created_at, status
+         FROM proposals
+         WHERE status = 'draft'
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1",
+    )?;
+
+    let mut rows = stmt.query([])?;
+
+    if let Some(row) = rows.next()? {
+        Ok(Some(SavedProposal {
+            id: row.get(0)?,
+            job_content: row.get(1)?,
+            generated_text: row.get(2)?,
+            created_at: row.get(3)?,
+            status: row.get(4)?,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Update the generated text of a proposal (for draft auto-save).
+/// Note: Single UPDATE statements are atomic in SQLite per the transaction semantics.
+/// Explicit transactions would require &mut Connection which breaks the API.
+pub fn update_proposal_text(
+    conn: &Connection,
+    id: i64,
+    generated_text: &str,
+) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "UPDATE proposals SET generated_text = ?1, updated_at = datetime('now') WHERE id = ?2",
+        params![generated_text, id],
+    )?;
+    Ok(())
+}
+
+/// Update the status of a proposal (e.g., mark draft as completed).
+/// Note: Single UPDATE statements are atomic in SQLite per the transaction semantics.
+/// Explicit transactions would require &mut Connection which breaks the API.
+pub fn update_proposal_status(
+    conn: &Connection,
+    id: i64,
+    status: &str,
+) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "UPDATE proposals SET status = ?1, updated_at = datetime('now') WHERE id = ?2",
+        params![status, id],
+    )?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -119,7 +182,7 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        let id = insert_proposal(&conn, "Test job content", "Test generated text").unwrap();
+        let id = insert_proposal(&conn, "Test job content", "Test generated text", None).unwrap();
 
         assert!(id > 0);
     }
@@ -132,7 +195,7 @@ mod tests {
         let job_content = "Looking for a React developer";
         let generated_text = "I am excited to apply for this position...";
 
-        let id = insert_proposal(&conn, job_content, generated_text).unwrap();
+        let id = insert_proposal(&conn, job_content, generated_text, None).unwrap();
         let proposal = get_proposal(&conn, id).unwrap().unwrap();
 
         assert_eq!(proposal.id, id);
@@ -156,9 +219,9 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        let id1 = insert_proposal(&conn, "Job 1", "Proposal 1").unwrap();
-        let id2 = insert_proposal(&conn, "Job 2", "Proposal 2").unwrap();
-        let id3 = insert_proposal(&conn, "Job 3", "Proposal 3").unwrap();
+        let id1 = insert_proposal(&conn, "Job 1", "Proposal 1", None).unwrap();
+        let id2 = insert_proposal(&conn, "Job 2", "Proposal 2", None).unwrap();
+        let id3 = insert_proposal(&conn, "Job 3", "Proposal 3", None).unwrap();
 
         assert_ne!(id1, id2);
         assert_ne!(id2, id3);
@@ -181,8 +244,8 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        insert_proposal(&conn, "Job content 1", "Generated text 1").unwrap();
-        insert_proposal(&conn, "Job content 2", "Generated text 2").unwrap();
+        insert_proposal(&conn, "Job content 1", "Generated text 1", None).unwrap();
+        insert_proposal(&conn, "Job content 2", "Generated text 2", None).unwrap();
 
         let proposals = list_proposals(&conn).unwrap();
 
@@ -198,7 +261,7 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        insert_proposal(&conn, "Job", "Long generated text that should not be in summary").unwrap();
+        insert_proposal(&conn, "Job", "Long generated text that should not be in summary", None).unwrap();
 
         let proposals = list_proposals(&conn).unwrap();
 
@@ -215,7 +278,7 @@ mod tests {
 
         // Insert 105 proposals
         for i in 0..105 {
-            insert_proposal(&conn, &format!("Job {}", i), &format!("Proposal {}", i)).unwrap();
+            insert_proposal(&conn, &format!("Job {}", i), &format!("Proposal {}", i), None).unwrap();
         }
 
         let proposals = list_proposals(&conn).unwrap();
@@ -241,7 +304,7 @@ mod tests {
 
         let job = "Test job content";
         let generated = "Test generated text that is long";
-        insert_proposal(&conn, job, generated).unwrap();
+        insert_proposal(&conn, job, generated, None).unwrap();
 
         let proposals = get_all_proposals(&conn).unwrap();
 
@@ -258,7 +321,7 @@ mod tests {
 
         // Insert 105 proposals
         for i in 0..105 {
-            insert_proposal(&conn, &format!("Job {}", i), &format!("Proposal {}", i)).unwrap();
+            insert_proposal(&conn, &format!("Job {}", i), &format!("Proposal {}", i), None).unwrap();
         }
 
         let proposals = get_all_proposals(&conn).unwrap();
@@ -272,9 +335,9 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        let id1 = insert_proposal(&conn, "First job", "First proposal").unwrap();
-        let id2 = insert_proposal(&conn, "Second job", "Second proposal").unwrap();
-        let id3 = insert_proposal(&conn, "Third job", "Third proposal").unwrap();
+        let id1 = insert_proposal(&conn, "First job", "First proposal", None).unwrap();
+        let id2 = insert_proposal(&conn, "Second job", "Second proposal", None).unwrap();
+        let id3 = insert_proposal(&conn, "Third job", "Third proposal", None).unwrap();
 
         let proposals = get_all_proposals(&conn).unwrap();
 
@@ -284,5 +347,137 @@ mod tests {
         assert_eq!(proposals[0].id, id1);
         assert_eq!(proposals[1].id, id2);
         assert_eq!(proposals[2].id, id3);
+    }
+
+    #[test]
+    fn test_insert_draft() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id = insert_proposal(&conn, "Test job", "Test text", Some("draft")).unwrap();
+        let proposal = get_proposal(&conn, id).unwrap().unwrap();
+
+        assert_eq!(proposal.status, "draft");
+    }
+
+    #[test]
+    fn test_insert_defaults_to_draft() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id = insert_proposal(&conn, "Test job", "Test text", None).unwrap();
+        let proposal = get_proposal(&conn, id).unwrap().unwrap();
+
+        assert_eq!(proposal.status, "draft");
+    }
+
+    #[test]
+    fn test_insert_completed() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id = insert_proposal(&conn, "Test job", "Test text", Some("completed")).unwrap();
+        let proposal = get_proposal(&conn, id).unwrap().unwrap();
+
+        assert_eq!(proposal.status, "completed");
+    }
+
+    #[test]
+    fn test_get_latest_draft_empty() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let draft = get_latest_draft(&conn).unwrap();
+
+        assert!(draft.is_none());
+    }
+
+    #[test]
+    fn test_get_latest_draft_returns_most_recent() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let _id1 = insert_proposal(&conn, "Job 1", "Proposal 1", Some("draft")).unwrap();
+        let _id2 = insert_proposal(&conn, "Job 2", "Proposal 2", Some("draft")).unwrap();
+        let id3 = insert_proposal(&conn, "Job 3", "Proposal 3", Some("draft")).unwrap();
+
+        let draft = get_latest_draft(&conn).unwrap().unwrap();
+
+        // Should return the most recent draft (id3)
+        assert_eq!(draft.id, id3);
+        assert_eq!(draft.job_content, "Job 3");
+    }
+
+    #[test]
+    fn test_get_latest_draft_ignores_completed() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        insert_proposal(&conn, "Job 1", "Proposal 1", Some("completed")).unwrap();
+        let id2 = insert_proposal(&conn, "Job 2", "Proposal 2", Some("draft")).unwrap();
+        insert_proposal(&conn, "Job 3", "Proposal 3", Some("completed")).unwrap();
+
+        let draft = get_latest_draft(&conn).unwrap().unwrap();
+
+        // Should return the only draft (id2), ignoring completed proposals
+        assert_eq!(draft.id, id2);
+    }
+
+    #[test]
+    fn test_no_draft_if_all_completed() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        insert_proposal(&conn, "Job 1", "Proposal 1", Some("completed")).unwrap();
+        insert_proposal(&conn, "Job 2", "Proposal 2", Some("completed")).unwrap();
+
+        let draft = get_latest_draft(&conn).unwrap();
+
+        assert!(draft.is_none());
+    }
+
+    #[test]
+    fn test_update_proposal_text() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id = insert_proposal(&conn, "Job", "Initial text", Some("draft")).unwrap();
+
+        update_proposal_text(&conn, id, "Updated text").unwrap();
+
+        let proposal = get_proposal(&conn, id).unwrap().unwrap();
+        assert_eq!(proposal.generated_text, "Updated text");
+    }
+
+    #[test]
+    fn test_update_proposal_status() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id = insert_proposal(&conn, "Job", "Text", Some("draft")).unwrap();
+
+        update_proposal_status(&conn, id, "completed").unwrap();
+
+        let proposal = get_proposal(&conn, id).unwrap().unwrap();
+        assert_eq!(proposal.status, "completed");
+    }
+
+    #[test]
+    fn test_update_status_draft_to_completed() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id = insert_proposal(&conn, "Job", "Text", Some("draft")).unwrap();
+
+        // Verify it's a draft
+        let draft = get_latest_draft(&conn).unwrap().unwrap();
+        assert_eq!(draft.id, id);
+
+        // Mark as completed
+        update_proposal_status(&conn, id, "completed").unwrap();
+
+        // Verify no draft exists anymore
+        let no_draft = get_latest_draft(&conn).unwrap();
+        assert!(no_draft.is_none());
     }
 }

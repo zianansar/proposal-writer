@@ -1,5 +1,11 @@
 import { create } from "zustand";
 
+interface DraftRecovery {
+  id: number;
+  jobContent: string;
+  generatedText: string;
+}
+
 interface GenerationState {
   /** Accumulated tokens from streaming */
   tokens: string[];
@@ -15,6 +21,8 @@ interface GenerationState {
   savedId: number | null;
   /** Number of retry attempts for current generation (Story 1.13) */
   retryCount: number;
+  /** Draft recovery data from previous session (Story 1.14) */
+  draftRecovery: DraftRecovery | null;
 }
 
 interface GenerationActions {
@@ -30,6 +38,10 @@ interface GenerationActions {
   setSaved: (id: number) => void;
   /** Increment retry count (Story 1.13) */
   incrementRetry: () => void;
+  /** Set draft recovery data (Story 1.14) */
+  setDraftRecovery: (draft: DraftRecovery) => void;
+  /** Clear draft recovery data (Story 1.14) */
+  clearDraftRecovery: () => void;
   /** Reset store to initial state for new generation */
   reset: () => void;
 }
@@ -42,6 +54,7 @@ const initialState: GenerationState = {
   isSaved: false,
   savedId: null,
   retryCount: 0,
+  draftRecovery: null,
 };
 
 export const useGenerationStore = create<GenerationState & GenerationActions>(
@@ -83,6 +96,16 @@ export const useGenerationStore = create<GenerationState & GenerationActions>(
       set((state) => ({
         retryCount: state.retryCount + 1,
       })),
+
+    setDraftRecovery: (draft) =>
+      set({
+        draftRecovery: draft,
+      }),
+
+    clearDraftRecovery: () =>
+      set({
+        draftRecovery: null,
+      }),
 
     reset: () => set(initialState),
   })
