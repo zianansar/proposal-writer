@@ -2,6 +2,7 @@ pub mod claude;
 pub mod config;
 pub mod db;
 pub mod events;
+pub mod logs;
 
 // Encryption spike module (Story 1.6)
 // Validates Argon2id key derivation and keyring integration for Epic 2
@@ -171,9 +172,13 @@ fn has_api_key(config_state: State<config::ConfigState>) -> Result<bool, String>
 #[tauri::command]
 fn set_api_key(config_state: State<config::ConfigState>, api_key: String) -> Result<(), String> {
     // Validate format first
-    config::validate_api_key_format(&api_key)?;
+    if let Err(e) = config::validate_api_key_format(&api_key) {
+        tracing::warn!("API key validation failed: {}", e);
+        return Err(e);
+    }
 
     // Save to config
+    tracing::info!(api_key = %logs::redaction::RedactedApiKey(&api_key), "Setting API key");
     config_state.set_api_key(api_key.trim().to_string())
 }
 
@@ -213,6 +218,31 @@ fn get_setting(database: State<db::Database>, key: String) -> Result<Option<Stri
         .map_err(|e| format!("Failed to get setting: {}", e))
 }
 
+/// Set log level (Story 1.16)
+/// Note: Requires app restart to take effect
+/// Valid values: ERROR, WARN, INFO, DEBUG
+#[tauri::command]
+fn set_log_level(database: State<db::Database>, level: String) -> Result<(), String> {
+    // Validate log level
+    let level_upper = level.to_uppercase();
+    if !["ERROR", "WARN", "INFO", "DEBUG"].contains(&level_upper.as_str()) {
+        return Err(format!(
+            "Invalid log level '{}'. Valid values: ERROR, WARN, INFO, DEBUG",
+            level
+        ));
+    }
+
+    tracing::info!("Setting log level to: {} (requires restart)", level_upper);
+
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::settings::set_setting(&conn, "log_level", &level_upper)
+        .map_err(|e| format!("Failed to set log level: {}", e))
+}
+
 /// Set a setting value (insert or update)
 /// Uses UPSERT pattern for atomic operation
 #[tauri::command]
@@ -230,6 +260,8 @@ fn set_setting(database: State<db::Database>, key: String, value: String) -> Res
     if value.len() > 10000 {
         return Err("Setting value too long (max 10000 characters)".to_string());
     }
+
+    tracing::debug!(key = %key, value_len = value.len(), "Setting configuration value");
 
     let conn = database
         .conn
@@ -375,16 +407,51 @@ pub fn run() {
             std::fs::create_dir_all(&app_data_dir)
                 .map_err(|e| format!("Failed to create app data dir: {}", e))?;
 
+            // Initialize logging infrastructure BEFORE other initialization (Story 1.16)
+            // Must initialize early to capture all subsequent operations
+            // Default to INFO level; will be updated from settings after database loads
+            let logs_dir = logs::init_logging(&app_data_dir, Some("INFO"))
+                .map_err(|e| {
+                    eprintln!("Failed to initialize logging: {}", e);
+                    format!("Failed to initialize logging: {}", e)
+                })?;
+
+            tracing::info!("Application starting");
+            tracing::info!("App data directory: {:?}", app_data_dir);
+            tracing::info!("Logs directory: {:?}", logs_dir);
+
+            // Clean up old logs (7-day retention) - non-blocking
+            match logs::cleanup_old_logs(&logs_dir) {
+                Ok(deleted) => {
+                    if deleted > 0 {
+                        tracing::info!("Cleaned up {} old log files", deleted);
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Log cleanup failed (non-fatal): {}", e);
+                }
+            }
+
             // Database file path
             let db_path = app_data_dir.join("upwork-researcher.db");
 
             // Initialize database
             let database = db::Database::new(db_path)
-                .map_err(|e| format!("Failed to initialize database: {}", e))?;
+                .map_err(|e| {
+                    tracing::error!("Failed to initialize database: {}", e);
+                    format!("Failed to initialize database: {}", e)
+                })?;
+
+            tracing::info!("Database initialized successfully");
 
             // Initialize config
-            let config_state = config::ConfigState::new(app_data_dir)
-                .map_err(|e| format!("Failed to initialize config: {}", e))?;
+            let config_state = config::ConfigState::new(app_data_dir.clone())
+                .map_err(|e| {
+                    tracing::error!("Failed to initialize config: {}", e);
+                    format!("Failed to initialize config: {}", e)
+                })?;
+
+            tracing::info!("Config initialized successfully");
 
             // Initialize draft state for tracking current draft during generation
             let draft_state = DraftState {
@@ -414,6 +481,8 @@ pub fn run() {
             get_setting,
             set_setting,
             get_all_settings,
+            // Logging commands (Story 1.16)
+            set_log_level,
             // Export commands (Story 1.10)
             export_proposals_to_json,
             // Draft recovery commands (Story 1.14)

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import App from "./App";
 import { useGenerationStore } from "./stores/useGenerationStore";
+import { useOnboardingStore } from "./stores/useOnboardingStore";
 
 // Mock Tauri invoke
 vi.mock("@tauri-apps/api/core", () => ({
@@ -12,11 +13,14 @@ vi.mock("@tauri-apps/api/core", () => ({
 import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
 
-// Helper to setup invoke mock with API key check
+// Helper to setup invoke mock with API key check and onboarding completed
 const setupInvokeMock = () => {
-  mockInvoke.mockImplementation((command: string) => {
+  mockInvoke.mockImplementation((command: string, args?: any) => {
     if (command === "has_api_key") {
       return Promise.resolve(true);
+    }
+    if (command === "get_setting" && args?.key === "onboarding_completed") {
+      return Promise.resolve("true"); // Onboarding already completed
     }
     return Promise.resolve(null);
   });
@@ -34,7 +38,9 @@ describe("App", () => {
     vi.clearAllMocks();
     // Reset store state
     useGenerationStore.getState().reset();
-    // Setup default mock for has_api_key
+    useOnboardingStore.getState().reset();
+    useOnboardingStore.getState().setShowOnboarding(false); // Hide onboarding for tests
+    // Setup default mock for has_api_key and onboarding
     setupInvokeMock();
   });
 

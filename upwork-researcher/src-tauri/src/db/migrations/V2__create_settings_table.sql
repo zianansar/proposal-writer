@@ -19,3 +19,4 @@ CREATE INDEX idx_settings_updated_at ON settings(updated_at);
 -- Seed default settings (AR-18)
 INSERT INTO settings (key, value) VALUES ('theme', 'dark');
 INSERT INTO settings (key, value) VALUES ('api_provider', 'anthropic');
+INSERT INTO settings (key, value) VALUES ('log_level', 'INFO');

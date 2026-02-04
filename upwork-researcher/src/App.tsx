@@ -8,8 +8,10 @@ import HistoryList from "./components/HistoryList";
 import ApiKeySetup from "./components/ApiKeySetup";
 import ExportButton from "./components/ExportButton";
 import DraftRecoveryModal from "./components/DraftRecoveryModal";
+import OnboardingWizard from "./components/OnboardingWizard";
 import { useGenerationStore, getStreamedText } from "./stores/useGenerationStore";
 import { useSettingsStore } from "./stores/useSettingsStore";
+import { useOnboardingStore } from "./stores/useOnboardingStore";
 import { useGenerationStream } from "./hooks/useGenerationStream";
 import "./App.css";
 
@@ -20,6 +22,7 @@ function App() {
   const [jobContent, setJobContent] = useState("");
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [checkingApiKey, setCheckingApiKey] = useState(true);
+  const [isResettingOnboarding, setIsResettingOnboarding] = useState(false);
 
   // Streaming state from Zustand store
   const {
@@ -48,6 +51,9 @@ function App() {
 
   // Settings store
   const { loadSettings } = useSettingsStore();
+
+  // Onboarding store
+  const { setShowOnboarding } = useOnboardingStore();
 
   // Load settings and check for API key on startup
   useEffect(() => {
@@ -92,10 +98,33 @@ function App() {
       // Wait for all to complete
       await Promise.all([settingsPromise, apiKeyPromise, draftPromise]);
       setCheckingApiKey(false);
+
+      // Check for first launch ONLY if API key is configured (Review Fix: #1, #2, #8)
+      // Must check result directly from apiKeyPromise, not hasApiKey state
+      const apiKeyConfigured = await invoke<boolean>("has_api_key").catch(() => false);
+      if (apiKeyConfigured) {
+        try {
+          const completed = await invoke<string | null>("get_setting", {
+            key: "onboarding_completed",
+          });
+
+          // Show onboarding if flag is missing or false
+          if (!completed || completed === "false") {
+            setShowOnboarding(true);
+          }
+        } catch (err) {
+          // Review Fix #12: Sanitize error logging - don't expose implementation details
+          if (import.meta.env.DEV) {
+            console.error("Failed to check onboarding status:", err);
+          }
+          // On error, assume onboarding not completed
+          setShowOnboarding(true);
+        }
+      }
     };
 
     initializeApp();
-  }, [loadSettings, setDraftRecovery]);
+  }, [loadSettings, setDraftRecovery, setShowOnboarding]);
 
   // Handler for when API key setup is complete
   const handleApiKeySetupComplete = useCallback(() => {
@@ -218,6 +247,26 @@ function App() {
     }
   };
 
+  // Review Fix #6, #9: Extract "Show Onboarding Again" handler with loading state
+  const handleShowOnboardingAgain = async () => {
+    setIsResettingOnboarding(true);
+    try {
+      await invoke("set_setting", {
+        key: "onboarding_completed",
+        value: "false",
+      });
+      setShowOnboarding(true);
+    } catch (err) {
+      // Review Fix #12: Sanitize error logging
+      if (import.meta.env.DEV) {
+        console.error("Failed to reset onboarding:", err);
+      }
+      alert("Failed to reset onboarding. Please try again.");
+    } finally {
+      setIsResettingOnboarding(false);
+    }
+  };
+
   // Combine errors for display
   const displayError = inputError || streamError;
 
@@ -278,6 +327,19 @@ function App() {
             existingKey={null}
           />
           <div className="settings-section">
+            <h3>Onboarding</h3>
+            <p className="settings-description">
+              Run the onboarding wizard again if you need a refresher.
+            </p>
+            <button
+              className="button button--secondary"
+              onClick={handleShowOnboardingAgain}
+              disabled={isResettingOnboarding}
+            >
+              {isResettingOnboarding ? "Resetting..." : "Show Onboarding Again"}
+            </button>
+          </div>
+          <div className="settings-section">
             <h3>Data Export</h3>
             <p className="settings-description">
               Export your proposals to a JSON file for backup before database migration.
@@ -289,6 +351,9 @@ function App() {
 
       {/* Draft Recovery Modal (Story 1.14) */}
       {draftRecovery && <DraftRecoveryModal onContinue={handleContinueDraft} />}
+
+      {/* Onboarding Wizard (Story 1.15) */}
+      <OnboardingWizard />
     </main>
   );
 }

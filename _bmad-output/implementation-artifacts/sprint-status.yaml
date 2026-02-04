@@ -63,8 +63,8 @@ development_status:
   1-12-job-posts-table-schema: done
   1-13-api-error-handling: done
   1-14-draft-recovery-on-crash: done
-  1-15-onboarding-flow: backlog
-  1-16-logging-infrastructure: backlog
+  1-15-onboarding-flow: done
+  1-16-logging-infrastructure: review
   epic-1-retrospective: optional
 
   epic-2: backlog

@@ -144,13 +144,15 @@ pub async fn generate_proposal_with_key(
         .send()
         .await
         .map_err(|e| {
-            if e.is_timeout() {
+            let error_msg = if e.is_timeout() {
                 "Generation timed out. Try again.".to_string()
             } else if e.is_connect() {
                 "Unable to reach AI service. Check your internet connection.".to_string()
             } else {
                 format!("Network error: {}", e)
-            }
+            };
+            tracing::error!("Proposal generation failed: {}", error_msg);
+            error_msg
         })?;
 
     let status = response.status();
@@ -158,8 +160,10 @@ pub async fn generate_proposal_with_key(
     if !status.is_success() {
         let error_text = response.text().await.unwrap_or_default();
         if let Ok(error) = serde_json::from_str::<ClaudeError>(&error_text) {
+            tracing::error!("API error: {}", error.error.message);
             return Err(format!("API error: {}", error.error.message));
         }
+        tracing::error!("API error ({}): {}", status, error_text);
         return Err(format!("API error ({}): {}", status, error_text));
     }
 
@@ -234,13 +238,15 @@ pub async fn generate_proposal_streaming_with_key(
         .send()
         .await
         .map_err(|e| {
-            if e.is_timeout() {
+            let error_msg = if e.is_timeout() {
                 "Generation timed out. Try again.".to_string()
             } else if e.is_connect() {
                 "Unable to reach AI service. Check your internet connection.".to_string()
             } else {
                 format!("Network error: {}", e)
-            }
+            };
+            tracing::error!("Proposal generation failed: {}", error_msg);
+            error_msg
         })?;
 
     let status = response.status();
@@ -248,8 +254,10 @@ pub async fn generate_proposal_streaming_with_key(
     if !status.is_success() {
         let error_text = response.text().await.unwrap_or_default();
         if let Ok(error) = serde_json::from_str::<ClaudeError>(&error_text) {
+            tracing::error!("API error: {}", error.error.message);
             return Err(format!("API error: {}", error.error.message));
         }
+        tracing::error!("API error ({}): {}", status, error_text);
         return Err(format!("API error ({}): {}", status, error_text));
     }
 
