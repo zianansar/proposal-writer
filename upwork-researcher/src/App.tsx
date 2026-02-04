@@ -21,7 +21,17 @@ function App() {
   const [checkingApiKey, setCheckingApiKey] = useState(true);
 
   // Streaming state from Zustand store
-  const { isStreaming, error: streamError, fullText, isSaved, reset, setStreaming, setSaved } = useGenerationStore();
+  const {
+    isStreaming,
+    error: streamError,
+    fullText,
+    isSaved,
+    retryCount,
+    reset,
+    setStreaming,
+    setSaved,
+    incrementRetry,
+  } = useGenerationStore();
   const streamedText = useGenerationStore(getStreamedText);
 
   // Local error for input validation
@@ -118,6 +128,43 @@ function App() {
     }
   };
 
+  // Story 1.13: Retry with exponential backoff
+  const handleRetry = async () => {
+    const BACKOFF_DELAYS = [1000, 2000, 4000]; // 1s, 2s, 4s
+    const delay = BACKOFF_DELAYS[retryCount] || 4000;
+
+    incrementRetry();
+
+    // Wait for backoff delay
+    await new Promise((resolve) => setTimeout(resolve, delay));
+
+    // Retry generation
+    await handleGenerate();
+  };
+
+  // Story 1.13: Save job for later when API fails
+  const handleSaveForLater = async () => {
+    if (!jobContentRef.current) {
+      return;
+    }
+
+    try {
+      const result = await invoke<{ id: number; saved: boolean }>("save_job_post", {
+        jobContent: jobContentRef.current,
+        url: null, // User pasted text, no URL
+      });
+
+      if (result.saved) {
+        alert("Job saved! You can generate a proposal for it later.");
+        setJobContent("");
+        reset();
+      }
+    } catch (err) {
+      console.error("Failed to save job:", err);
+      alert("Failed to save job. Please try copying the job text manually.");
+    }
+  };
+
   // Combine errors for display
   const displayError = inputError || streamError;
 
@@ -162,6 +209,9 @@ function App() {
             loading={isStreaming}
             error={displayError}
             isSaved={isSaved}
+            onRetry={handleRetry}
+            onSaveForLater={handleSaveForLater}
+            retryCount={retryCount}
           />
         </>
       )}

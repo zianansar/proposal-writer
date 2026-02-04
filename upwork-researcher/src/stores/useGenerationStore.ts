@@ -13,6 +13,8 @@ interface GenerationState {
   isSaved: boolean;
   /** Database ID of saved proposal */
   savedId: number | null;
+  /** Number of retry attempts for current generation (Story 1.13) */
+  retryCount: number;
 }
 
 interface GenerationActions {
@@ -26,6 +28,8 @@ interface GenerationActions {
   setComplete: (fullText: string) => void;
   /** Mark proposal as saved with its database ID */
   setSaved: (id: number) => void;
+  /** Increment retry count (Story 1.13) */
+  incrementRetry: () => void;
   /** Reset store to initial state for new generation */
   reset: () => void;
 }
@@ -37,6 +41,7 @@ const initialState: GenerationState = {
   fullText: null,
   isSaved: false,
   savedId: null,
+  retryCount: 0,
 };
 
 export const useGenerationStore = create<GenerationState & GenerationActions>(
@@ -73,6 +78,11 @@ export const useGenerationStore = create<GenerationState & GenerationActions>(
         isSaved: true,
         savedId: id,
       }),
+
+    incrementRetry: () =>
+      set((state) => ({
+        retryCount: state.retryCount + 1,
+      })),
 
     reset: () => set(initialState),
   })

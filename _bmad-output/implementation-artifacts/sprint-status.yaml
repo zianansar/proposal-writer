@@ -61,7 +61,7 @@ development_status:
   1-10-export-proposals-to-json: done
   1-11-database-migration-framework-setup: review
   1-12-job-posts-table-schema: review
-  1-13-api-error-handling: backlog
+  1-13-api-error-handling: review
   1-14-draft-recovery-on-crash: backlog
   1-15-onboarding-flow: backlog
   1-16-logging-infrastructure: backlog

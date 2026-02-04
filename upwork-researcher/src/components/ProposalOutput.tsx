@@ -5,9 +5,20 @@ interface ProposalOutputProps {
   loading: boolean;
   error: string | null;
   isSaved?: boolean;
+  onRetry?: () => void;
+  onSaveForLater?: () => void;
+  retryCount?: number;
 }
 
-function ProposalOutput({ proposal, loading, error, isSaved = false }: ProposalOutputProps) {
+function ProposalOutput({
+  proposal,
+  loading,
+  error,
+  isSaved = false,
+  onRetry,
+  onSaveForLater,
+  retryCount = 0,
+}: ProposalOutputProps) {
   // Show streaming content with indicator while loading
   if (loading && proposal) {
     return (
@@ -32,9 +43,24 @@ function ProposalOutput({ proposal, loading, error, isSaved = false }: ProposalO
 
   // Show error with any partial content preserved
   if (error) {
+    const MAX_RETRIES = 3;
+    const canRetry = retryCount < MAX_RETRIES;
+
     return (
       <div className="proposal-output proposal-output--error" aria-live="assertive">
         <p className="error-message">{error}</p>
+        <div className="error-actions">
+          {canRetry && onRetry && (
+            <button onClick={onRetry} className="button button--primary">
+              Retry {retryCount > 0 && `(${retryCount}/${MAX_RETRIES})`}
+            </button>
+          )}
+          {onSaveForLater && (
+            <button onClick={onSaveForLater} className="button button--secondary">
+              Save Job for Later
+            </button>
+          )}
+        </div>
         {proposal && (
           <>
             <label>Partial Result (preserved)</label>

@@ -717,3 +717,54 @@ h1 {
     background-color: rgba(255, 0, 0, 0.1);
   }
 }
+
+/* Story 1.13: Error action buttons */
+.error-actions {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.error-actions .button {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.2s ease;
+}
+
+.error-actions .button--primary {
+  background-color: #396cd8;
+  color: #fff;
+  border-color: #396cd8;
+}
+
+.error-actions .button--primary:hover {
+  background-color: #2d5bb8;
+}
+
+.error-actions .button--secondary {
+  background-color: transparent;
+  color: #666;
+  border-color: #666;
+}
+
+.error-actions .button--secondary:hover {
+  background-color: #666;
+  color: #fff;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .error-actions .button--secondary {
+    color: #bbb;
+    border-color: #666;
+  }
+
+  .error-actions .button--secondary:hover {
+    background-color: #555;
+    color: #fff;
+  }
+}

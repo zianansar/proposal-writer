@@ -82,6 +82,33 @@ fn get_proposals(
         .map_err(|e| format!("Failed to get proposals: {}", e))
 }
 
+/// Save a job post for later (Story 1.13: API Error Handling)
+/// Used when API errors occur and user wants to save job to process later
+#[tauri::command]
+fn save_job_post(
+    database: State<db::Database>,
+    job_content: String,
+    url: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let id = db::queries::job_posts::insert_job_post(
+        &conn,
+        url.as_deref(),
+        &job_content,
+        None, // client_name will be extracted in Epic 4a
+    )
+    .map_err(|e| format!("Failed to save job post: {}", e))?;
+
+    Ok(serde_json::json!({
+        "id": id,
+        "saved": true
+    }))
+}
+
 /// Check if API key is configured
 #[tauri::command]
 fn has_api_key(config_state: State<config::ConfigState>) -> Result<bool, String> {
@@ -319,6 +346,7 @@ pub fn run() {
             check_database,
             save_proposal,
             get_proposals,
+            save_job_post,
             has_api_key,
             set_api_key,
             get_api_key_masked,
