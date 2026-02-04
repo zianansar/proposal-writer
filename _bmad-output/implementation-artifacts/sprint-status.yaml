@@ -59,9 +59,9 @@ development_status:
   1-8-settings-table-for-configuration: done
   1-9-persist-user-preferences: done
   1-10-export-proposals-to-json: done
-  1-11-database-migration-framework-setup: review
-  1-12-job-posts-table-schema: review
-  1-13-api-error-handling: review
+  1-11-database-migration-framework-setup: done
+  1-12-job-posts-table-schema: done
+  1-13-api-error-handling: done
   1-14-draft-recovery-on-crash: backlog
   1-15-onboarding-flow: backlog
   1-16-logging-infrastructure: backlog

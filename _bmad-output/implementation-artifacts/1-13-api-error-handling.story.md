@@ -1,9 +1,11 @@
 ---
-status: review
+status: done
 assignedTo: "dev-agent"
 tasksCompleted: 4
 totalTasks: 4
 testsWritten: true
+codeReviewCompleted: true
+highIssuesFixed: 2
 fileList:
   - upwork-researcher/src-tauri/src/db/queries/job_posts.rs
   - upwork-researcher/src-tauri/src/db/queries/mod.rs
@@ -58,6 +60,41 @@ So that I can retry if Anthropic's service is down.
   - [x] Subtask 4.2: Test server error returns 500-specific message
   - [x] Subtask 4.3: Test retry button appears on error
   - [x] Subtask 4.4: Test "Save for Later" saves to job_posts table
+
+### Code Review Follow-ups
+
+- [x] [Code-Review][HIGH] **FIXED:** Race condition in retry logic (App.tsx:136)
+  - Issue: incrementRetry() called before delay, causing UI/state mismatch
+  - Fix: Moved incrementRetry() to after delay
+  - Status: ✅ Fixed and tested
+
+- [x] [Code-Review][HIGH] **FIXED:** Retry count not reset on success (App.tsx:102-110)
+  - Issue: Retry count persists across generations
+  - Fix: Added useEffect to reset retry count when generation succeeds
+  - Status: ✅ Fixed and tested
+
+- [ ] [Code-Review][MEDIUM] Add loading state during backoff delay (ProposalOutput.tsx, App.tsx)
+  - Issue: During 1-4s delay, Retry button still clickable with no feedback
+  - Impact: User can spam Retry button causing multiple concurrent retries
+  - Recommended: Disable Retry button or show countdown ("Retry in 2s...")
+  - Location: ProposalOutput.tsx:47, App.tsx:132-143
+
+- [ ] [Code-Review][MEDIUM] Replace alert() with better notification (App.tsx:158, 164)
+  - Issue: Uses blocking alert() for "Job saved!" notification
+  - Impact: Poor UX, old-school pattern
+  - Recommended: Use toast notification library or inline success message
+  - Location: handleSaveForLater function
+
+- [ ] [Code-Review][LOW] Add CSS visual regression tests (App.css:680-720)
+  - Issue: New .error-actions styles not tested
+  - Impact: Might break in dark mode or different screen sizes
+  - Recommended: Manual testing or automated visual tests
+  - Location: .error-actions, .button--primary, .button--secondary
+
+- [ ] [Code-Review][LOW] Note: job_posts.rs missing get/list functions (db/queries/job_posts.rs)
+  - Issue: Only has insert_job_post, missing list/get/delete
+  - Impact: Epic 4a will need these functions
+  - Note: Intentional per story scope, documenting for future reference
 
 ## Dev Notes
 

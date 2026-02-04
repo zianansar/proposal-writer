@@ -1,9 +1,10 @@
 ---
-status: review
+status: done
 assignedTo: "dev-agent"
 tasksCompleted: 3
 totalTasks: 3
 testsWritten: true
+codeReviewCompleted: true
 fileList:
   - upwork-researcher/src-tauri/migrations/V3__add_job_posts_table.sql
   - upwork-researcher/src-tauri/src/db/mod.rs
@@ -48,6 +49,22 @@ So that users can analyze jobs before generating proposals (Epic 4).
   - [x] Subtask 3.2: Test that job_posts table has all required columns
   - [x] Subtask 3.3: Test that indexes exist (created_at, url)
   - [x] Subtask 3.4: Verify migration is idempotent (run twice, no errors)
+
+### Code Review Follow-ups
+
+- [ ] [Code-Review][MEDIUM] Consider partial index on url column (V3__add_job_posts_table.sql:16)
+  - Current: `CREATE INDEX ... ON job_posts(url)` indexes NULL values
+  - Recommended: `CREATE INDEX ... ON job_posts(url) WHERE url IS NOT NULL`
+  - Rationale: NULL urls can't be duplicates, excluding them improves index efficiency
+
+- [ ] [Code-Review][MEDIUM] Add test for NULL url index behavior (db/mod.rs)
+  - Test inserting multiple job posts with NULL urls
+  - Verify no unique constraint violation (expected behavior)
+  - Verify index still works for non-NULL urls
+
+- [ ] [Code-Review][LOW] Add column-level documentation to migration (V3__add_job_posts_table.sql)
+  - Document why url and client_name are nullable
+  - Add inline SQL comments explaining use cases
 
 ## Dev Notes
 

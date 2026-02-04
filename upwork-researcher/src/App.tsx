@@ -99,6 +99,17 @@ function App() {
     }
   }, [fullText, isSaved, setSaved]);
 
+  // Reset retry count on successful generation (Story 1.13 Code Review Fix)
+  useEffect(() => {
+    if (fullText && !streamError) {
+      // Success: reset retry count for next generation
+      const state = useGenerationStore.getState();
+      if (state.retryCount > 0) {
+        state.reset();
+      }
+    }
+  }, [fullText, streamError]);
+
   const handleGenerate = async () => {
     if (!jobContent.trim()) {
       setInputError("Please paste a job post first.");
@@ -133,10 +144,11 @@ function App() {
     const BACKOFF_DELAYS = [1000, 2000, 4000]; // 1s, 2s, 4s
     const delay = BACKOFF_DELAYS[retryCount] || 4000;
 
-    incrementRetry();
-
-    // Wait for backoff delay
+    // Wait for backoff delay before incrementing (so UI shows correct count during delay)
     await new Promise((resolve) => setTimeout(resolve, delay));
+
+    // Increment retry count AFTER delay
+    incrementRetry();
 
     // Retry generation
     await handleGenerate();
