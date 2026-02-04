@@ -45,7 +45,7 @@ development_status:
   0-2-claude-api-integration-for-basic-generation: done
   0-3-streaming-ui-display: done
   0-4-manual-copy-to-clipboard: done
-  0-5-validate-ai-detection-passing: ready-for-dev
+  0-5-validate-ai-detection-passing: review
   epic-0-retrospective: optional
 
   epic-1: in-progress
@@ -59,7 +59,7 @@ development_status:
   1-8-settings-table-for-configuration: done
   1-9-persist-user-preferences: done
   1-10-export-proposals-to-json: done
-  1-11-database-migration-framework-setup: backlog
+  1-11-database-migration-framework-setup: review
   1-12-job-posts-table-schema: backlog
   1-13-api-error-handling: backlog
   1-14-draft-recovery-on-crash: backlog

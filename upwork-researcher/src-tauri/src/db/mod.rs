@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 // Embed migrations from the migrations directory
-embed_migrations!("src/db/migrations");
+embed_migrations!("migrations");
 
 /// Database state wrapper for Tauri managed state.
 /// Provides thread-safe access to the SQLite connection.
@@ -221,5 +221,174 @@ mod tests {
             .unwrap();
 
         assert!(settings_count >= 2); // At least theme and api_provider
+    }
+
+    #[test]
+    fn test_migrations_are_idempotent() {
+        // Story 1.11 AC-2: Verify migrations can run multiple times safely
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        // Run migrations first time
+        let db1 = Database::new(db_path.clone()).unwrap();
+        drop(db1);
+
+        // Run migrations second time - should not fail
+        let db2 = Database::new(db_path.clone()).unwrap();
+        let conn = db2.conn.lock().unwrap();
+
+        // Verify tables still exist and data is intact
+        let proposals_count: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='proposals'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let settings_count: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='settings'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(proposals_count, 1);
+        assert_eq!(settings_count, 1);
+    }
+
+    #[test]
+    fn test_migration_history_tracked() {
+        // Story 1.11 AC-2: Verify migration history in schema table
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Check that refinery's history table exists
+        let history_table_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='refinery_schema_history'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(history_table_exists, 1);
+
+        // Check that migrations are recorded
+        let migrations_applied: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM refinery_schema_history",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert!(migrations_applied >= 2); // At least V1 and V2
+    }
+
+    #[test]
+    fn test_migration_error_logging() {
+        // Story 1.11 AC-3: Verify migration errors are properly reported
+        // This test uses an intentionally invalid path to trigger an error
+        use std::path::Path;
+
+        let invalid_path = Path::new("/invalid/nonexistent/path/test.db");
+        let result = Database::new(invalid_path.to_path_buf());
+
+        // Should return error message
+        assert!(result.is_err());
+        if let Err(error_msg) = result {
+            assert!(error_msg.contains("Failed to open database") || error_msg.contains("unable to open"));
+        }
+    }
+
+    #[test]
+    fn test_migrations_create_job_posts_table() {
+        // Story 1.12 AC-1: Verify job_posts table is created
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Check that job_posts table exists
+        let table_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='job_posts'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(table_exists, 1);
+    }
+
+    #[test]
+    fn test_job_posts_table_has_correct_columns() {
+        // Story 1.12 AC-1: Verify job_posts table has correct schema
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Get column info
+        let mut stmt = conn.prepare("PRAGMA table_info(job_posts)").unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        assert!(columns.contains(&"id".to_string()));
+        assert!(columns.contains(&"url".to_string()));
+        assert!(columns.contains(&"raw_content".to_string()));
+        assert!(columns.contains(&"client_name".to_string()));
+        assert!(columns.contains(&"created_at".to_string()));
+    }
+
+    #[test]
+    fn test_job_posts_table_has_created_at_index() {
+        // Story 1.12 AC-3: Verify created_at index exists for performance
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Check that index exists
+        let index_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_posts_created_at'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(index_exists, 1);
+    }
+
+    #[test]
+    fn test_job_posts_table_has_url_index() {
+        // Story 1.12 AC-3: Verify url index exists for duplicate detection
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Check that index exists
+        let index_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_posts_url'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(index_exists, 1);
     }
 }
