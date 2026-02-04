@@ -45,11 +45,79 @@ describe("ProposalOutput", () => {
     expect(screen.queryByText(/some error/i)).not.toBeInTheDocument();
   });
 
-  it("prioritizes error state over proposal", () => {
+  it("shows error with partial result preserved", () => {
     render(
-      <ProposalOutput proposal="Some proposal" loading={false} error="Error!" />
+      <ProposalOutput proposal="Some partial proposal" loading={false} error="Error!" />
     );
+    // Both error and partial content should be visible
     expect(screen.getByText(/error!/i)).toBeInTheDocument();
-    expect(screen.queryByText(/some proposal/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/some partial proposal/i)).toBeInTheDocument();
+    expect(screen.getByText(/partial result/i)).toBeInTheDocument();
+  });
+
+  it("shows streaming indicator when loading with content", () => {
+    render(
+      <ProposalOutput proposal="Streaming content" loading={true} error={null} />
+    );
+    expect(screen.getByText(/streaming content/i)).toBeInTheDocument();
+    expect(screen.getByText(/generating proposal/i)).toBeInTheDocument();
+  });
+
+  // CopyButton integration tests
+  it("shows copy button when proposal is complete", () => {
+    render(
+      <ProposalOutput proposal="Complete proposal" loading={false} error={null} />
+    );
+    expect(screen.getByRole("button", { name: /copy to clipboard/i })).toBeInTheDocument();
+  });
+
+  it("does not show copy button when loading without content", () => {
+    render(
+      <ProposalOutput proposal={null} loading={true} error={null} />
+    );
+    expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
+  });
+
+  it("does not show copy button while streaming", () => {
+    render(
+      <ProposalOutput proposal="Streaming content" loading={true} error={null} />
+    );
+    expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
+  });
+
+  it("shows copy button with partial result on error", () => {
+    render(
+      <ProposalOutput proposal="Partial content" loading={false} error="Error occurred" />
+    );
+    expect(screen.getByRole("button", { name: /copy to clipboard/i })).toBeInTheDocument();
+  });
+
+  it("does not show copy button when error with no partial result", () => {
+    render(
+      <ProposalOutput proposal={null} loading={false} error="Error occurred" />
+    );
+    expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
+  });
+
+  // Saved indicator tests
+  it("shows saved indicator when isSaved is true", () => {
+    render(
+      <ProposalOutput proposal="Complete proposal" loading={false} error={null} isSaved={true} />
+    );
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+  });
+
+  it("does not show saved indicator when isSaved is false", () => {
+    render(
+      <ProposalOutput proposal="Complete proposal" loading={false} error={null} isSaved={false} />
+    );
+    expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+  });
+
+  it("does not show saved indicator by default", () => {
+    render(
+      <ProposalOutput proposal="Complete proposal" loading={false} error={null} />
+    );
+    expect(screen.queryByText("Saved")).not.toBeInTheDocument();
   });
 });

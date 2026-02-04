@@ -20,8 +20,22 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "=2.9.1", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version = "0.12", features = ["json"] }
-tokio = { version = "1", features = ["rt"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+futures = "0.3"
+rusqlite = { version = "0.32", features = ["bundled"] }
+refinery = { version = "0.8", features = ["rusqlite"] }
+
+# Encryption spike dependencies (Story 1.6)
+# These validate Argon2 + Keyring stack for Epic 2
+# SQLCipher validation requires a separate spike project (see encryption_spike.rs notes)
+argon2 = "0.5"
+keyring = "3"
+rand = "0.8"
+
+[dev-dependencies]
+tempfile = "3"
 
