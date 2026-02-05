@@ -1,11 +1,18 @@
 ---
-status: review
+status: in-progress
 assignedTo: "dev-agent"
-tasksCompleted: 3
-totalTasks: 3
+tasksCompleted: 13
+totalTasks: 18
 testsWritten: false
 fileList:
   - upwork-researcher/src-tauri/Cargo.toml
+reviewFindings:
+  high: 3
+  medium: 3
+  low: 4
+  autoFixed: 10
+  requiresManualTest: 5
+  requiresPMDecision: 3
 ---
 
 # Story 0.5: Validate AI Detection Passing
@@ -57,7 +64,9 @@ Use one or more of:
 
 ### Perplexity Target
 
-- Target: <150 perplexity score
+- Target: <150 perplexity score (when using GPTZero perplexity mode)
+- Alternative: <30% AI detection (when using ZeroGPT/GPTCleanup percentage mode)
+- **Pass Criteria (Code Review Clarification):** Either perplexity <150 OR <30% AI detection score
 - 4/5 must pass for Epic 0 validation
 - If 5/5 pass, this validates core concept
 
@@ -81,19 +90,88 @@ Use one or more of:
   - [x] Subtask 3.3: Document recommendations for Epic 3 safety thresholds
   - [x] Subtask 3.4: Update this story with results
 
+### Review Follow-ups (AI Code Review - 2026-02-05)
+
+#### Structural Improvements (Completed by Dev Agent)
+- [x] **[AI-Review][HIGH]** ✅ Create separate product decision artifact with 4 decision options for PM/SM escalation [Product Decision Required section added]
+- [x] **[AI-Review][HIGH]** ✅ Add test evidence section with template for screenshots, raw data, tool versions, reproducibility instructions [Test Evidence section added]
+- [x] **[AI-Review][HIGH]** ✅ Change "Epic 3 MANDATORY" to "STRONGLY RECOMMENDED" with PM escalation note [Recommendations section updated]
+- [x] **[AI-Review][MEDIUM]** ✅ Add structure for Cargo.toml error documentation (awaiting user input) [Implementation Plan section updated]
+- [x] **[AI-Review][MEDIUM]** ✅ Add table structure for technical domain tests (DevOps, Database, Security) [Additional Technical Domain Tests table added]
+- [x] **[AI-Review][MEDIUM]** ✅ Add "Gen Time (s)" column to results table for NFR-6 validation [Test Results table updated]
+- [x] **[AI-Review][LOW]** ✅ Clarify threshold scale mapping and add note about Epic 3 tool mapping [Recommendations section updated]
+- [x] **[AI-Review][LOW]** ✅ Define explicit pass criteria with both perplexity and % scales [Perplexity Target section updated]
+- [x] **[AI-Review][LOW]** ✅ Add human baseline test table structure [Human Baseline Test table added]
+- [x] **[AI-Review][LOW]** ✅ Document git commit message issue in change log [Change Log updated]
+
+#### Manual Testing Required (User Action)
+- [ ] **[MANUAL-TEST]** Fill in generation timing data for tests #1-5 (requires re-running tests with timer)
+- [ ] **[MANUAL-TEST]** Execute tests #6-8: Technical domains (DevOps, Database Admin, Security pentesting)
+- [ ] **[MANUAL-TEST]** Execute test #H1: Human-written proposal baseline
+- [ ] **[MANUAL-TEST]** Collect and store test evidence: Screenshots, raw proposal text, tool versions
+- [ ] **[MANUAL-TEST]** Document Cargo.toml error message, root cause, and fix rationale
+
+#### Awaiting Product Decision
+- [ ] **[PM-DECISION]** Review "Product Decision Required" section and select Option 1-4
+- [ ] **[PM-DECISION]** Set decision deadline date
+- [ ] **[PM-DECISION]** Update story status based on decision (done/in-progress/blocked)
+
 ## Dev Notes
 
-### Results Template
+### Test Evidence (AI Review Action Item #2)
 
-| # | Industry | Job Excerpt | Detection Score | Tool Used | Pass/Fail |
-|---|----------|-------------|-----------------|-----------|-----------|
-| 1 | SaaS/CRM | CRM setup specialist | GPTCleanup: 45% human, ZeroGPT: 25% AI | GPTCleanup, ZeroGPT | PASS ✅ |
-| 2 | Automation | Automation setup | ZeroGPT: 68% AI | ZeroGPT | FAIL ❌ |
-| 3 | UI/UX Design | UI/UX design work | ZeroGPT: 98% AI | ZeroGPT | FAIL ❌ |
-| 4 | ML/Data Analysis | Machine learning data analysis | ZeroGPT: 89% AI | ZeroGPT | FAIL ❌ |
-| 5 | Copywriting | Content writing/marketing | ZeroGPT: 100% AI | ZeroGPT | FAIL ❌ |
+**Tool Versions:**
+- ZeroGPT: [Version/Date used - add details]
+- GPTCleanup: [Version/Date used - add details]
 
-**Summary:** 1/5 passed (20% success rate) - ❌ **AC-2 FAILED** (requires 4/5 minimum, 80%)
+**Test Execution Details:**
+- Test Date: 2026-02-04
+- Test Duration: [Total time - add details]
+- Environment: `npm run tauri dev` with ANTHROPIC_API_KEY set
+
+**Evidence Artifacts:**
+- [ ] Screenshots of AI detection results (store in `/docs/test-evidence/story-0-5/`)
+- [ ] Raw proposal text files (sanitized, stored in same directory)
+- [ ] Tool configuration settings used
+- [ ] Timestamp logs of each test execution
+
+**Reproducibility Instructions:**
+1. Set ANTHROPIC_API_KEY environment variable
+2. Run `npm run tauri dev`
+3. Paste job post text (samples stored in [location TBD])
+4. Generate proposal
+5. Copy result and paste into ZeroGPT/GPTCleanup
+6. Record score and screenshot
+
+### Test Results Summary
+
+| # | Industry | Domain Type | Job Excerpt | Gen Time (s) | Detection Score | Tool Used | Pass/Fail |
+|---|----------|-------------|-------------|--------------|-----------------|-----------|-----------|
+| 1 | SaaS/CRM | Technical | CRM setup specialist | [TBD] | GPTCleanup: 45% human, ZeroGPT: 25% AI | GPTCleanup, ZeroGPT | PASS ✅ |
+| 2 | Automation | Technical/Creative | Automation setup | [TBD] | ZeroGPT: 68% AI | ZeroGPT | FAIL ❌ |
+| 3 | UI/UX Design | Creative | UI/UX design work | [TBD] | ZeroGPT: 98% AI | ZeroGPT | FAIL ❌ |
+| 4 | ML/Data Analysis | Technical/Creative | Machine learning data analysis | [TBD] | ZeroGPT: 89% AI | ZeroGPT | FAIL ❌ |
+| 5 | Copywriting | Creative | Content writing/marketing | [TBD] | ZeroGPT: 100% AI | ZeroGPT | FAIL ❌ |
+
+**Initial Round Summary:** 1/5 passed (20% success rate) - ❌ **AC-2 FAILED** (requires 4/5 minimum, 80%)
+
+#### Additional Technical Domain Tests (AI Review Action Item #5)
+
+| # | Industry | Domain Type | Job Excerpt | Gen Time (s) | Detection Score | Tool Used | Pass/Fail |
+|---|----------|-------------|-------------|--------------|-----------------|-----------|-----------|
+| 6 | DevOps/Infrastructure | Deep Technical | [Job excerpt TBD] | [TBD] | [TBD] | ZeroGPT | [TBD] |
+| 7 | Database Admin | Deep Technical | [Job excerpt TBD] | [TBD] | [TBD] | ZeroGPT | [TBD] |
+| 8 | Security/Pentesting | Deep Technical | [Job excerpt TBD] | [TBD] | [TBD] | ZeroGPT | [TBD] |
+
+**Extended Testing Goal:** Determine if deep technical domains show lower AI detection rates than creative domains.
+
+#### Human Baseline Test (AI Review Action Item #9)
+
+| # | Source | Domain Type | Job Post | Detection Score | Tool Used | Result |
+|---|--------|-------------|----------|-----------------|-----------|--------|
+| H1 | Human-written | [Select domain] | [Job excerpt TBD] | [TBD] | ZeroGPT | [TBD] |
+
+**Baseline Goal:** Establish if tools over-detect AI or if AI content is genuinely distinguishable from human writing.
 
 ### Observations
 
@@ -110,7 +188,9 @@ Use one or more of:
 
 ### Recommendations for Epic 3
 
-**CRITICAL PRIORITY - Epic 3 (Safety & Compliance) is MANDATORY, not optional:**
+**CRITICAL PRIORITY - Epic 3 (Safety & Compliance) STRONGLY RECOMMENDED:**
+
+> **Product Decision Required:** Testing shows 1/5 proposals passed (20% vs. required 80%). Based on these findings, Dev Agent recommends Epic 3 as mandatory blocker for MVP. **Escalate to PM/SM for prioritization decision.**
 
 1. **Humanization Techniques Required:**
    - Implement perplexity-based humanization injection (Story 3-3)
@@ -122,10 +202,11 @@ Use one or more of:
    - Flag high-risk sentences before generation
    - User must see warnings before copying
 
-3. **Recommended Safety Thresholds:**
+3. **Recommended Safety Thresholds (ZeroGPT/GPTCleanup % AI Scale):**
    - Block threshold: >70% AI detection (auto-warn user)
    - Warning threshold: 50-70% AI detection (suggest re-humanization)
    - Safe zone: <50% AI detection (allow copy)
+   - **Note:** Epic 3 implementation will need to map between tool-specific scales (% vs perplexity vs confidence)
 
 4. **Industry-Specific Tuning:**
    - Technical domains (SaaS, CRM): Current approach acceptable
@@ -138,6 +219,49 @@ Use one or more of:
 
 **BLOCKER:** Product cannot launch without Epic 3 humanization features. Current generation is not market-ready.
 
+## Product Decision Required (AI Review Action Item #1)
+
+**Issue:** AC-2 FAILED - Only 1/5 proposals passed AI detection (20% vs. required 80%)
+
+**Impact:**
+- Epic 0 "Walking Skeleton" validation objective not met
+- Current AI generation produces highly detectable content (68-100% AI detection)
+- Product cannot launch with current generation quality
+
+**Decision Options:**
+
+### Option 1: Accept Reduced Pass Rate (Fast Path)
+- **Accept:** 1/5 pass rate as "acceptable for spike"
+- **Rationale:** Epic 0 proves technical feasibility, not market readiness
+- **Action:** Mark story as "done with exception", proceed to Epic 1-2
+- **Risk:** Launch blockers discovered late (Epic 3 becomes critical path)
+- **Timeline Impact:** No delay
+
+### Option 2: Implement Basic Humanization Now (Hybrid)
+- **Accept:** Current results show need for immediate humanization
+- **Rationale:** Don't wait for Epic 3, add basic fixes now
+- **Action:** Create new story "0-6: Basic Humanization Injection" (2-3 days)
+- **Risk:** Scope creep in Epic 0, may not solve detection problem
+- **Timeline Impact:** +2-3 days before Epic 1
+
+### Option 3: Escalate Epic 3 to MVP (Dev Agent Recommendation)
+- **Accept:** Epic 3 is mandatory blocker, move to MVP scope
+- **Rationale:** Product unusable without humanization features
+- **Action:** Re-sequence: Epic 0 → Epic 1 → Epic 2 → **Epic 3** (before 4-6)
+- **Risk:** Increased MVP scope, longer time to market
+- **Timeline Impact:** Epic 3 estimated 2-3 weeks
+
+### Option 4: Pivot Product Strategy
+- **Accept:** AI detection risk too high for Upwork platform
+- **Rationale:** Even with humanization, detection tools will improve
+- **Action:** Pivot to "proposal assistant" vs. "proposal generator"
+- **Risk:** Major product direction change
+- **Timeline Impact:** Requires new PRD/Architecture
+
+**PM/SM Decision:** [PENDING - Assign to Product Manager for evaluation]
+
+**Decision Deadline:** [TBD - Recommend decision by: date]
+
 ## References
 
 - [Source: epics-stories.md#Story 0.5: Validate AI Detection Passing]
@@ -147,7 +271,14 @@ Use one or more of:
 
 ### Implementation Plan
 Fixed prerequisite issues to enable manual testing:
-1. Added `default-run = "upwork-research-agent"` to Cargo.toml (resolved binary ambiguity)
+
+1. **Cargo.toml Fix (AI Review Action Item #4):**
+   - Added `default-run = "upwork-research-agent"` to Cargo.toml:7
+   - **Original Error Message:** [TBD - Document the exact cargo/tauri error that occurred]
+   - **Root Cause:** [TBD - Was this binary ambiguity, cargo version issue, or tauri-specific?]
+   - **Why This Fix Works:** [TBD - Explain why default-run solves the issue]
+   - This fix resolved binary ambiguity and allowed `npm run tauri dev` to succeed
+
 2. Ran `npm install` to install missing dependencies (zustand, @tauri-apps/plugin-clipboard-manager)
 3. Successfully launched app via `npm run tauri dev`
 
@@ -168,6 +299,10 @@ Fixed prerequisite issues to enable manual testing:
 - upwork-researcher/src-tauri/Cargo.toml
 
 ## Change Log
-- 2026-02-04: Story created - Manual testing story for AI detection validation
+- 2026-02-04: Story created - Manual testing story for AI detection validation - Dev Agent
 - 2026-02-04: Fixed app launch issues (Cargo.toml default-run, npm deps) - Dev Agent
 - 2026-02-04: Completed manual testing - 1/5 passed (AC-2 FAILED), Epic 3 mandatory - Dev Agent
+- 2026-02-05: Code review completed - 10 findings (3 HIGH, 3 MEDIUM, 4 LOW), status changed to in-progress - Dev Agent
+- 2026-02-05: Implemented all 10 structural action items: Added Product Decision section (4 options for PM), Test Evidence template, expanded test tables (technical domains + human baseline), documented error context, clarified thresholds and pass criteria - Dev Agent
+- 2026-02-05: Created manual testing checklist (5 items) and PM decision checklist (3 items) for story completion - Dev Agent
+- 2026-02-05: Note: Git commit bbbaeb7 message says "feat: Complete story 0-5" but should clarify AC-2 failed (1/5 passed). Future commits should indicate validation outcomes. - Code Review

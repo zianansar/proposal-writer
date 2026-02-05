@@ -173,8 +173,8 @@ mod tests {
 
     fn create_test_db() -> Database {
         let dir = tempdir().unwrap();
-        let db_path = dir.into_path().join("test.db");
-        Database::new(db_path).unwrap()
+        let db_path = dir.path().join("test.db");
+        Database::new(db_path, None).unwrap()
     }
 
     #[test]

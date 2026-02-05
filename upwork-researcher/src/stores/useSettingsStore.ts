@@ -109,3 +109,14 @@ export const getSafetyThreshold = (state: SettingsState): number => {
 export const getOnboardingCompleted = (state: SettingsState): boolean => {
   return state.settings.onboarding_completed === "true";
 };
+
+/** Humanization intensity (Story 3.3). Defaults to "medium". */
+export type HumanizationIntensity = "off" | "light" | "medium" | "heavy";
+
+export const getHumanizationIntensity = (state: SettingsState): HumanizationIntensity => {
+  const value = state.settings.humanization_intensity;
+  if (value === "off" || value === "light" || value === "medium" || value === "heavy") {
+    return value;
+  }
+  return "medium"; // Default (AC6)
+};

@@ -25,7 +25,7 @@ mod tests {
     fn test_insert_job_post_with_url() {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
-        let db = Database::new(db_path).unwrap();
+        let db = Database::new(db_path, None).unwrap();
         let conn = db.conn.lock().unwrap();
 
         let id = insert_job_post(
@@ -54,7 +54,7 @@ mod tests {
     fn test_insert_job_post_without_url() {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
-        let db = Database::new(db_path).unwrap();
+        let db = Database::new(db_path, None).unwrap();
         let conn = db.conn.lock().unwrap();
 
         let id = insert_job_post(
@@ -83,7 +83,7 @@ mod tests {
     fn test_insert_job_post_with_client_name() {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
-        let db = Database::new(db_path).unwrap();
+        let db = Database::new(db_path, None).unwrap();
         let conn = db.conn.lock().unwrap();
 
         let id = insert_job_post(

@@ -1,4 +1,4 @@
-use crate::{db, events, DraftState};
+use crate::{db, events, humanization, DraftState};
 use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,7 @@ use tauri::{AppHandle, Emitter};
 const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 const MODEL: &str = "claude-sonnet-4-20250514";
+const HAIKU_MODEL: &str = "claude-haiku-4-20250514";
 const TOKEN_BATCH_INTERVAL_MS: u64 = 50;
 
 #[derive(Debug, Serialize)]
@@ -81,7 +82,24 @@ struct ClaudeErrorDetail {
     message: String,
 }
 
-const SYSTEM_PROMPT: &str = r#"You are an expert Upwork proposal writer. Generate a 3-paragraph proposal:
+// Story 3.2: Perplexity analysis with flagged sentences
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlaggedSentence {
+    pub text: String,
+    pub suggestion: String,
+    pub index: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PerplexityAnalysis {
+    pub score: f32,
+    pub threshold: f32,
+    pub flagged_sentences: Vec<FlaggedSentence>,
+}
+
+pub const SYSTEM_PROMPT: &str = r#"You are an expert Upwork proposal writer. Generate a 3-paragraph proposal:
 1. Hook: Open with a specific insight about the client's problem that shows you read the job post
 2. Bridge: Explain your relevant experience and approach to solving their problem
 3. CTA: End with a clear call to action and availability
@@ -104,14 +122,21 @@ fn resolve_api_key(provided_key: Option<&str>) -> Result<String, String> {
 }
 
 pub async fn generate_proposal(job_content: &str) -> Result<String, String> {
-    generate_proposal_with_key(job_content, None).await
+    generate_proposal_with_key(job_content, None, "medium").await
 }
 
 pub async fn generate_proposal_with_key(
     job_content: &str,
     api_key: Option<&str>,
+    humanization_intensity: &str,
 ) -> Result<String, String> {
     let api_key = resolve_api_key(api_key)?;
+
+    // Story 3.3: Build system prompt with humanization (single API call, zero latency overhead)
+    let system_prompt = humanization::build_system_prompt(SYSTEM_PROMPT, humanization_intensity);
+
+    // AR-16: Log intensity, not prompt content
+    tracing::info!(intensity = %humanization_intensity, "Generating proposal with humanization");
 
     let client = Client::builder()
         .timeout(Duration::from_secs(30))
@@ -127,7 +152,7 @@ pub async fn generate_proposal_with_key(
     let request_body = ClaudeRequest {
         model: MODEL.to_string(),
         max_tokens: 1024,
-        system: SYSTEM_PROMPT.to_string(),
+        system: system_prompt,
         messages: vec![Message {
             role: "user".to_string(),
             content: user_message,
@@ -194,14 +219,22 @@ pub async fn generate_proposal_streaming(
 /// Generate a proposal with streaming using provided API key.
 /// Auto-saves draft every 50ms during generation (Story 1.14).
 /// Uses async queue to prevent race conditions in draft saving (Code Review Fix).
+/// Story 3.3: Humanization instructions injected via system prompt (zero latency overhead).
 pub async fn generate_proposal_streaming_with_key(
     job_content: &str,
     app_handle: AppHandle,
     api_key: Option<&str>,
     database: &db::Database,
     draft_state: &DraftState,
+    humanization_intensity: &str,
 ) -> Result<String, String> {
     let api_key = resolve_api_key(api_key)?;
+
+    // Story 3.3: Build system prompt with humanization (single API call, zero latency overhead)
+    let system_prompt = humanization::build_system_prompt(SYSTEM_PROMPT, humanization_intensity);
+
+    // AR-16: Log intensity, not prompt content
+    tracing::info!(intensity = %humanization_intensity, "Generating streaming proposal with humanization");
 
     let client = Client::builder()
         .timeout(Duration::from_secs(60)) // Longer timeout for streaming
@@ -221,7 +254,7 @@ pub async fn generate_proposal_streaming_with_key(
     let request_body = ClaudeRequest {
         model: MODEL.to_string(),
         max_tokens: 1024,
-        system: SYSTEM_PROMPT.to_string(),
+        system: system_prompt,
         messages: vec![Message {
             role: "user".to_string(),
             content: user_message,
@@ -429,4 +462,276 @@ pub async fn generate_proposal_streaming_with_key(
     );
 
     Ok(full_text)
+}
+
+/// Parse a perplexity score from LLM response text.
+/// Handles formats: "150", "150.5", "Score: 150", "The score is 150.75"
+/// Uses last number found — LLM may mention thresholds/context before the actual score.
+pub fn parse_perplexity_score(text: &str) -> Result<f32, String> {
+    // First try parsing the whole trimmed text as a number (most common case)
+    if let Ok(score) = text.trim().parse::<f32>() {
+        return Ok(score);
+    }
+
+    // Fall back to extracting the last numeric token
+    text.split_whitespace()
+        .filter_map(|word| {
+            word.trim_matches(|c: char| !c.is_numeric() && c != '.')
+                .parse::<f32>()
+                .ok()
+        })
+        .last()
+        .ok_or_else(|| format!("Could not parse perplexity score from: {}", text))
+}
+
+/// Extract JSON from LLM response text.
+/// Handles common patterns: raw JSON, JSON wrapped in ```json code blocks,
+/// or JSON preceded by preamble text.
+pub fn extract_json_from_response(text: &str) -> &str {
+    let trimmed = text.trim();
+
+    // Try raw JSON first (starts with { or [)
+    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+        return trimmed;
+    }
+
+    // Try extracting from ```json ... ``` code blocks
+    if let Some(start) = trimmed.find("```json") {
+        let json_start = start + 7; // skip "```json"
+        if let Some(end) = trimmed[json_start..].find("```") {
+            return trimmed[json_start..json_start + end].trim();
+        }
+    }
+
+    // Try extracting from ``` ... ``` code blocks (no language tag)
+    if let Some(start) = trimmed.find("```") {
+        let json_start = start + 3;
+        if let Some(end) = trimmed[json_start..].find("```") {
+            let candidate = trimmed[json_start..json_start + end].trim();
+            if candidate.starts_with('{') || candidate.starts_with('[') {
+                return candidate;
+            }
+        }
+    }
+
+    // Try finding first { to last } (JSON object in surrounding text)
+    if let Some(start) = trimmed.find('{') {
+        if let Some(end) = trimmed.rfind('}') {
+            if end > start {
+                return &trimmed[start..=end];
+            }
+        }
+    }
+
+    // Give up — return as-is for serde to report the error
+    trimmed
+}
+
+/// Analyze text for AI detection risk using Claude Haiku.
+/// Returns a perplexity score (0-300+). Higher = more human-like.
+/// Threshold: <180 = safe, ≥180 = risky (per FR-11, Story 3.1)
+#[deprecated(note = "Use analyze_perplexity_with_sentences for structured analysis (Story 3.2)")]
+pub async fn analyze_perplexity(text: &str, api_key: Option<&str>) -> Result<f32, String> {
+    let api_key = resolve_api_key(api_key)?;
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(10)) // Fast analysis
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    // Prompt for perplexity analysis
+    let system_prompt = "You are an AI detection analyzer. Analyze the given text and return ONLY a numeric perplexity score (0-300). Higher scores indicate more human-like writing. Return only the number, no other text.";
+
+    let user_message = format!(
+        "Analyze this proposal text for AI detection risk:\n\n{}\n\nReturn only the perplexity score as a number.",
+        text
+    );
+
+    let request_body = ClaudeRequest {
+        model: HAIKU_MODEL.to_string(),
+        max_tokens: 50, // Just need a number
+        system: system_prompt.to_string(),
+        messages: vec![Message {
+            role: "user".to_string(),
+            content: user_message,
+        }],
+        stream: None, // No streaming for quick analysis
+    };
+
+    let response = client
+        .post(ANTHROPIC_API_URL)
+        .header("x-api-key", &api_key)
+        .header("anthropic-version", ANTHROPIC_VERSION)
+        .header("content-type", "application/json")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| {
+            let error_msg = if e.is_timeout() {
+                "Perplexity analysis timed out".to_string()
+            } else if e.is_connect() {
+                "Unable to reach AI service for analysis".to_string()
+            } else {
+                format!("Network error during analysis: {}", e)
+            };
+            tracing::error!("Perplexity analysis failed: {}", error_msg);
+            error_msg
+        })?;
+
+    let status = response.status();
+
+    if !status.is_success() {
+        let error_text = response.text().await.unwrap_or_default();
+        if let Ok(error) = serde_json::from_str::<ClaudeError>(&error_text) {
+            tracing::error!("Perplexity analysis API error: {}", error.error.message);
+            return Err(format!("API error: {}", error.error.message));
+        }
+        tracing::error!("Perplexity analysis API error ({}): {}", status, error_text);
+        return Err(format!("API error ({})", status));
+    }
+
+    // Parse response
+    let response_json: ClaudeResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse API response: {}", e))?;
+
+    // Extract score from response
+    let score_text = response_json
+        .content
+        .first()
+        .and_then(|block| block.text.as_ref())
+        .ok_or_else(|| "No content in API response".to_string())?;
+
+    let score = parse_perplexity_score(score_text)?;
+
+    tracing::info!("Perplexity analysis complete: score={}", score);
+    Ok(score)
+}
+
+/// Enhanced perplexity analysis with flagged sentences (Story 3.2)
+/// Returns perplexity score AND specific risky sentences with humanization suggestions
+/// Uses Claude Haiku for cost-effective detailed analysis
+pub async fn analyze_perplexity_with_sentences(
+    text: &str,
+    api_key: Option<&str>,
+) -> Result<PerplexityAnalysis, String> {
+    let api_key = resolve_api_key(api_key)?;
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(15)) // Slightly longer for sentence analysis
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    // Enhanced prompt for sentence-level analysis
+    let system_prompt = "You are an AI detection analyzer. Analyze the given text and return a JSON response with:
+1. Perplexity score (0-300, higher = more human-like)
+2. The 3-5 most AI-sounding sentences with specific humanization suggestions
+
+Be specific with suggestions - avoid generic advice like 'add variety'. Provide actionable fixes.";
+
+    let user_message = format!(
+        r#"Analyze this proposal for AI detection risk:
+
+{}
+
+Return JSON in this exact format:
+{{
+  "score": 185.5,
+  "flagged_sentences": [
+    {{
+      "text": "exact sentence from proposal",
+      "suggestion": "specific actionable fix (e.g., 'Replace X with Y for more natural phrasing')",
+      "index": 0
+    }}
+  ]
+}}
+
+Return ONLY valid JSON, no other text."#,
+        text
+    );
+
+    let request_body = ClaudeRequest {
+        model: HAIKU_MODEL.to_string(),
+        max_tokens: 1000, // Need more tokens for sentence analysis
+        system: system_prompt.to_string(),
+        messages: vec![Message {
+            role: "user".to_string(),
+            content: user_message,
+        }],
+        stream: None,
+    };
+
+    let response = client
+        .post(ANTHROPIC_API_URL)
+        .header("x-api-key", &api_key)
+        .header("anthropic-version", ANTHROPIC_VERSION)
+        .header("content-type", "application/json")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| {
+            let error_msg = if e.is_timeout() {
+                "Sentence analysis timed out".to_string()
+            } else if e.is_connect() {
+                "Unable to reach AI service for analysis".to_string()
+            } else {
+                format!("Network error during analysis: {}", e)
+            };
+            tracing::error!("Sentence analysis failed: {}", error_msg);
+            error_msg
+        })?;
+
+    let status = response.status();
+
+    if !status.is_success() {
+        let error_text = response.text().await.unwrap_or_default();
+        if let Ok(error) = serde_json::from_str::<ClaudeError>(&error_text) {
+            tracing::error!("Sentence analysis API error: {}", error.error.message);
+            return Err(format!("API error: {}", error.error.message));
+        }
+        tracing::error!("Sentence analysis API error ({}): {}", status, error_text);
+        return Err(format!("API error ({})", status));
+    }
+
+    // Parse response
+    let response_json: ClaudeResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse API response: {}", e))?;
+
+    // Extract JSON from response
+    let response_text = response_json
+        .content
+        .first()
+        .and_then(|block| block.text.as_ref())
+        .ok_or_else(|| "No content in API response".to_string())?;
+
+    // Parse structured response (with fallback for LLM wrapping JSON in code blocks)
+    #[derive(Deserialize)]
+    struct HaikuAnalysisResponse {
+        score: f32,
+        flagged_sentences: Vec<FlaggedSentence>,
+    }
+
+    let json_str = extract_json_from_response(response_text);
+    let analysis: HaikuAnalysisResponse = serde_json::from_str(json_str)
+        .map_err(|e| {
+            tracing::warn!("Failed to parse sentence analysis JSON: {}. Response: {}", e, response_text);
+            format!("Failed to parse analysis response: {}", e)
+        })?;
+
+    let result = PerplexityAnalysis {
+        score: analysis.score,
+        threshold: 180.0, // FR-11 threshold
+        flagged_sentences: analysis.flagged_sentences,
+    };
+
+    tracing::info!(
+        "Perplexity analysis complete: score={}, flagged_count={}",
+        result.score,
+        result.flagged_sentences.len()
+    );
+
+    Ok(result)
 }

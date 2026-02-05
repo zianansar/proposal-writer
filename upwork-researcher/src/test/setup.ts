@@ -33,6 +33,10 @@ vi.mock("@tauri-apps/api/core", () => ({
       }
       return Promise.reject("Invalid API key format");
     }
+    if (command === "analyze_perplexity") {
+      // Default: safe score (below threshold) so copy proceeds normally
+      return Promise.resolve({ score: 120.0, threshold: 180, flaggedSentences: [] });
+    }
     return Promise.resolve(null);
   }),
 }));

@@ -190,12 +190,12 @@ mod tests {
 
     #[test]
     fn test_log_level_configuration() {
-        // Test that standard log levels can be configured
+        // Test that valid log levels can be configured
+        // Only ERROR, WARN, INFO, DEBUG are allowed per set_log_level validation
         assert!(EnvFilter::try_new("ERROR").is_ok());
         assert!(EnvFilter::try_new("WARN").is_ok());
         assert!(EnvFilter::try_new("INFO").is_ok());
         assert!(EnvFilter::try_new("DEBUG").is_ok());
-        assert!(EnvFilter::try_new("TRACE").is_ok());
 
         // EnvFilter accepts module-specific filters, so custom strings are valid
         // The validation happens in set_log_level command instead
