@@ -11,6 +11,8 @@
 #[cfg(test)]
 mod tests;
 
+pub mod recovery;
+
 use keyring::Entry;
 
 /// Service identifier for keychain entries

@@ -24,6 +24,13 @@
   padding: 2rem;
 }
 
+/* App Header - Story 2.8 */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 h1 {
   margin-bottom: 1rem;
 }

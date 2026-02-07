@@ -15,6 +15,10 @@ import { PreMigrationBackup } from "./components/PreMigrationBackup";
 import { DatabaseMigration } from "./components/DatabaseMigration";
 import { MigrationVerification } from "./components/MigrationVerification";
 import SafetyWarningModal from "./components/SafetyWarningModal";
+import EncryptionStatusIndicator from "./components/EncryptionStatusIndicator";
+import type { EncryptionStatus } from "./components/EncryptionStatusIndicator";
+import EncryptionDetailsModal from "./components/EncryptionDetailsModal";
+import RecoveryOptions from "./components/RecoveryOptions";
 import { useGenerationStore, getStreamedText } from "./stores/useGenerationStore";
 import { useSettingsStore, getHumanizationIntensity } from "./stores/useSettingsStore";
 import { useOnboardingStore } from "./stores/useOnboardingStore";
@@ -24,7 +28,7 @@ import type { PerplexityAnalysis } from "./types/perplexity";
 import "./App.css";
 
 type View = "generate" | "history" | "settings";
-type MigrationPhase = "idle" | "backup" | "migration" | "verification" | "complete" | "failed";
+type MigrationPhase = "idle" | "recovery-options" | "backup" | "migration" | "verification" | "complete" | "failed";
 
 function App() {
   const [activeView, setActiveView] = useState<View>("generate");
@@ -37,8 +41,23 @@ function App() {
   const [backupFilePath, setBackupFilePath] = useState<string | null>(null);
   const [migrationPassphrase, setMigrationPassphrase] = useState<string | null>(null);
 
+  // Encryption status indicator state (Story 2.8)
+  const [encryptionStatus, setEncryptionStatus] = useState<EncryptionStatus | null>(null);
+  const [showEncryptionDetails, setShowEncryptionDetails] = useState(false);
+
+  // Story 2.8: Memoized handlers for encryption indicator (Review Fix M4)
+  const handleOpenEncryptionDetails = useCallback(() => {
+    setShowEncryptionDetails(true);
+  }, []);
+
+  const handleCloseEncryptionDetails = useCallback(() => {
+    setShowEncryptionDetails(false);
+  }, []);
+
   // Perplexity analysis state (Stories 3.1 + 3.2 integration)
   const [perplexityAnalysis, setPerplexityAnalysis] = useState<PerplexityAnalysis | null>(null);
+  // Track which fullText was already analyzed to prevent re-analysis after modal dismissal
+  const analyzedTextRef = useRef<string | null>(null);
 
   // Streaming state from Zustand store
   const {
@@ -135,8 +154,19 @@ function App() {
           // Non-blocking - app can work without draft recovery
         });
 
+      // Story 2.8: Fetch encryption status (non-blocking)
+      const encryptionPromise = invoke<EncryptionStatus>("get_encryption_status")
+        .then((status) => {
+          setEncryptionStatus(status);
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.error("Failed to get encryption status:", err);
+          }
+        });
+
       // Wait for all to complete
-      await Promise.all([settingsPromise, apiKeyPromise, draftPromise]);
+      await Promise.all([settingsPromise, apiKeyPromise, draftPromise, encryptionPromise]);
       setCheckingApiKey(false);
 
       // Check for first launch ONLY if API key is configured (Review Fix: #1, #2, #8)
@@ -179,11 +209,24 @@ function App() {
     setNeedsPassphrase(false);
     setMigrationPassphrase(passphrase); // Store for migration (Story 2.3)
 
-    // Story 2.2: After passphrase is set, start backup before migration
-    // This initiates the migration sequence:
-    // 1. Backup (Story 2.2)
-    // 2. Migration (Story 2.3)
-    // 3. Verification (Story 2.4 - not yet implemented)
+    // Story 2.9: After passphrase is set, show recovery options before migration
+    // Migration sequence:
+    // 1. Recovery Options (Story 2.9) — NEW
+    // 2. Backup (Story 2.2)
+    // 3. Migration (Story 2.3)
+    // 4. Verification (Story 2.4)
+    setMigrationPhase("recovery-options");
+  }, []);
+
+  // Handler for recovery options completion (Story 2.9, Task 5.1)
+  const handleRecoveryComplete = useCallback(() => {
+    // Recovery option chosen (key generated or backup exported) — proceed to migration backup
+    setMigrationPhase("backup");
+  }, []);
+
+  // Handler for recovery options skip (Story 2.9, AC4)
+  const handleRecoverySkip = useCallback(() => {
+    // User explicitly skipped recovery — proceed to migration backup
     setMigrationPhase("backup");
   }, []);
 
@@ -298,8 +341,14 @@ function App() {
         return;
       }
 
-      // Skip if already analyzed this generation (prevent re-running on state changes)
-      if (perplexityAnalysis) {
+      // Skip if already analyzed this text (prevent re-running after modal dismissal)
+      if (analyzedTextRef.current === fullText) {
+        return;
+      }
+
+      // H2 fix: Skip when regeneration is in progress — useRehumanization hook
+      // handles its own perplexity analysis after regeneration completes
+      if (isRegenerating) {
         return;
       }
 
@@ -307,6 +356,9 @@ function App() {
         const analysis = await invoke<PerplexityAnalysis>("analyze_perplexity", {
           text: fullText,
         });
+
+        // Mark this text as analyzed so we don't re-run after modal dismissal
+        analyzedTextRef.current = fullText;
 
         // Only show modal if score exceeds threshold
         const THRESHOLD = 180;
@@ -321,7 +373,7 @@ function App() {
     };
 
     runPerplexityAnalysis();
-  }, [fullText, isStreaming, streamError, perplexityAnalysis]);
+  }, [fullText, isStreaming, streamError, isRegenerating]);
 
   const handleGenerate = async () => {
     if (!jobContent.trim()) {
@@ -338,6 +390,7 @@ function App() {
     setStreaming(true);
     // Clear previous perplexity analysis for new generation
     setPerplexityAnalysis(null);
+    analyzedTextRef.current = null;
     resetAttempts();
 
     try {
@@ -415,6 +468,18 @@ function App() {
     return <PassphraseEntry onComplete={handlePassphraseComplete} />;
   }
 
+  // Show recovery options (Story 2.9)
+  // This runs AFTER passphrase setup, BEFORE backup/migration
+  if (migrationPhase === "recovery-options" && migrationPassphrase) {
+    return (
+      <RecoveryOptions
+        passphrase={migrationPassphrase}
+        onComplete={handleRecoveryComplete}
+        onSkip={handleRecoverySkip}
+      />
+    );
+  }
+
   // Show pre-migration backup (Story 2.2)
   // This runs BEFORE Story 2.3 migration
   if (migrationPhase === "backup") {
@@ -475,7 +540,15 @@ function App() {
 
   return (
     <main className="container">
-      <h1>Upwork Research Agent</h1>
+      <div className="app-header">
+        <h1>Upwork Research Agent</h1>
+        {encryptionStatus && encryptionStatus.databaseEncrypted && (
+          <EncryptionStatusIndicator
+            status={encryptionStatus}
+            onOpenDetails={handleOpenEncryptionDetails}
+          />
+        )}
+      </div>
       <Navigation activeView={activeView} onViewChange={setActiveView} />
 
       {activeView === "generate" && (
@@ -522,6 +595,14 @@ function App() {
 
       {/* Onboarding Wizard (Story 1.15) */}
       <OnboardingWizard />
+
+      {/* Encryption Details Modal (Story 2.8) */}
+      {showEncryptionDetails && encryptionStatus && (
+        <EncryptionDetailsModal
+          status={encryptionStatus}
+          onClose={handleCloseEncryptionDetails}
+        />
+      )}
 
       {/* Safety Warning Modal (Stories 3.1 + 3.2 + 3.4 integration) */}
       {perplexityAnalysis && perplexityAnalysis.score >= 180 && (

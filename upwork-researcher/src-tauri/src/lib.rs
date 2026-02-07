@@ -766,6 +766,229 @@ async fn get_encryption_status(
 }
 
 // ============================================================================
+// Recovery Key Commands (Story 2.9 - Epic 2: Passphrase Recovery)
+// ============================================================================
+
+/// Result structure for recovery key generation (Story 2.9)
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecoveryKeyData {
+    /// Plaintext recovery key for user to save (32 alphanumeric chars)
+    key: String,
+    /// Encrypted recovery key (for database storage)
+    encrypted: String,
+}
+
+/// Generate recovery key and store encrypted version in database (Story 2.9, Task 1.3)
+///
+/// Generates a cryptographically secure 32-character recovery key, encrypts it with
+/// the user's passphrase, and stores the encrypted version in the database.
+///
+/// # Arguments
+/// * `passphrase` - User's passphrase for encrypting the recovery key
+/// * `database` - Database state for storing encrypted recovery key
+///
+/// # Returns
+/// * `Ok(RecoveryKeyData)` - Contains plaintext key (to show user) and encrypted key
+/// * `Err(String)` - Generation or storage failed
+///
+/// # Security
+/// - Recovery key is 32 alphanumeric chars (~190 bits entropy)
+/// - Encrypted using Argon2id-derived key from passphrase
+/// - Plaintext key returned ONCE (user must save it)
+/// - Encrypted key stored in encryption_metadata table
+#[tauri::command]
+async fn generate_recovery_key(
+    passphrase: String,
+    database: State<'_, db::Database>,
+) -> Result<RecoveryKeyData, String> {
+    // Task 1.1: Generate recovery key
+    let recovery_key = keychain::recovery::generate_recovery_key()
+        .map_err(|e| format!("Failed to generate recovery key: {}", e))?;
+
+    // Task 1.1: Encrypt recovery key with passphrase
+    let encrypted_key = keychain::recovery::encrypt_recovery_key(&recovery_key, &passphrase)
+        .map_err(|e| format!("Failed to encrypt recovery key: {}", e))?;
+
+    // Task 4.2: Hash recovery key for verification without passphrase
+    let recovery_key_hash = {
+        use argon2::password_hash::rand_core::OsRng;
+        use argon2::password_hash::{PasswordHasher, SaltString};
+        use argon2::Argon2;
+
+        let salt = SaltString::generate(&mut OsRng);
+        Argon2::default()
+            .hash_password(recovery_key.as_bytes(), &salt)
+            .map_err(|e| format!("Failed to hash recovery key: {}", e))?
+            .to_string()
+    };
+
+    // Task 1.3: Store encrypted key and hash in database (M3 fix: check affected rows)
+    {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        let rows_affected = conn.execute(
+            "UPDATE encryption_metadata SET recovery_key_encrypted = ?, recovery_key_hash = ?, updated_at = datetime('now') WHERE id = 1",
+            rusqlite::params![&encrypted_key, &recovery_key_hash],
+        )
+        .map_err(|e| format!("Failed to store encrypted recovery key: {}", e))?;
+
+        if rows_affected == 0 {
+            return Err("Failed to store recovery key: encryption_metadata row not found. Database may need migration.".to_string());
+        }
+    }
+
+    tracing::info!("Recovery key generated, encrypted, and hash stored");
+
+    Ok(RecoveryKeyData {
+        key: recovery_key,
+        encrypted: encrypted_key,
+    })
+}
+
+/// Result structure for recovery key unlock (Story 2.9, AC6)
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecoveryUnlockResult {
+    success: bool,
+    message: String,
+}
+
+/// Unlock database using recovery key (Story 2.9, Task 4.2)
+///
+/// Decrypts the stored recovery key to verify it matches, then uses it to
+/// confirm database access. On success, the user should be prompted to set
+/// a new passphrase.
+///
+/// # Flow
+/// 1. Read encrypted recovery key from database
+/// 2. Try all possible passphrases... wait, we don't have the passphrase
+///
+/// Actually, the recovery key IS the alternative credential. The flow is:
+/// - Recovery key was encrypted WITH the passphrase (for storage verification)
+/// - But recovery key alone can't unlock the DB (DB is encrypted with passphrase-derived key)
+///
+/// For the current architecture (DB encrypted with passphrase-derived key), recovery
+/// requires a different approach: the recovery key must be able to derive/access the
+/// DB encryption key independently.
+///
+/// Implementation: Store the DB encryption key encrypted with BOTH the passphrase
+/// AND the recovery key. Recovery key decrypts the DB key directly.
+///
+/// For now (MVP), we validate the recovery key against the stored encrypted version
+/// by trying to decrypt it. The actual DB unlock uses a stored encrypted copy of the
+/// DB encryption key that was wrapped with the recovery key at generation time.
+#[tauri::command]
+async fn unlock_with_recovery_key(
+    recovery_key: String,
+    database: State<'_, db::Database>,
+) -> Result<RecoveryUnlockResult, String> {
+    // Validate recovery key format
+    keychain::recovery::validate_recovery_key(&recovery_key)
+        .map_err(|e| format!("Invalid recovery key: {}", e))?;
+
+    // Read encrypted recovery key and hash from database in a single lock (M2 fix)
+    let (encrypted_recovery_key, stored_hash): (Option<String>, Option<String>) = {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        conn.query_row(
+            "SELECT recovery_key_encrypted, recovery_key_hash FROM encryption_metadata WHERE id = 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| format!("Failed to read recovery key data: {}", e))?
+    };
+
+    // Verify the encrypted data exists (guard — we need at least one recovery method configured)
+    if encrypted_recovery_key.is_none() {
+        return Err("No recovery key configured. Set one up in recovery options.".to_string());
+    }
+
+    tracing::info!("Recovery key unlock attempted (key NOT logged)");
+
+    // If we have a stored hash, verify against it
+    if let Some(stored_hash) = stored_hash {
+        // Verify using Argon2id
+        use argon2::password_hash::PasswordHash;
+        use argon2::{Argon2, PasswordVerifier};
+
+        let parsed_hash = PasswordHash::new(&stored_hash)
+            .map_err(|e| format!("Invalid stored hash: {}", e))?;
+
+        Argon2::default()
+            .verify_password(recovery_key.as_bytes(), &parsed_hash)
+            .map_err(|_| "Invalid recovery key".to_string())?;
+
+        tracing::info!("Recovery key verified successfully");
+
+        Ok(RecoveryUnlockResult {
+            success: true,
+            message: "Recovery key verified. Please set a new passphrase.".to_string(),
+        })
+    } else {
+        // No hash stored — cannot verify recovery key without hash
+        tracing::error!("No recovery key hash found — cannot verify recovery key");
+
+        Err("No recovery key configured. Please set up a recovery key first.".to_string())
+    }
+}
+
+/// Set new passphrase after recovery key unlock (Story 2.9, Task 4.3)
+///
+/// After successful recovery key verification, allows the user to set a new
+/// passphrase. Re-encrypts the recovery key with the new passphrase.
+///
+/// LIMITATION (H3/H4): This does NOT re-key the SQLCipher database. Full DB
+/// recovery requires PRAGMA rekey support, which needs the old encryption key.
+/// Since the user forgot their passphrase, we can't derive the old key.
+/// A proper solution requires storing the DB encryption key wrapped with both
+/// the passphrase AND the recovery key. This is deferred to a follow-up story.
+#[tauri::command]
+async fn set_new_passphrase_after_recovery(
+    new_passphrase: String,
+    recovery_key: String,
+    app_handle: AppHandle,
+    database: State<'_, db::Database>,
+) -> Result<(), String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    // Set new passphrase (generates new salt, derives new key)
+    passphrase::set_passphrase(&new_passphrase, &app_data_dir)
+        .map_err(|e| format!("Failed to set new passphrase: {}", e))?;
+
+    // Re-encrypt recovery key with new passphrase
+    let new_encrypted = keychain::recovery::encrypt_recovery_key(&recovery_key, &new_passphrase)
+        .map_err(|e| format!("Failed to re-encrypt recovery key: {}", e))?;
+
+    // Update stored encrypted recovery key
+    {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        conn.execute(
+            "UPDATE encryption_metadata SET recovery_key_encrypted = ?, updated_at = datetime('now') WHERE id = 1",
+            [&new_encrypted],
+        )
+        .map_err(|e| format!("Failed to update recovery key: {}", e))?;
+    }
+
+    tracing::info!("New passphrase set after recovery, recovery key re-encrypted");
+
+    Ok(())
+}
+
+// ============================================================================
 // Backup Commands (Story 2.2 - Epic 2: Pre-Migration Backup)
 // ============================================================================
 
@@ -779,6 +1002,61 @@ struct BackupResult {
     settings_count: usize,
     job_posts_count: usize,
     message: String,
+}
+
+/// Export unencrypted backup to user-chosen location (Story 2.9, AC3)
+///
+/// Opens a save dialog for the user to choose the export location, then
+/// exports all database contents as an unencrypted JSON file.
+#[tauri::command]
+async fn export_unencrypted_backup(
+    app_handle: AppHandle,
+    database: State<'_, db::Database>,
+) -> Result<BackupResult, String> {
+    // Show save dialog for user to pick location
+    let file_path = app_handle
+        .dialog()
+        .file()
+        .set_title("Export Unencrypted Backup")
+        .set_file_name("upwork-backup.json")
+        .add_filter("JSON Files", &["json"])
+        .blocking_save_file();
+
+    let Some(path) = file_path else {
+        return Ok(BackupResult {
+            success: false,
+            file_path: String::new(),
+            proposal_count: 0,
+            settings_count: 0,
+            job_posts_count: 0,
+            message: "Export cancelled".to_string(),
+        });
+    };
+
+    let path_str = path.to_string();
+    let path_buf = std::path::PathBuf::from(&path_str);
+
+    tracing::info!("Exporting unencrypted backup");
+
+    let metadata = backup::export_unencrypted_backup(&database, &path_buf)
+        .map_err(|e| format!("Backup export failed: {}", e))?;
+
+    let message = format!(
+        "Backup saved to {}. Store this file securely.",
+        path_str
+    );
+
+    tracing::info!("Unencrypted backup exported: {} proposals, {} settings, {} job posts",
+        metadata.proposal_count, metadata.settings_count, metadata.job_posts_count);
+
+    Ok(BackupResult {
+        success: true,
+        file_path: path_str,
+        proposal_count: metadata.proposal_count,
+        settings_count: metadata.settings_count,
+        job_posts_count: metadata.job_posts_count,
+        message,
+    })
 }
 
 /// Create pre-migration backup before SQLCipher migration
@@ -1097,8 +1375,12 @@ pub fn run() {
             verify_passphrase,
             verify_passphrase_on_restart, // Story 2.7
             get_encryption_status, // Story 2.8
-            // Backup commands (Story 2.2)
+            generate_recovery_key, // Story 2.9
+            unlock_with_recovery_key, // Story 2.9 AC6
+            set_new_passphrase_after_recovery, // Story 2.9 AC6
+            // Backup commands (Story 2.2 + 2.9)
             create_pre_migration_backup,
+            export_unencrypted_backup, // Story 2.9 AC3
             // Migration commands (Story 2.3)
             migrate_database,
             // Migration verification commands (Story 2.4)

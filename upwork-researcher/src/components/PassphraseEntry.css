@@ -296,6 +296,42 @@
   border-color: #555;
 }
 
+/* Recovery Key Link (Story 2.9, AC6) */
+.recovery-link-container {
+  text-align: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+}
+
+.recovery-link {
+  background: none;
+  border: none;
+  color: #60a5fa;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  padding: 0.25rem;
+}
+
+.recovery-link:hover {
+  color: #93bbfd;
+}
+
+/* Recovery Key Input */
+.recovery-key-input {
+  font-family: "Courier New", monospace;
+  letter-spacing: 0.1em;
+  font-size: 1.1rem;
+}
+
+.recovery-key-count {
+  text-align: right;
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.25rem;
+}
+
 /* Responsive Design */
 @media (max-width: 640px) {
   .passphrase-entry-content {

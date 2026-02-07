@@ -493,3 +493,58 @@ fn test_restore_data_integrity() {
     assert_eq!(original_proposal_content, restored_proposal_content,
         "Restored data should match original exactly");
 }
+
+// Story 2.9, Task 6.2: Backup export tests
+
+/// Test export_unencrypted_backup writes valid JSON to specified path
+#[test]
+fn test_export_unencrypted_backup_success() {
+    let (db, _temp_db_dir) = create_test_database();
+    let export_dir = tempfile::tempdir().expect("Failed to create export dir");
+    let export_path = export_dir.path().join("my-backup.json");
+
+    let result = export_unencrypted_backup(&db, &export_path);
+    assert!(result.is_ok(), "Export should succeed");
+
+    let metadata = result.unwrap();
+    assert_eq!(metadata.proposal_count, 3);
+    assert_eq!(metadata.job_posts_count, 2);
+    assert!(metadata.file_path.exists(), "Export file should exist");
+
+    // Verify JSON is parseable
+    let content = std::fs::read_to_string(&export_path).unwrap();
+    let backup_data: BackupData = serde_json::from_str(&content).unwrap();
+    assert_eq!(backup_data.proposals.len(), 3);
+    assert_eq!(backup_data.job_posts.len(), 2);
+    assert_eq!(backup_data.metadata.backup_type, "pre-encryption");
+}
+
+/// Test export creates parent directories if needed
+#[test]
+fn test_export_unencrypted_backup_creates_dirs() {
+    let (db, _temp_db_dir) = create_test_database();
+    let base_dir = tempfile::tempdir().expect("Failed to create dir");
+    let export_path = base_dir.path().join("deep").join("nested").join("backup.json");
+
+    let result = export_unencrypted_backup(&db, &export_path);
+    assert!(result.is_ok(), "Export should create parent dirs");
+    assert!(export_path.exists());
+}
+
+/// Test export metadata fields are present (AC3)
+#[test]
+fn test_export_unencrypted_backup_metadata() {
+    let (db, _temp_db_dir) = create_test_database();
+    let export_dir = tempfile::tempdir().expect("Failed to create export dir");
+    let export_path = export_dir.path().join("backup.json");
+
+    export_unencrypted_backup(&db, &export_path).expect("Export failed");
+
+    let content = std::fs::read_to_string(&export_path).unwrap();
+    let backup_data: BackupData = serde_json::from_str(&content).unwrap();
+
+    assert!(!backup_data.metadata.app_version.is_empty(), "app_version required");
+    assert!(backup_data.metadata.export_date.contains("T"), "export_date should be ISO 8601");
+    // backup_type overridden to "pre-encryption" for user-initiated export (AC3)
+    assert_eq!(backup_data.metadata.backup_type, "pre-encryption");
+}

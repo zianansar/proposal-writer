@@ -1,8 +1,10 @@
 ---
-status: ready-for-dev
+status: absorbed-by-4a-3
 ---
 
 # Story 4a.5: Job Skills Table Schema
+
+> **ABSORBED:** This story's scope (job_skills table migration) was absorbed into Story 4a-3 (Key Skills Extraction), Task 1. The V6 migration in 4a-3 creates this table with the schema below plus indexes and ON DELETE CASCADE.
 
 ## Story
 

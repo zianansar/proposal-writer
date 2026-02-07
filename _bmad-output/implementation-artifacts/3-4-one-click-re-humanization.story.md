@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: done
 epic: 3
 story: 4
 dependencies:
@@ -177,16 +177,16 @@ So that I can pass AI detection without manual editing.
 
 ## Definition of Done
 
-- [ ] All tasks completed and checked off
-- [ ] All acceptance criteria validated
-- [ ] Regeneration command implemented and tested
-- [ ] Safety warning modal updated with regeneration button
-- [ ] Perplexity re-analysis integrated
-- [ ] Max attempts (3) enforced
-- [ ] Unit tests written and passing
-- [ ] Integration tests verify full flow
-- [ ] Code review completed
-- [ ] Documentation updated
+- [x] All tasks completed and checked off
+- [x] All acceptance criteria validated
+- [x] Regeneration command implemented and tested
+- [x] Safety warning modal updated with regeneration button
+- [x] Perplexity re-analysis integrated
+- [x] Max attempts (3) enforced
+- [x] Unit tests written and passing
+- [x] Integration tests verify full flow
+- [x] Code review completed
+- [x] Documentation updated
 
 ## File List
 
@@ -198,7 +198,10 @@ So that I can pass AI detection without manual editing.
 - `src/components/SafetyWarningModal.tsx` (modified) - Added regeneration button, attempt counter, score comparison
 - `src/components/SafetyWarningModal.css` (modified) - Styles for regeneration section
 - `src/components/SafetyWarningModal.test.tsx` (modified) - 9 new tests for regeneration UI
-- `src/hooks/useRehumanization.ts` (new) - Hook for regeneration flow integration (ready for 3.1+3.2 integration)
+- `src/hooks/useRehumanization.ts` (new) - Hook for regeneration flow integration
+- `src/hooks/useRehumanization.test.ts` (new) - 13 unit tests for hook state management, escalation, error handling
+- `src/App.perplexity.test.tsx` (new) - 8 integration tests for perplexity useEffect + modal lifecycle
+- `src/App.tsx` (modified) - Added `analyzedTextRef` guard to prevent modal re-appearance after dismissal
 
 ### Types
 - No type changes required (used existing types from Story 3.3)
@@ -267,12 +270,22 @@ So that I can pass AI detection without manual editing.
 
 ## Review Follow-ups (AI)
 
-- [ ] [AI-Review][MEDIUM] Add unit tests for `useRehumanization` hook — covers state management, Tauri invoke calls, success/failure paths [src/hooks/useRehumanization.ts]
-- [ ] [AI-Review][MEDIUM] Stabilize `options` object in App.tsx `useRehumanization` call to prevent referential instability — use `useMemo` or extract callbacks [src/App.tsx:82-97]
-- [ ] [AI-Review][MEDIUM] Add integration tests for perplexity analysis useEffect in App.tsx — verify analyze_perplexity called after generation, modal shown on threshold breach [src/App.tsx:295-325]
+- [x] [AI-Review][MEDIUM] Add unit tests for `useRehumanization` hook — covers state management, effectiveIntensity tracking, Tauri invoke calls, success/failure paths [src/hooks/useRehumanization.test.ts] — 13 tests, all passing
+- [x] [AI-Review][MEDIUM] Stabilize `options` object in App.tsx `useRehumanization` call to prevent referential instability — FIXED: used `useRef` inside hook (Review 2, M1)
+- [x] [AI-Review][MEDIUM] Add integration tests for perplexity analysis useEffect in App.tsx — verify analyze_perplexity called after generation, modal shown on threshold breach [src/App.perplexity.test.tsx] — 8 tests, all passing. Also discovered & fixed modal re-appearance bug (analyzedTextRef guard)
 
 ## Change Log
 
+- **2026-02-06**: Code Review 2 (Adversarial) — 0C/2H/3M/2L findings
+  - **[H1 FIXED]** Escalation didn't compound across attempts — added `effectiveIntensity` local state in `useRehumanization` hook
+  - **[H2 FIXED]** Double perplexity analysis on regeneration — added `isRegenerating` guard to App.tsx useEffect
+  - **[M1 FIXED]** `options` object instability — used `useRef` inside hook to avoid dependency array churn
+  - **[M3 FIXED]** `canRegenerate` checked settings-store intensity instead of escalated value — now uses `effectiveIntensity`
+  - **[L1 FIXED]** Stale "blocked" JSDoc comment in useRehumanization.ts
+  - **[L2 FIXED]** Definition of Done checkboxes updated to reflect completion
+  - **[ACTION ITEMS DONE]** Hook unit tests (13 tests) + integration tests (8 tests) written and passing
+  - **[BUG FIX]** Discovered modal re-appearance bug during integration testing — after dismissing SafetyWarningModal, perplexity useEffect re-fired. Fixed with `analyzedTextRef` guard in App.tsx
+  - **New files:** `useRehumanization.test.ts` (13 tests), `App.perplexity.test.tsx` (8 tests)
 - **2026-02-06**: Code Review (Adversarial) — 2C/3H/4M/3L findings
   - **[C1 FIXED]** `perplexityAnalysis.flagged_sentences` → `perplexityAnalysis.flaggedSentences` in App.tsx (runtime crash)
   - **[C2 FIXED]** `previousScore` logic inverted — hook now accepts `currentScore` param, saves it before regeneration

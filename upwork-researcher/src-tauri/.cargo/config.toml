@@ -1,8 +1,11 @@
 # Cargo configuration for Windows MSVC builds with OpenSSL
 # This configures the build to use vcpkg-installed OpenSSL instead of building from source
 
-[env]
-# Use vcpkg OpenSSL installation (installed at C:/vcpkg)
-OPENSSL_DIR = "C:/vcpkg/installed/x64-windows"
-OPENSSL_NO_VENDOR = "1"
-VCPKG_ROOT = "C:/vcpkg"
+# Note: These Windows-specific settings are temporarily commented out for macOS development
+# Uncomment when building on Windows
+
+# [env]
+# # Use vcpkg OpenSSL installation (installed at C:/vcpkg)
+# OPENSSL_DIR = "C:/vcpkg/installed/x64-windows"
+# OPENSSL_NO_VENDOR = "1"
+# VCPKG_ROOT = "C:/vcpkg"

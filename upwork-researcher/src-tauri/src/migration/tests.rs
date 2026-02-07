@@ -139,7 +139,7 @@ fn test_successful_migration() {
     assert_eq!(metadata.proposals_count, 5);
     assert_eq!(metadata.settings_count, 12); // 2 defaults + 10 test
     assert_eq!(metadata.job_posts_count, 3);
-    assert_eq!(metadata.refinery_history_count, 5); // V1-V5 migrations
+    assert_eq!(metadata.refinery_history_count, 6); // V1-V6 migrations (V6: encryption_metadata)
     assert!(metadata.duration_ms > 0);
 
     // Verify migration marker created
@@ -374,7 +374,7 @@ fn test_migration_with_empty_database() {
     assert_eq!(metadata.proposals_count, 0);
     assert_eq!(metadata.settings_count, 2); // Default settings from migrations
     assert_eq!(metadata.job_posts_count, 0);
-    assert_eq!(metadata.refinery_history_count, 5); // V1-V5 migrations
+    assert_eq!(metadata.refinery_history_count, 6); // V1-V6 migrations (V6: encryption_metadata)
 }
 
 /// Test migration fails if old database doesn't exist

@@ -1,0 +1,70 @@
+/* EncryptionStatusIndicator - Story 2.8 */
+
+.encryption-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.encryption-indicator__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #3b82f6;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.encryption-indicator__button:hover {
+  background-color: rgba(59, 130, 246, 0.12);
+}
+
+.encryption-indicator__button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.encryption-indicator__icon {
+  flex-shrink: 0;
+}
+
+.encryption-indicator__tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  color: #e0e0e0;
+  background-color: #333;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Light mode */
+@media (prefers-color-scheme: light) {
+  .encryption-indicator__button {
+    color: #2563eb;
+  }
+
+  .encryption-indicator__button:hover {
+    background-color: rgba(37, 99, 235, 0.1);
+  }
+
+  .encryption-indicator__button:focus-visible {
+    outline-color: #2563eb;
+  }
+
+  .encryption-indicator__tooltip {
+    color: #fff;
+    background-color: #333;
+  }
+}

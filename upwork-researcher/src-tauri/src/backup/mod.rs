@@ -277,6 +277,52 @@ fn write_and_verify_backup(backup_path: &Path, backup_data: &BackupData) -> Resu
 /// let records_restored = restore_from_backup(&backup_path, &database)?;
 /// println!("Restored {} total records", records_restored);
 /// ```
+/// Export unencrypted backup to a user-specified file path (Story 2.9, Task 3).
+///
+/// Used from the Recovery Options screen to let users export their data
+/// as an unencrypted JSON file before encryption setup.
+///
+/// # Arguments
+/// * `db` - Database instance to export
+/// * `file_path` - User-chosen file path for the export
+///
+/// # Returns
+/// * `Ok(BackupMetadata)` - Metadata about the exported backup
+/// * `Err(BackupError)` - Export failed
+pub fn export_unencrypted_backup(
+    db: &Database,
+    file_path: &Path,
+) -> Result<BackupMetadata, BackupError> {
+    // Ensure parent directory exists
+    if let Some(parent) = file_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| BackupError::DirectoryCreationFailed(e.to_string()))?;
+    }
+
+    // Export all database tables (reuse existing logic)
+    let mut backup_data = export_database_to_backup(db)?;
+
+    // Override backup_type for user-initiated export (AC3: "pre-encryption")
+    backup_data.metadata.backup_type = "pre-encryption".to_string();
+
+    let proposal_count = backup_data.proposals.len();
+    let settings_count = backup_data.settings.len();
+    let job_posts_count = backup_data.job_posts.len();
+
+    // Write and verify
+    write_and_verify_backup(file_path, &backup_data)?;
+
+    tracing::info!("Unencrypted backup exported to: {}", file_path.display());
+
+    Ok(BackupMetadata {
+        file_path: file_path.to_path_buf(),
+        timestamp: Utc::now().format("%Y-%m-%d-%H-%M-%S").to_string(),
+        proposal_count,
+        settings_count,
+        job_posts_count,
+    })
+}
+
 pub fn restore_from_backup(
     backup_path: &Path,
     db: &Database,

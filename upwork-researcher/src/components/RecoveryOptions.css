@@ -1,0 +1,407 @@
+/* RecoveryOptions Component Styles - Dark Theme (UX-1, L1 fix) */
+
+.recovery-options-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background-color: #1a1a1a;
+}
+
+.recovery-options-content {
+  background: #242424;
+  border-radius: 12px;
+  padding: 2.5rem;
+  max-width: 1200px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.recovery-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #e0e0e0;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.recovery-warning {
+  background: rgba(245, 158, 11, 0.15);
+  border: 2px solid #f59e0b;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.recovery-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.recovery-option-card {
+  border: 2px solid #404040;
+  border-radius: 10px;
+  padding: 1.5rem;
+  transition: all 0.2s;
+  background: #2a2a2a;
+}
+
+.recovery-option-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.recovery-option-card.selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.option-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #e0e0e0;
+  margin-bottom: 0.75rem;
+}
+
+.option-description {
+  color: #a0a0a0;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.backup-warning {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  color: #f87171;
+  font-size: 0.875rem;
+}
+
+.backup-success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid #10b981;
+  border-radius: 6px;
+  padding: 0.75rem;
+  color: #34d399;
+  font-size: 0.875rem;
+  word-break: break-all;
+}
+
+.backup-path {
+  font-family: "Courier New", monospace;
+  font-weight: 600;
+}
+
+.option-btn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-btn.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.option-btn.primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.option-btn.secondary {
+  background: #10b981;
+  color: white;
+}
+
+.option-btn.secondary:hover:not(:disabled) {
+  background: #059669;
+}
+
+.option-btn.warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.option-btn.warning:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.option-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recovery-key-display {
+  background: #1a1a1a;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.recovery-key-value {
+  font-family: "Courier New", monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #e0e0e0;
+  background: #2a2a2a;
+  padding: 1rem;
+  border-radius: 6px;
+  text-align: center;
+  letter-spacing: 0.05em;
+  word-break: break-all;
+  margin-bottom: 1rem;
+}
+
+.recovery-key-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #404040;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #333;
+  border-color: #555;
+}
+
+.action-btn.copied {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #34d399;
+}
+
+.recovery-key-instructions {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  padding: 0.75rem;
+  color: #fbbf24;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.confirmation-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.confirmation-checkbox input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  padding: 1rem;
+  color: #f87171;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.recovery-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 1.5rem;
+  border-top: 1px solid #333;
+}
+
+.continue-btn {
+  padding: 0.875rem 2.5rem;
+  border-radius: 8px;
+  border: none;
+  background: #10b981;
+  color: white;
+  font-weight: 700;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.continue-btn:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.continue-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #242424;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e0e0e0;
+  margin-bottom: 1rem;
+}
+
+.modal-warning {
+  color: #a0a0a0;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.modal-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.modal-btn.primary:hover {
+  background: #2563eb;
+}
+
+.modal-btn.destructive {
+  background: #ef4444;
+  color: white;
+}
+
+.modal-btn.destructive:hover {
+  background: #dc2626;
+}
+
+/* Print Styles (M2 fix: don't hide grid parent, hide individual children instead) */
+@media print {
+  .recovery-options-container {
+    background: white;
+    padding: 0;
+  }
+
+  .recovery-options-content {
+    box-shadow: none;
+    padding: 1rem;
+    background: white;
+  }
+
+  .recovery-options-grid {
+    display: block !important;
+  }
+
+  /* Hide backup and skip cards (2nd and 3rd children) */
+  .recovery-option-card:nth-child(2),
+  .recovery-option-card:nth-child(3) {
+    display: none !important;
+  }
+
+  /* Hide non-essential elements */
+  .recovery-warning,
+  .recovery-actions,
+  .option-description,
+  .recovery-key-actions,
+  .confirmation-checkbox,
+  .option-btn {
+    display: none !important;
+  }
+
+  /* Show recovery key prominently */
+  .recovery-option-card:first-child {
+    border: none;
+    padding: 0;
+    background: white;
+  }
+
+  .recovery-key-display {
+    border: 2px solid #333;
+    background: white;
+  }
+
+  .recovery-key-value {
+    display: block !important;
+    font-size: 2rem;
+    padding: 2rem;
+    page-break-inside: avoid;
+    color: #000;
+    background: #f5f5f5;
+  }
+
+  .recovery-title {
+    font-size: 2.5rem;
+    color: #000;
+  }
+
+  .option-title {
+    color: #000;
+  }
+
+  .recovery-key-instructions {
+    display: block !important;
+    font-size: 1.25rem;
+    padding: 1.5rem;
+    color: #333;
+    background: #fff9e6;
+    border-color: #ccc;
+  }
+}

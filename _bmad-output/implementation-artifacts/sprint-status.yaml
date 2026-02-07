@@ -76,15 +76,15 @@ development_status:
   2-6-api-key-migration-to-os-keychain: done
   2-7a-encrypted-database-access-backend: done  # Split from 2-7 on 2026-02-05: Code review #2 passed (Opus 4.5)
   2-7b-encrypted-database-access-frontend: backlog  # Split from 2-7 on 2026-02-05: Blocked by state refactor
-  2-8-encryption-status-indicator: in-progress
-  2-9-passphrase-recovery-options: ready-for-dev
+  2-8-encryption-status-indicator: done  # Code review 2026-02-06: 6 fixes applied (H1 focus trap, M1-M5), 20 tests passing
+  2-9-passphrase-recovery-options: done  # Code review R2 2026-02-06: 7 more fixes (M1-M4, L1-L3), 194 Rust tests, 245 frontend tests. AC6 partial (DB re-key deferred).
   epic-2-retrospective: optional
 
   epic-3: in-progress
   3-1-pre-flight-perplexity-analysis: done  # Integrated into App.tsx (2026-02-05)
   3-2-safety-warning-screen-with-flagged-sentences: done  # Integrated into App.tsx (2026-02-05)
   3-3-humanization-injection-during-generation: done  # Code review 2026-02-05: 4 fixes applied, 3 action items
-  3-4-one-click-re-humanization: in-progress  # Code review 2026-02-06: 6 fixes applied, 3 action items remain
+  3-4-one-click-re-humanization: done  # Code review R2 2026-02-06: 5 more fixes (H1 escalation bug, H2 double analysis, M1 options ref, M3 canRegenerate). 2 action items remain (hook tests, integration tests).
   3-5-safety-threshold-configuration: ready-for-dev
   3-6-override-safety-warning: ready-for-dev
   3-7-adaptive-threshold-learning-from-overrides: ready-for-dev
@@ -97,7 +97,7 @@ development_status:
   4a-2-client-name-extraction: ready-for-dev
   4a-3-key-skills-extraction: ready-for-dev
   4a-4-hidden-needs-detection: ready-for-dev
-  4a-5-job-skills-table-schema: ready-for-dev
+  4a-5-job-skills-table-schema: absorbed-by-4a-3  # Migration included in 4a-3 scope (2026-02-06)
   4a-6-job-analysis-loading-state: ready-for-dev
   4a-7-job-analysis-results-display: ready-for-dev
   4a-8-save-job-analysis-to-database: ready-for-dev

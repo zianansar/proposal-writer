@@ -11,16 +11,25 @@ interface PassphraseStrength {
   hasSymbol: boolean;
 }
 
+type PassphraseMode = "setup" | "recovery" | "new-passphrase";
+
 interface PassphraseEntryProps {
   onComplete: (passphrase: string) => void;
   onCancel?: () => void;
+  /** Show "Use Recovery Key" link (AC6) */
+  showRecoveryOption?: boolean;
 }
 
-function PassphraseEntry({ onComplete, onCancel }: PassphraseEntryProps) {
+function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: PassphraseEntryProps) {
+  const [mode, setMode] = useState<PassphraseMode>("setup");
   const [passphrase, setPassphrase] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [showPassphrase, setShowPassphrase] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [recoveryKeyInput, setRecoveryKeyInput] = useState("");
+  const [recoveryVerified, setRecoveryVerified] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const [strength, setStrength] = useState<PassphraseStrength>({
     level: "weak",
     meetsMinLength: false,
@@ -67,6 +76,33 @@ function PassphraseEntry({ onComplete, onCancel }: PassphraseEntryProps) {
     confirmation.length > 0 &&
     acknowledged;
 
+  // Handle recovery key verification (Story 2.9, AC6)
+  const handleRecoveryKeySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryError(null);
+    setVerifying(true);
+
+    try {
+      const result = await invoke<{ success: boolean; message: string }>(
+        "unlock_with_recovery_key",
+        { recoveryKey: recoveryKeyInput }
+      );
+
+      if (result.success) {
+        setRecoveryVerified(true);
+        setMode("new-passphrase");
+        // Reset passphrase fields for new passphrase entry
+        setPassphrase("");
+        setConfirmation("");
+        setAcknowledged(false);
+      }
+    } catch (err) {
+      setRecoveryError(err as string);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -77,8 +113,16 @@ function PassphraseEntry({ onComplete, onCancel }: PassphraseEntryProps) {
     setError(null);
 
     try {
-      // Call backend to set passphrase and derive key
-      await invoke("set_passphrase", { passphrase });
+      if (mode === "new-passphrase" && recoveryVerified) {
+        // After recovery: set new passphrase and re-encrypt recovery key
+        await invoke("set_new_passphrase_after_recovery", {
+          newPassphrase: passphrase,
+          recoveryKey: recoveryKeyInput,
+        });
+      } else {
+        // Normal setup: set passphrase and derive key
+        await invoke("set_passphrase", { passphrase });
+      }
       onComplete(passphrase);
     } catch (err) {
       setError(err as string);
@@ -107,12 +151,74 @@ function PassphraseEntry({ onComplete, onCancel }: PassphraseEntryProps) {
     }
   };
 
+  // Recovery key mode (AC6)
+  if (mode === "recovery") {
+    return (
+      <div className="passphrase-entry-container">
+        <div className="passphrase-entry-content">
+          <h1 className="passphrase-title">Recovery Key</h1>
+          <p className="passphrase-subtitle">
+            Enter your 32-character recovery key to unlock your data
+          </p>
+
+          <form onSubmit={handleRecoveryKeySubmit} className="passphrase-form">
+            <div className="form-group">
+              <label htmlFor="recovery-key" className="form-label">
+                Recovery Key (32 alphanumeric characters)
+              </label>
+              <input
+                id="recovery-key"
+                type="text"
+                value={recoveryKeyInput}
+                onChange={(e) => setRecoveryKeyInput(e.target.value.replace(/[^A-Za-z0-9]/g, ''))}
+                className="password-input recovery-key-input"
+                placeholder="Enter your 32-character recovery key"
+                maxLength={32}
+                autoFocus
+              />
+              <div className="recovery-key-count">
+                {recoveryKeyInput.length}/32 characters
+              </div>
+            </div>
+
+            {recoveryError && (
+              <div className="error-banner">
+                <strong>Error:</strong> {recoveryError}
+              </div>
+            )}
+
+            <div className="button-group">
+              <button
+                type="button"
+                onClick={() => { setMode("setup"); setRecoveryError(null); }}
+                className="btn btn-secondary"
+              >
+                Back to Passphrase
+              </button>
+              <button
+                type="submit"
+                disabled={recoveryKeyInput.length !== 32 || verifying}
+                className="btn btn-primary"
+              >
+                {verifying ? "Verifying..." : "Unlock with Recovery Key"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="passphrase-entry-container">
       <div className="passphrase-entry-content">
-        <h1 className="passphrase-title">Protect Your Data</h1>
+        <h1 className="passphrase-title">
+          {mode === "new-passphrase" ? "Set New Passphrase" : "Protect Your Data"}
+        </h1>
         <p className="passphrase-subtitle">
-          Create a strong passphrase to encrypt your proposals and API key
+          {mode === "new-passphrase"
+            ? "Recovery successful! Set a new passphrase for your data."
+            : "Create a strong passphrase to encrypt your proposals and API key"}
         </p>
 
         <form onSubmit={handleSubmit} className="passphrase-form">
@@ -250,9 +356,22 @@ function PassphraseEntry({ onComplete, onCancel }: PassphraseEntryProps) {
               disabled={!canSubmit}
               className="btn btn-primary"
             >
-              Set Passphrase
+              {mode === "new-passphrase" ? "Set New Passphrase" : "Set Passphrase"}
             </button>
           </div>
+
+          {/* Recovery Key Link (AC6) */}
+          {showRecoveryOption && mode === "setup" && (
+            <div className="recovery-link-container">
+              <button
+                type="button"
+                onClick={() => setMode("recovery")}
+                className="recovery-link"
+              >
+                Forgot passphrase? Use recovery key
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

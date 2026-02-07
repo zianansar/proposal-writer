@@ -40,6 +40,7 @@ keyring = "3"
 rand = "0.8"
 hex = "0.4" # For encoding encryption keys
 base64 = "0.21" # For salt encoding/decoding
+aes-gcm = "0.10" # AES-256-GCM authenticated encryption (Story 2.9 recovery key)
 thiserror = "1.0" # For custom error types
 
 # Logging infrastructure (Story 1.16)
