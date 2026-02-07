@@ -5,4 +5,6 @@
 
 pub mod job_posts;
 pub mod proposals;
+pub mod safety_overrides;
 pub mod settings;
+pub mod user_skills;

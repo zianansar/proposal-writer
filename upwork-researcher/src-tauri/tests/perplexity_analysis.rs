@@ -343,7 +343,7 @@ mod tests {
 
         let sample_text = "I am delighted to delve into this opportunity. I possess extensive experience in this domain. I would be honored to leverage my expertise to deliver exceptional results.";
 
-        let result = claude::analyze_perplexity_with_sentences(sample_text, None).await;
+        let result = claude::analyze_perplexity_with_sentences(sample_text, 180, None).await;
 
         match result {
             Ok(analysis) => {

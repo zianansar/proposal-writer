@@ -80,32 +80,32 @@ development_status:
   2-9-passphrase-recovery-options: done  # Code review R2 2026-02-06: 7 more fixes (M1-M4, L1-L3), 194 Rust tests, 245 frontend tests. AC6 partial (DB re-key deferred).
   epic-2-retrospective: optional
 
-  epic-3: in-progress
+  epic-3: done  # All 9 stories complete, retrospective 2026-02-07
   3-1-pre-flight-perplexity-analysis: done  # Integrated into App.tsx (2026-02-05)
   3-2-safety-warning-screen-with-flagged-sentences: done  # Integrated into App.tsx (2026-02-05)
   3-3-humanization-injection-during-generation: done  # Code review 2026-02-05: 4 fixes applied, 3 action items
-  3-4-one-click-re-humanization: done  # Code review R2 2026-02-06: 5 more fixes (H1 escalation bug, H2 double analysis, M1 options ref, M3 canRegenerate). 2 action items remain (hook tests, integration tests).
-  3-5-safety-threshold-configuration: ready-for-dev
-  3-6-override-safety-warning: ready-for-dev
-  3-7-adaptive-threshold-learning-from-overrides: ready-for-dev
-  3-8-rate-limiting-enforcement: ready-for-dev
-  3-9-core-keyboard-shortcuts: ready-for-dev
-  epic-3-retrospective: optional
+  3-4-one-click-re-humanization: done  # Code review R3 2026-02-07: All action items complete (H1 threshold const, M1-M3 fixes, L1-L2 docs). 22 tests passing.
+  3-5-safety-threshold-configuration: done  # 2026-02-07: Code review R2 complete. All issues fixed. 7/7 SettingsPanel tests + 18/18 CopyButton tests passing.
+  3-6-override-safety-warning: done  # 2026-02-07: Code review complete. 3 medium issues fixed (staging, test gap, button UX). 33 tests passing.
+  3-7-adaptive-threshold-learning-from-overrides: done  # 2026-02-07: Code review R2 complete. All HIGH items fixed (H2-H4, L1). Learning algorithm, notification UI, counter reset, at-max warning. 62 tests. Deferred: M4 toast, L2 animation, L3 integration tests.
+  3-8-rate-limiting-enforcement: done  # 2026-02-07: Code review passed. 3M fixes (File List, useEffect dep, AC1 doc). 321 tests passing.
+  3-9-core-keyboard-shortcuts: done  # 2026-02-07: Code review complete. 8 issues fixed (H1-H2, M1-M4, L1 L3). 73 tests passing. Keyboard shortcuts + focus-visible styles + textarea integration tests.
+  epic-3-retrospective: done  # Completed 2026-02-07
 
-  epic-4a: backlog
-  4a-1-job-post-input-with-url-or-text-detection: ready-for-dev
-  4a-2-client-name-extraction: ready-for-dev
-  4a-3-key-skills-extraction: ready-for-dev
-  4a-4-hidden-needs-detection: ready-for-dev
+  epic-4a: in-progress
+  4a-1-job-post-input-with-url-or-text-detection: done  # 2026-02-07: Code review complete. 5/6 issues fixed (M1-M3, L2-L3). 23 tests passing.
+  4a-2-client-name-extraction: done  # 2026-02-07: Code review complete. 5/6 issues fixed (C1, H1, M1, M2). All 5 ACs passing. Outstanding: H2, M3 (test gaps, non-blocking).
+  4a-3-key-skills-extraction: done  # 2026-02-07: Code review complete. Fixed AC-5 (No skills detected), renamed analyze_job, added AC-6 test. All 15 App tests pass.
+  4a-4-hidden-needs-detection: in-progress  # 2026-02-07: Code review complete. 6/10 issues fixed (H1, H2, M1, M2, M5, L1). AC-3 DB save pending 4a-8 integration. 8 frontend tests passing.
   4a-5-job-skills-table-schema: absorbed-by-4a-3  # Migration included in 4a-3 scope (2026-02-06)
-  4a-6-job-analysis-loading-state: ready-for-dev
-  4a-7-job-analysis-results-display: ready-for-dev
-  4a-8-save-job-analysis-to-database: ready-for-dev
-  4a-9-sanitize-job-input: ready-for-dev
+  4a-6-job-analysis-loading-state: done  # 2026-02-07: Timer-based progress indicator. 24 tests (10 unit + 14 integration). R2: alternate pulse, double-click prevention, data-testid, timer cleanup, checkmark a11y.
+  4a-7-job-analysis-results-display: done  # 2026-02-07: Code review complete. Fixed H1 (duplicate Hidden Needs label). M2 deferred (CSS vars). 24 tests passing.
+  4a-8-save-job-analysis-to-database: done  # 2026-02-07: Code review complete. Fixed H1 (rollback test), H2 (test mocks), H3 (placeholder), M2 (timer refs). 26 tests passing.
+  4a-9-sanitize-job-input: done  # 2026-02-07: Code review complete. All issues fixed (H1 NFKC, H2 benchmarks, M1 test, H3 generation truncation, L2 quote escaping). 35 tests (26 Rust + 9 frontend).
   epic-4a-retrospective: optional
 
-  epic-4b: backlog
-  4b-1-user-profile-skills-configuration: ready-for-dev
+  epic-4b: in-progress
+  4b-1-user-profile-skills-configuration: done  # 2026-02-07: Code review complete. Fixed tests (13 failing → 15 passing), added arrow key nav (NFR-14), skill length validation. 23 tests passing.
   4b-2-skills-match-percentage-calculation: ready-for-dev
   4b-3-client-quality-score-estimation: ready-for-dev
   4b-4-budget-alignment-detection: ready-for-dev
@@ -129,15 +129,15 @@ development_status:
   5-8-voice-informed-proposal-generation: ready-for-dev
   epic-5-retrospective: optional
 
-  epic-6: backlog
-  6-1-tiptap-editor-integration: ready-for-dev
+  epic-6: in-progress
+  6-1-tiptap-editor-integration: done  # 2026-02-07: Code review fixes applied. 34 tests passing. Retry logic + enableEditor wiring fixed.
   6-2-manual-voice-parameter-adjustments: ready-for-dev
   6-3-proposal-revision-history: ready-for-dev
   6-4-character-and-word-count: ready-for-dev
   6-5-formatting-shortcuts: ready-for-dev
   6-6-copy-edited-proposal: ready-for-dev
   6-7-archive-old-revisions: ready-for-dev
-  6-8-delete-proposal-all-revisions: ready-for-dev
+  6-8-delete-proposal-all-revisions: done  # 2026-02-07: Code review complete. 7 issues fixed (4 HIGH, 3 MEDIUM). 16 tests total (12 frontend + 4 Rust). CASCADE test added.
   epic-6-retrospective: optional
 
   epic-8: backlog

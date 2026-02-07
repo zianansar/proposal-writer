@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore, getHumanizationIntensity, type HumanizationIntensity } from "../stores/useSettingsStore";
 import { useOnboardingStore } from "../stores/useOnboardingStore";
+import UserSkillsConfig from "./UserSkillsConfig";
 
 const INTENSITY_OPTIONS: { value: HumanizationIntensity; label: string; description: string; badge?: string }[] = [
   { value: "off", label: "Off", description: "No humanization — pure AI output" },
@@ -21,11 +22,31 @@ function SettingsPanel() {
   const [intensitySaving, setIntensitySaving] = useState(false);
   const [intensityMessage, setIntensityMessage] = useState<string | null>(null);
 
+  // Story 3.5: Safety threshold state
+  const [threshold, setThreshold] = useState(180);
+  const [thresholdSaving, setThresholdSaving] = useState(false);
+  const [thresholdMessage, setThresholdMessage] = useState<string | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+
   useEffect(() => {
     // Load current log level from settings
     const currentLevel = getSetting("log_level") || "INFO";
     setLogLevel(currentLevel);
   }, [getSetting]);
+
+  // Story 3.5: Load safety threshold on mount
+  useEffect(() => {
+    const loadThreshold = async () => {
+      try {
+        const value = await invoke<number>("get_safety_threshold");
+        setThreshold(value);
+      } catch (err) {
+        console.error("Failed to load threshold:", err);
+        // Keep default 180 on error
+      }
+    };
+    loadThreshold();
+  }, []);
 
   const handleLogLevelChange = async (
     e: React.ChangeEvent<HTMLSelectElement>
@@ -65,9 +86,54 @@ function SettingsPanel() {
     }
   };
 
+  // Story 3.5: Handle threshold change with debouncing (300ms)
+  const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = parseInt(e.target.value, 10);
+    setThreshold(newValue);
+    setThresholdMessage(null);
+
+    // Debounce save (300ms) to prevent excessive DB writes during drag
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    timeoutRef.current = window.setTimeout(async () => {
+      setThresholdSaving(true);
+      try {
+        await invoke("set_setting", {
+          key: "safety_threshold",
+          value: newValue.toString(),
+        });
+        setThresholdMessage("✓ Saved");
+        setTimeout(() => setThresholdMessage(null), 2000);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setThresholdMessage(`Failed: ${errorMessage}`);
+        // Revert slider on error
+        try {
+          const current = await invoke<number>("get_safety_threshold");
+          setThreshold(current);
+        } catch (revertErr) {
+          console.error("Failed to revert threshold:", revertErr);
+        }
+      } finally {
+        setThresholdSaving(false);
+      }
+    }, 300);
+  };
+
   return (
     <div className="settings-panel">
       <h2>Settings</h2>
+
+      <section className="settings-section">
+        <h3>Profile</h3>
+        <div className="settings-field">
+          <label>Your Skills</label>
+          <p className="settings-help">
+            Skills used for job matching and scoring (Story 4b.2)
+          </p>
+          <UserSkillsConfig />
+        </div>
+      </section>
 
       <section className="settings-section">
         <h3>Logging</h3>
@@ -95,6 +161,40 @@ function SettingsPanel() {
             Controls the level of detail in log files. Requires app restart to
             take effect.
           </p>
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h3>Safety</h3>
+        <div className="settings-field">
+          <label htmlFor="safety-threshold">
+            AI Detection Threshold: <strong>{threshold}</strong>
+          </label>
+          <input
+            type="range"
+            id="safety-threshold"
+            aria-label={`AI Detection Threshold: ${threshold}`}
+            min="140"
+            max="220"
+            step="10"
+            value={threshold}
+            onChange={handleThresholdChange}
+            className="threshold-slider"
+            disabled={thresholdSaving}
+          />
+          <div className="threshold-labels">
+            <span>Strict (140)</span>
+            <span>Balanced (180)</span>
+            <span>Permissive (220)</span>
+          </div>
+          <p className="settings-help">
+            Lower = stricter AI detection checks, Higher = more proposals pass
+          </p>
+          {thresholdMessage && (
+            <p className={`settings-message ${thresholdMessage.includes("Failed") ? "error" : "success"}`}>
+              {thresholdMessage}
+            </p>
+          )}
         </div>
       </section>
 

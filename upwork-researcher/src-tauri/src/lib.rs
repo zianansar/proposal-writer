@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod backup;
 pub mod claude;
 pub mod config;
@@ -8,6 +9,7 @@ pub mod keychain;
 pub mod logs;
 pub mod migration;
 pub mod passphrase;
+pub mod sanitization;
 
 // Encryption spike module (Story 1.6)
 // Validates Argon2id key derivation and keyring integration for Epic 2
@@ -16,6 +18,7 @@ pub mod passphrase;
 pub mod encryption_spike;
 
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
@@ -24,14 +27,71 @@ pub struct DraftState {
     pub current_draft_id: Arc<Mutex<Option<i64>>>,
 }
 
+// ============================================================================
+// Cooldown State (Story 3.8: Rate Limiting Enforcement)
+// ============================================================================
+
+/// Cooldown period in seconds (FR-12: max 1 generation per 2 minutes)
+const COOLDOWN_SECONDS: u64 = 120;
+
+/// Cooldown state for generation rate limiting (FR-12)
+/// In-memory only — resets on app restart (acceptable: UX protection, not security)
+pub struct CooldownState {
+    pub last_generation: Mutex<Option<Instant>>,
+}
+
+impl CooldownState {
+    pub fn new() -> Self {
+        Self {
+            last_generation: Mutex::new(None),
+        }
+    }
+
+    /// Check if cooldown is active. Returns remaining seconds or 0.
+    pub fn remaining_seconds(&self) -> u64 {
+        let guard = self.last_generation.lock().unwrap();
+        match *guard {
+            Some(last) => {
+                let elapsed = last.elapsed().as_secs();
+                if elapsed < COOLDOWN_SECONDS {
+                    COOLDOWN_SECONDS - elapsed
+                } else {
+                    0
+                }
+            }
+            None => 0,
+        }
+    }
+
+    /// Record that a generation just completed.
+    pub fn record(&self) {
+        let mut guard = self.last_generation.lock().unwrap();
+        *guard = Some(Instant::now());
+    }
+}
+
+impl Default for CooldownState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Non-streaming proposal generation (kept for backwards compatibility/testing)
 /// Story 3.3: Reads humanization intensity from settings.
+/// Story 3.8: Enforces cooldown rate limiting (FR-12).
 #[tauri::command]
 async fn generate_proposal(
     job_content: String,
     config_state: State<'_, config::ConfigState>,
     database: State<'_, db::Database>,
+    cooldown: State<'_, CooldownState>,
 ) -> Result<String, String> {
+    // Story 3.8: Check cooldown FIRST — before any API call (FR-12)
+    let remaining = cooldown.remaining_seconds();
+    if remaining > 0 {
+        return Err(format!("RATE_LIMITED:{}", remaining));
+    }
+
     let api_key = config_state.get_api_key()?;
 
     // Story 3.3: Read humanization intensity from settings
@@ -45,12 +105,18 @@ async fn generate_proposal(
             .unwrap_or_else(|| "medium".to_string())
     };
 
-    claude::generate_proposal_with_key(&job_content, api_key.as_deref(), &intensity).await
+    let result = claude::generate_proposal_with_key(&job_content, api_key.as_deref(), &intensity).await?;
+
+    // Story 3.8: Record successful generation timestamp (after API call succeeds)
+    cooldown.record();
+
+    Ok(result)
 }
 
 /// Streaming proposal generation - emits tokens via Tauri events
 /// Auto-saves draft every 50ms during generation (Story 1.14)
 /// Story 3.3: Reads humanization intensity from settings and injects into prompt.
+/// Story 3.8: Enforces cooldown rate limiting (FR-12).
 #[tauri::command]
 async fn generate_proposal_streaming(
     job_content: String,
@@ -58,7 +124,14 @@ async fn generate_proposal_streaming(
     config_state: State<'_, config::ConfigState>,
     database: State<'_, db::Database>,
     draft_state: State<'_, DraftState>,
+    cooldown: State<'_, CooldownState>,
 ) -> Result<String, String> {
+    // Story 3.8: Check cooldown FIRST — before any API call (FR-12)
+    let remaining = cooldown.remaining_seconds();
+    if remaining > 0 {
+        return Err(format!("RATE_LIMITED:{}", remaining));
+    }
+
     let api_key = config_state.get_api_key()?;
 
     // Story 3.3: Read humanization intensity from settings
@@ -72,7 +145,7 @@ async fn generate_proposal_streaming(
             .unwrap_or_else(|| "medium".to_string())
     };
 
-    claude::generate_proposal_streaming_with_key(
+    let result = claude::generate_proposal_streaming_with_key(
         &job_content,
         app_handle,
         api_key.as_deref(),
@@ -80,12 +153,23 @@ async fn generate_proposal_streaming(
         &draft_state,
         &intensity,
     )
-    .await
+    .await?;
+
+    // Story 3.8: Record successful generation timestamp (after API call succeeds)
+    cooldown.record();
+
+    Ok(result)
 }
 
 /// Regenerate proposal with escalated humanization intensity (Story 3.4)
 /// Used when initial generation fails pre-flight perplexity check.
 /// Escalates intensity: Off → Light → Medium → Heavy (max 3 attempts)
+/// Story 3.8: Enforces cooldown rate limiting (FR-12).
+///
+/// # Trust Assumption (L2 Review 3)
+/// `attempt_count` is provided by the frontend and trusted without server-side tracking.
+/// In a local desktop app context, this is acceptable since the user has full control.
+/// For a web service, server-side session tracking would be needed to prevent bypass.
 #[tauri::command]
 async fn regenerate_with_humanization(
     job_content: String,
@@ -95,7 +179,14 @@ async fn regenerate_with_humanization(
     config_state: State<'_, config::ConfigState>,
     database: State<'_, db::Database>,
     draft_state: State<'_, DraftState>,
+    cooldown: State<'_, CooldownState>,
 ) -> Result<serde_json::Value, String> {
+    // Story 3.8: Check cooldown FIRST — before any API call (FR-12)
+    let remaining = cooldown.remaining_seconds();
+    if remaining > 0 {
+        return Err(format!("RATE_LIMITED:{}", remaining));
+    }
+
     const MAX_ATTEMPTS: u32 = 3;
 
     // Enforce max attempts
@@ -123,6 +214,9 @@ async fn regenerate_with_humanization(
     )
     .await?;
 
+    // Story 3.8: Record successful generation timestamp (after API call succeeds)
+    cooldown.record();
+
     Ok(serde_json::json!({
         "generated_text": generated_text,
         "new_intensity": escalated_str,
@@ -130,16 +224,29 @@ async fn regenerate_with_humanization(
     }))
 }
 
-/// Analyze text for AI detection risk (Story 3.1 + 3.2)
+/// Analyze text for AI detection risk (Story 3.1 + 3.2 + 3.5)
 /// Returns perplexity analysis with score and flagged sentences.
-/// Threshold: <180 = safe, ≥180 = risky (FR-11)
+/// Story 3.5: Uses configurable threshold (default 180)
 #[tauri::command]
 async fn analyze_perplexity(
     text: String,
+    threshold: i32,
     config_state: State<'_, config::ConfigState>,
 ) -> Result<claude::PerplexityAnalysis, String> {
     let api_key = config_state.get_api_key()?;
-    claude::analyze_perplexity_with_sentences(&text, api_key.as_deref()).await
+    claude::analyze_perplexity_with_sentences(&text, threshold, api_key.as_deref()).await
+}
+
+// ============================================================================
+// Cooldown Commands (Story 3.8: Rate Limiting Enforcement)
+// ============================================================================
+
+/// Get remaining cooldown seconds (Story 3.8, AC4)
+/// Returns 0 if no cooldown is active.
+/// Used by frontend to sync timer on app startup.
+#[tauri::command]
+fn get_cooldown_remaining(cooldown: State<CooldownState>) -> u64 {
+    cooldown.remaining_seconds()
 }
 
 /// Database health check - returns database path and status
@@ -191,6 +298,62 @@ fn get_proposals(
         .map_err(|e| format!("Failed to get proposals: {}", e))
 }
 
+/// Delete a proposal and all its revisions (Story 6.8)
+/// Implements GDPR "right to deletion" from Round 5 Security Audit.
+/// Returns success status and message.
+///
+/// # Cascade Behavior
+/// - proposal_revisions: Deleted via ON DELETE CASCADE
+/// - safety_overrides: Orphaned (acceptable - historical data)
+#[tauri::command]
+fn delete_proposal(
+    database: State<db::Database>,
+    proposal_id: i64,
+) -> Result<serde_json::Value, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let deleted = db::queries::proposals::delete_proposal(&conn, proposal_id)
+        .map_err(|e| format!("Failed to delete proposal: {}", e))?;
+
+    if deleted {
+        tracing::info!(proposal_id = proposal_id, "Proposal deleted");
+        Ok(serde_json::json!({
+            "success": true,
+            "message": "Proposal deleted."
+        }))
+    } else {
+        Ok(serde_json::json!({
+            "success": false,
+            "message": "Proposal not found."
+        }))
+    }
+}
+
+/// Update proposal content (Story 6.1: TipTap Editor auto-save)
+/// Called by frontend editor on content changes (2-second debounce)
+/// Updates both content and updated_at timestamp
+#[tauri::command]
+fn update_proposal_content(
+    database: State<db::Database>,
+    proposal_id: i64,
+    content: String,
+) -> Result<(), String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::proposals::update_proposal_text(&conn, proposal_id, &content)
+        .map_err(|e| format!("Failed to update proposal: {}", e))?;
+
+    tracing::debug!(proposal_id = proposal_id, "Proposal content auto-saved");
+
+    Ok(())
+}
+
 /// Check for draft proposal from previous session (Story 1.14)
 /// Returns the latest draft if exists, None otherwise
 #[tauri::command]
@@ -229,11 +392,13 @@ fn update_proposal_status(
 
 /// Save a job post for later (Story 1.13: API Error Handling)
 /// Used when API errors occur and user wants to save job to process later
+/// Story 4a.2: Now accepts client_name from job analysis (AC-3)
 #[tauri::command]
 fn save_job_post(
     database: State<db::Database>,
     job_content: String,
     url: Option<String>,
+    client_name: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let conn = database
         .conn
@@ -244,7 +409,7 @@ fn save_job_post(
         &conn,
         url.as_deref(),
         &job_content,
-        None, // client_name will be extracted in Epic 4a
+        client_name.as_deref(),
     )
     .map_err(|e| format!("Failed to save job post: {}", e))?;
 
@@ -252,6 +417,75 @@ fn save_job_post(
         "id": id,
         "saved": true
     }))
+}
+
+/// Analyze job post to extract client name, skills, and hidden needs (Story 4a.2 + 4a.3 + 4a.4 + 4a.8)
+/// Story 4a.2: Extracts client name
+/// Story 4a.3: Extracts key skills
+/// Story 4a.4: Extracts hidden needs
+/// Story 4a.8: Saves all analysis data atomically in single transaction
+/// AC-1: Calls Claude Haiku to extract client name + skills + hidden needs
+/// AC-3: Saves extracted data to database atomically (if job_post_id provided)
+/// AC-4: Completes in <3 seconds for analysis + <100ms for save
+/// AC-5: Returns error string on failure (non-blocking)
+#[tauri::command]
+async fn analyze_job_post(
+    raw_content: String,
+    job_post_id: Option<i64>,
+    database: State<'_, db::Database>,
+    config_state: State<'_, config::ConfigState>,
+) -> Result<analysis::JobAnalysis, String> {
+    // AC-5: Retrieve API key from keychain (follows existing pattern)
+    let api_key = config_state.get_api_key()?;
+
+    // AC-1: Call analysis function with Haiku (extracts client_name, key_skills, and hidden_needs)
+    let analysis = analysis::analyze_job(&raw_content, api_key.as_deref().ok_or("API key not found")?)
+        .await?;
+
+    // Story 4a.8: Save all analysis data atomically if job_post_id provided (AC-1, AC-2, AC-3)
+    if let Some(job_id) = job_post_id {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        // Serialize hidden needs to JSON
+        let hidden_needs_json = serde_json::to_string(&analysis.hidden_needs)
+            .map_err(|e| format!("Failed to serialize hidden needs: {}", e))?;
+
+        // Story 4a.8: Atomic save - all-or-nothing transaction
+        // Log timing to validate <100ms target (NFR-4)
+        let save_start = std::time::Instant::now();
+
+        db::queries::job_posts::save_job_analysis_atomic(
+            &conn,
+            job_id,
+            analysis.client_name.as_deref(),
+            &analysis.key_skills,
+            &hidden_needs_json,
+        )
+        .map_err(|e| format!("Failed to save job analysis: {}", e))?;
+
+        let save_duration = save_start.elapsed();
+        tracing::info!(
+            "Saved job analysis for job_post_id {} in {:?} (client_name: {:?}, {} skills, {} hidden needs)",
+            job_id,
+            save_duration,
+            analysis.client_name,
+            analysis.key_skills.len(),
+            analysis.hidden_needs.len()
+        );
+
+        // Log warning if save exceeded 100ms target
+        if save_duration.as_millis() > 100 {
+            tracing::warn!(
+                "Save exceeded NFR-4 target: {:?} > 100ms",
+                save_duration
+            );
+        }
+    }
+
+    Ok(analysis)
 }
 
 /// Check if API key is configured
@@ -408,6 +642,152 @@ fn get_all_settings(
 
     db::queries::settings::list_settings(&conn)
         .map_err(|e| format!("Failed to get settings: {}", e))
+}
+
+// ============================================================================
+// User Skills Commands (Story 4b.1)
+// ============================================================================
+
+/// Hardcoded list of common Upwork skills for autocomplete (Story 4b.1, Task 3)
+/// Covers top categories: Web/Mobile Dev, Design, Writing, Marketing, Data Science
+const COMMON_UPWORK_SKILLS: &[&str] = &[
+    "JavaScript",
+    "Python",
+    "React",
+    "Node.js",
+    "TypeScript",
+    "SQL",
+    "AWS",
+    "GraphQL",
+    "REST API",
+    "Git",
+    "Docker",
+    "PostgreSQL",
+    "MongoDB",
+    "Vue.js",
+    "Angular",
+    "Next.js",
+    "Express",
+    "Django",
+    "Flask",
+    "FastAPI",
+    "Ruby on Rails",
+    "PHP",
+    "Laravel",
+    "WordPress",
+    "Shopify",
+    "Figma",
+    "Adobe Photoshop",
+    "UI/UX Design",
+    "Graphic Design",
+    "Content Writing",
+    "SEO",
+    "Social Media Marketing",
+    "Email Marketing",
+    "Google Analytics",
+    "Data Analysis",
+    "Excel",
+    "Power BI",
+    "Tableau",
+    "Machine Learning",
+    "TensorFlow",
+    "PyTorch",
+    "Natural Language Processing",
+    "Computer Vision",
+    "DevOps",
+    "CI/CD",
+    "Kubernetes",
+    "Terraform",
+    "Linux",
+    "Bash",
+    "Automation",
+];
+
+/// Get skill suggestions based on query prefix (Story 4b.1, Task 3)
+/// Returns max 10 suggestions sorted alphabetically (case-insensitive match)
+#[tauri::command]
+fn get_skill_suggestions(query: String) -> Result<Vec<String>, String> {
+    let query_lower = query.to_lowercase();
+
+    let mut suggestions: Vec<String> = COMMON_UPWORK_SKILLS
+        .iter()
+        .filter(|skill| skill.to_lowercase().starts_with(&query_lower))
+        .map(|s| s.to_string())
+        .collect();
+
+    suggestions.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    suggestions.truncate(10); // Max 10 suggestions
+
+    Ok(suggestions)
+}
+
+/// Add a new skill to user's profile (Story 4b.1)
+/// Returns skill ID on success, error if duplicate (case-insensitive)
+#[tauri::command]
+fn add_user_skill(database: State<db::Database>, skill: String) -> Result<i64, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::user_skills::add_user_skill(&conn, &skill)
+        .map_err(|e| format!("Failed to add skill: {}", e))
+}
+
+/// Remove a skill from user's profile (Story 4b.1)
+#[tauri::command]
+fn remove_user_skill(database: State<db::Database>, skill_id: i64) -> Result<(), String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::user_skills::remove_user_skill(&conn, skill_id)
+        .map_err(|e| format!("Failed to remove skill: {}", e))
+}
+
+/// Get all user skills ordered by added_at DESC (Story 4b.1)
+#[tauri::command]
+fn get_user_skills(
+    database: State<db::Database>,
+) -> Result<Vec<db::queries::user_skills::UserSkill>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::user_skills::get_user_skills(&conn)
+        .map_err(|e| format!("Failed to get skills: {}", e))
+}
+
+// ============================================================================
+// Safety Threshold Commands (Story 3.5)
+// ============================================================================
+
+/// Get safety threshold for AI detection (Story 3.5)
+/// Internal helper: Returns threshold value (140-220, default 180)
+/// Sanitizes out-of-range values to prevent corrupted data
+fn get_safety_threshold_internal(database: &db::Database) -> Result<i32, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    match db::queries::settings::get_setting(&conn, "safety_threshold") {
+        Ok(Some(value)) => {
+            let threshold = value.parse::<i32>().unwrap_or(180);
+            // Sanitize: ensure within valid range (140-220)
+            Ok(threshold.clamp(140, 220))
+        }
+        Ok(None) => Ok(180), // Default threshold (FR-11)
+        Err(e) => Err(format!("Database error: {}", e)),
+    }
+}
+
+/// Tauri command wrapper for get_safety_threshold
+#[tauri::command]
+fn get_safety_threshold(database: State<db::Database>) -> Result<i32, String> {
+    get_safety_threshold_internal(&database)
 }
 
 // ============================================================================
@@ -1326,15 +1706,77 @@ pub fn run() {
                 }
             }
 
+            // Story 3.7: Auto-confirm successful overrides on startup (Task 3.1)
+            // Check for pending overrides older than 7 days and mark them as successful/unsuccessful
+            {
+                let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+
+                match db::queries::safety_overrides::get_pending_overrides_older_than_7_days(&conn) {
+                    Ok(pending_overrides) => {
+                        let mut successful_count = 0;
+                        let mut unsuccessful_count = 0;
+
+                        for override_record in pending_overrides {
+                            // Check if the proposal still exists
+                            match db::queries::safety_overrides::proposal_exists(&conn, override_record.proposal_id) {
+                                Ok(true) => {
+                                    // Proposal exists, mark as successful
+                                    if let Err(e) = db::queries::safety_overrides::update_override_status(
+                                        &conn,
+                                        override_record.id,
+                                        db::queries::safety_overrides::STATUS_SUCCESSFUL,
+                                    ) {
+                                        tracing::warn!("Failed to update override {} to successful: {}", override_record.id, e);
+                                    } else {
+                                        successful_count += 1;
+                                    }
+                                }
+                                Ok(false) => {
+                                    // Proposal deleted, mark as unsuccessful
+                                    if let Err(e) = db::queries::safety_overrides::update_override_status(
+                                        &conn,
+                                        override_record.id,
+                                        db::queries::safety_overrides::STATUS_UNSUCCESSFUL,
+                                    ) {
+                                        tracing::warn!("Failed to update override {} to unsuccessful: {}", override_record.id, e);
+                                    } else {
+                                        unsuccessful_count += 1;
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::warn!("Failed to check proposal existence for override {}: {}", override_record.id, e);
+                                }
+                            }
+                        }
+
+                        if successful_count > 0 || unsuccessful_count > 0 {
+                            tracing::info!(
+                                "Auto-confirmed overrides: {} successful, {} unsuccessful",
+                                successful_count,
+                                unsuccessful_count
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to query pending overrides (non-fatal): {}", e);
+                        // Non-fatal: app can continue without this cleanup
+                    }
+                }
+            }
+
             // Initialize draft state for tracking current draft during generation
             let draft_state = DraftState {
                 current_draft_id: Arc::new(Mutex::new(None)),
             };
 
+            // Story 3.8: Initialize cooldown state for rate limiting (FR-12)
+            let cooldown_state = CooldownState::new();
+
             // Store in managed state
             app.manage(database);
             app.manage(config_state);
             app.manage(draft_state);
+            app.manage(cooldown_state);
 
             Ok(())
         })
@@ -1342,10 +1784,15 @@ pub fn run() {
             generate_proposal,
             generate_proposal_streaming,
             analyze_perplexity,
+            // Cooldown commands (Story 3.8)
+            get_cooldown_remaining,
             check_database,
             save_proposal,
             get_proposals,
+            delete_proposal, // Story 6.8: Delete Proposal & All Revisions
+            update_proposal_content, // Story 6.1: TipTap Editor auto-save
             save_job_post,
+            analyze_job_post, // Story 4a.2: Client Name Extraction
             has_api_key,
             set_api_key,
             get_api_key_masked,
@@ -1358,6 +1805,21 @@ pub fn run() {
             get_all_settings,
             // Logging commands (Story 1.16)
             set_log_level,
+            // User skills commands (Story 4b.1)
+            add_user_skill,
+            remove_user_skill,
+            get_user_skills,
+            get_skill_suggestions,
+            // Safety threshold commands (Story 3.5)
+            get_safety_threshold,
+            // Safety override commands (Story 3.6 + 3.7)
+            log_safety_override, // Deprecated: kept for backwards compatibility
+            record_safety_override, // Story 3.7: Per-override record tracking
+            // Learning algorithm commands (Story 3.7)
+            check_threshold_learning,
+            check_threshold_decrease,
+            apply_threshold_adjustment,
+            dismiss_threshold_suggestion,
             // Humanization commands (Story 3.3)
             get_humanization_intensity,
             set_humanization_intensity,
@@ -1389,4 +1851,713 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+// ============================================================================
+// Safety Override Commands (Story 3.6 + 3.7)
+// ============================================================================
+
+/// DEPRECATED: Use record_safety_override instead (Story 3.7)
+/// Log a safety override event for adaptive learning (Story 3.6)
+///
+/// This command uses the settings table for simple counter tracking.
+/// Story 3.7 replaces this with per-override record tracking in safety_overrides table.
+///
+/// Internal helper: Log safety override (deprecated)
+async fn log_safety_override_internal(
+    score: f32,
+    threshold: f32,
+    database: &db::Database,
+) -> Result<(), String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Increment override count
+    let current_count: i32 =
+        match db::queries::settings::get_setting(&conn, "safety_override_count") {
+            Ok(Some(val)) => val.parse().unwrap_or(0),
+            _ => 0,
+        };
+
+    db::queries::settings::set_setting(
+        &conn,
+        "safety_override_count",
+        &(current_count + 1).to_string(),
+    )
+    .map_err(|e| format!("Failed to increment override count: {}", e))?;
+
+    // Store last override timestamp using SQLite's datetime function
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('safety_override_last', datetime('now'), datetime('now'))",
+        [],
+    )
+    .map_err(|e| format!("Failed to store override timestamp: {}", e))?;
+
+    tracing::info!(
+        score = score,
+        threshold = threshold,
+        override_count = current_count + 1,
+        "Safety override logged (deprecated)"
+    );
+
+    Ok(())
+}
+
+/// Tauri command wrapper: Log safety override (deprecated)
+/// Kept for backwards compatibility during transition.
+#[tauri::command]
+async fn log_safety_override(
+    score: f32,
+    threshold: f32,
+    database: State<'_, db::Database>,
+) -> Result<(), String> {
+    log_safety_override_internal(score, threshold, &database).await
+}
+
+/// Internal helper: Record a safety override event for adaptive learning
+async fn record_safety_override_internal(
+    proposal_id: i64,
+    ai_score: f32,
+    threshold: f32,
+    database: &db::Database,
+) -> Result<i64, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let override_id = db::queries::safety_overrides::record_override(
+        &conn,
+        proposal_id,
+        ai_score,
+        threshold,
+    )
+    .map_err(|e| format!("Failed to record override: {}", e))?;
+
+    tracing::info!(
+        override_id = override_id,
+        proposal_id = proposal_id,
+        ai_score = ai_score,
+        threshold = threshold,
+        "Safety override recorded"
+    );
+
+    Ok(override_id)
+}
+
+/// Tauri command wrapper: Record a safety override event for adaptive learning (Story 3.7)
+///
+/// Creates a per-override record in the safety_overrides table for the learning algorithm.
+/// Replaces the simple counter from Story 3.6 with granular per-override tracking.
+///
+/// # Arguments
+/// * `proposal_id` - ID of the proposal being overridden
+/// * `ai_score` - AI detection score that triggered the warning
+/// * `threshold` - Safety threshold at time of override
+///
+/// # Returns
+/// The ID of the created override record
+///
+/// # Logged Data (Story 1.16 compliance)
+/// - Override ID (for tracking)
+/// - Proposal ID (for success confirmation)
+/// - Score and threshold (for learning algorithm)
+#[tauri::command]
+async fn record_safety_override(
+    proposal_id: i64,
+    ai_score: f32,
+    threshold: f32,
+    database: State<'_, db::Database>,
+) -> Result<i64, String> {
+    record_safety_override_internal(proposal_id, ai_score, threshold, &database).await
+}
+
+/// Threshold suggestion returned by learning detection (Story 3.7, Task 4)
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThresholdSuggestion {
+    pub current_threshold: i32,
+    pub suggested_threshold: i32,
+    pub successful_override_count: usize,
+    pub average_override_score: f32,
+    pub direction: String, // "increase" | "decrease"
+}
+
+/// Constants for learning algorithm
+const THRESHOLD_INCREMENT: i32 = 10;
+const THRESHOLD_MAX: i32 = 220;
+const THRESHOLD_DEFAULT: i32 = 180;
+const THRESHOLD_PROXIMITY: f32 = 10.0; // Only count overrides within 10 points of threshold
+const SUCCESSFUL_OVERRIDE_THRESHOLD: usize = 3; // Need 3 overrides to suggest change
+const INACTIVITY_DAYS: i32 = 60; // Days without overrides to suggest decrease
+
+/// Check for learning opportunity and suggest threshold adjustment (Story 3.7, Task 4.3)
+///
+/// Called on app startup and after each successful override confirmation.
+/// Analyzes successful overrides from the last 30 days to detect patterns.
+///
+/// # Learning Algorithm
+/// 1. Query successful overrides in last 30 days
+/// 2. Filter overrides within 10 points of current threshold
+/// 3. If count >= 3, suggest new_threshold = current + 10
+/// 4. Cap at maximum 220
+///
+/// # Returns
+/// * `Ok(Some(ThresholdSuggestion))` - Adjustment opportunity detected
+/// * `Ok(None)` - No adjustment needed
+#[tauri::command]
+async fn check_threshold_learning(
+    database: State<'_, db::Database>,
+) -> Result<Option<ThresholdSuggestion>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Get current threshold
+    let current_threshold = match db::queries::settings::get_setting(&conn, "safety_threshold") {
+        Ok(Some(value)) => value.parse::<i32>().unwrap_or(THRESHOLD_DEFAULT).clamp(140, THRESHOLD_MAX),
+        Ok(None) => THRESHOLD_DEFAULT,
+        Err(e) => {
+            tracing::warn!("Failed to get threshold: {}", e);
+            THRESHOLD_DEFAULT
+        }
+    };
+
+    // H3 fix: Check if already at maximum - show warning instead of returning None
+    if current_threshold >= THRESHOLD_MAX {
+        tracing::debug!("Threshold at maximum ({}), showing warning", THRESHOLD_MAX);
+        return Ok(Some(ThresholdSuggestion {
+            current_threshold,
+            suggested_threshold: THRESHOLD_MAX, // Same as current
+            successful_override_count: 0,
+            average_override_score: 0.0,
+            direction: "at_maximum".to_string(), // Special direction for AC7 warning
+        }));
+    }
+
+    // H2 fix: Get dismissal timestamp to filter out overrides from before rejection
+    let dismissal_timestamp = db::queries::settings::get_setting(&conn, "threshold_suggestion_dismissed_at")
+        .ok()
+        .flatten();
+
+    // Get successful overrides from last 30 days
+    let successful_overrides = db::queries::safety_overrides::get_successful_overrides_last_30_days(&conn)
+        .map_err(|e| format!("Failed to query overrides: {}", e))?;
+
+    // Filter overrides:
+    // 1. Within THRESHOLD_PROXIMITY points of current threshold
+    // 2. After dismissal timestamp (if any) - implements AC6 counter reset
+    let nearby_overrides: Vec<_> = successful_overrides
+        .iter()
+        .filter(|o| {
+            // Proximity check
+            let score_diff = (o.ai_score - current_threshold as f32).abs();
+            if score_diff > THRESHOLD_PROXIMITY {
+                return false;
+            }
+
+            // H2 fix: Only count overrides AFTER the dismissal timestamp
+            if let Some(ref dismissed_at) = dismissal_timestamp {
+                // Compare timestamps (both in SQLite datetime format)
+                if o.timestamp <= *dismissed_at {
+                    return false;
+                }
+            }
+
+            true
+        })
+        .collect();
+
+    // Check if we have enough overrides to suggest an increase
+    if nearby_overrides.len() >= SUCCESSFUL_OVERRIDE_THRESHOLD {
+        let suggested_threshold = (current_threshold + THRESHOLD_INCREMENT).min(THRESHOLD_MAX);
+
+        // Calculate average score of nearby overrides
+        let total_score: f32 = nearby_overrides.iter().map(|o| o.ai_score).sum();
+        let average_score = total_score / nearby_overrides.len() as f32;
+
+        tracing::info!(
+            current_threshold = current_threshold,
+            suggested_threshold = suggested_threshold,
+            override_count = nearby_overrides.len(),
+            average_score = average_score,
+            "Learning opportunity detected: threshold increase"
+        );
+
+        return Ok(Some(ThresholdSuggestion {
+            current_threshold,
+            suggested_threshold,
+            successful_override_count: nearby_overrides.len(),
+            average_override_score: average_score,
+            direction: "increase".to_string(),
+        }));
+    }
+
+    tracing::debug!(
+        "No learning opportunity: {} overrides (need {})",
+        nearby_overrides.len(),
+        SUCCESSFUL_OVERRIDE_THRESHOLD
+    );
+
+    Ok(None)
+}
+
+/// Check for downward threshold adjustment opportunity (Story 3.7, Task 7.1)
+///
+/// Detects when user hasn't overridden any warnings for 60 days,
+/// suggesting their threshold could be lowered back to default.
+///
+/// # Returns
+/// * `Ok(Some(ThresholdSuggestion))` - Decrease opportunity detected
+/// * `Ok(None)` - No decrease needed
+#[tauri::command]
+async fn check_threshold_decrease(
+    database: State<'_, db::Database>,
+) -> Result<Option<ThresholdSuggestion>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Get current threshold
+    let current_threshold = match db::queries::settings::get_setting(&conn, "safety_threshold") {
+        Ok(Some(value)) => value.parse::<i32>().unwrap_or(THRESHOLD_DEFAULT).clamp(140, THRESHOLD_MAX),
+        Ok(None) => THRESHOLD_DEFAULT,
+        Err(e) => {
+            tracing::warn!("Failed to get threshold: {}", e);
+            THRESHOLD_DEFAULT
+        }
+    };
+
+    // Only suggest decrease if above default
+    if current_threshold <= THRESHOLD_DEFAULT {
+        tracing::debug!("Threshold at default ({}), no decrease suggestion", THRESHOLD_DEFAULT);
+        return Ok(None);
+    }
+
+    // Check override activity in last 60 days
+    let override_count = db::queries::safety_overrides::count_overrides_last_60_days(&conn)
+        .map_err(|e| format!("Failed to count overrides: {}", e))?;
+
+    // If no overrides in 60 days, suggest decrease
+    if override_count == 0 {
+        tracing::info!(
+            current_threshold = current_threshold,
+            suggested_threshold = THRESHOLD_DEFAULT,
+            "Inactivity detected: threshold decrease suggestion"
+        );
+
+        return Ok(Some(ThresholdSuggestion {
+            current_threshold,
+            suggested_threshold: THRESHOLD_DEFAULT,
+            successful_override_count: 0,
+            average_override_score: 0.0,
+            direction: "decrease".to_string(),
+        }));
+    }
+
+    Ok(None)
+}
+
+/// Apply threshold adjustment and reset override tracking (Story 3.7, Task 6.1)
+///
+/// Updates the safety threshold in settings and resets the learning counter.
+/// Called when user clicks "Yes, Adjust to [new threshold]".
+///
+/// # Arguments
+/// * `new_threshold` - New threshold value (140-220)
+#[tauri::command]
+async fn apply_threshold_adjustment(
+    new_threshold: i32,
+    database: State<'_, db::Database>,
+) -> Result<(), String> {
+    // Validate threshold range
+    if new_threshold < 140 || new_threshold > THRESHOLD_MAX {
+        return Err(format!("Threshold must be between 140 and {}", THRESHOLD_MAX));
+    }
+
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Get old threshold for logging
+    let old_threshold = match db::queries::settings::get_setting(&conn, "safety_threshold") {
+        Ok(Some(value)) => value.parse::<i32>().unwrap_or(THRESHOLD_DEFAULT),
+        Ok(None) => THRESHOLD_DEFAULT,
+        Err(_) => THRESHOLD_DEFAULT,
+    };
+
+    // Update threshold in settings (Story 3.5)
+    db::queries::settings::set_setting(&conn, "safety_threshold", &new_threshold.to_string())
+        .map_err(|e| format!("Failed to update threshold: {}", e))?;
+
+    // H2 fix: Clear dismissal timestamp so counter starts fresh after adjustment
+    let _ = conn.execute("DELETE FROM settings WHERE key = 'threshold_suggestion_dismissed_at'", []);
+
+    tracing::info!(
+        old_threshold = old_threshold,
+        new_threshold = new_threshold,
+        "Threshold adjusted via learning"
+    );
+
+    Ok(())
+}
+
+/// Dismiss threshold suggestion without adjustment (Story 3.7, Task 6.3)
+///
+/// Called when user clicks "No, Keep Current". Stores dismissal timestamp
+/// so only overrides AFTER this time count toward the next suggestion.
+/// This effectively "resets the counter" per AC6.
+#[tauri::command]
+async fn dismiss_threshold_suggestion(
+    database: State<'_, db::Database>,
+) -> Result<(), String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Store dismissal timestamp - only overrides AFTER this time will count
+    // Uses SQLite datetime format for easy comparison in queries
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('threshold_suggestion_dismissed_at', datetime('now'), datetime('now'))",
+        [],
+    )
+    .map_err(|e| format!("Failed to store dismissal: {}", e))?;
+
+    tracing::info!("Threshold suggestion dismissed by user (counter reset)");
+
+    Ok(())
+}
+
+// ============================================================================
+// Tests (Story 3.5)
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Story 3.5, Task 6.1: Test get_safety_threshold returns 180 if not set
+    #[test]
+    fn test_get_safety_threshold_default() {
+        // Create in-memory database
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+
+        // Query threshold (should return default 180)
+        let result = get_safety_threshold_internal(&db);
+        assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
+        assert_eq!(result.unwrap(), 180, "Default threshold should be 180");
+    }
+
+    // Story 3.5, Task 6.2: Test get_safety_threshold returns stored custom value
+    #[test]
+    fn test_get_safety_threshold_custom() {
+        // Create in-memory database
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+
+        // Set custom threshold
+        {
+            let conn = db.conn.lock().unwrap();
+            db::queries::settings::set_setting(&conn, "safety_threshold", "150")
+                .expect("Failed to set threshold");
+        }
+
+        // Query threshold (should return 150)
+        let result = get_safety_threshold_internal(&db);
+        assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
+        assert_eq!(result.unwrap(), 150, "Custom threshold should be 150");
+    }
+
+    // Story 3.5, Task 6.3: Test safety_threshold_validation sanitizes out-of-range values
+    #[test]
+    fn test_safety_threshold_validation() {
+        // Create in-memory database
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+
+        // Test upper bound clamping (250 → 220)
+        {
+            let conn = db.conn.lock().unwrap();
+            db::queries::settings::set_setting(&conn, "safety_threshold", "250")
+                .expect("Failed to set threshold");
+        }
+        let result = get_safety_threshold_internal(&db);
+        assert_eq!(result.unwrap(), 220, "Out-of-range 250 should clamp to 220");
+
+        // Test lower bound clamping (100 → 140)
+        {
+            let conn = db.conn.lock().unwrap();
+            db::queries::settings::set_setting(&conn, "safety_threshold", "100")
+                .expect("Failed to set threshold");
+        }
+        let result = get_safety_threshold_internal(&db);
+        assert_eq!(result.unwrap(), 140, "Out-of-range 100 should clamp to 140");
+
+        // Test valid value within range (180 → 180)
+        {
+            let conn = db.conn.lock().unwrap();
+            db::queries::settings::set_setting(&conn, "safety_threshold", "180")
+                .expect("Failed to set threshold");
+        }
+        let result = get_safety_threshold_internal(&db);
+        assert_eq!(result.unwrap(), 180, "Valid 180 should remain 180");
+
+        // Test non-numeric value (defaults to 180)
+        {
+            let conn = db.conn.lock().unwrap();
+            db::queries::settings::set_setting(&conn, "safety_threshold", "invalid")
+                .expect("Failed to set threshold");
+        }
+        let result = get_safety_threshold_internal(&db);
+        assert_eq!(result.unwrap(), 180, "Non-numeric value should default to 180");
+    }
+
+    // =========================================================================
+    // Story 3.6: log_safety_override tests
+    // =========================================================================
+
+    // Story 3.6, Task 5.11: Test override count increments from 0 to 1
+    #[tokio::test]
+    async fn test_log_safety_override_increments_count() {
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+
+        // Verify initial count is 0 (not set)
+        {
+            let conn = db.conn.lock().unwrap();
+            let initial = db::queries::settings::get_setting(&conn, "safety_override_count")
+                .expect("Query failed");
+            assert!(initial.is_none(), "Initial count should not exist");
+        }
+
+        // Call log_safety_override
+        let result = log_safety_override_internal(195.5, 180.0, &db).await;
+        assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
+
+        // Verify count is now 1
+        {
+            let conn = db.conn.lock().unwrap();
+            let count = db::queries::settings::get_setting(&conn, "safety_override_count")
+                .expect("Query failed")
+                .expect("Count should exist");
+            assert_eq!(count, "1", "Count should be 1 after first override");
+        }
+    }
+
+    // Story 3.6, Task 5.12: Test count increments correctly across multiple calls
+    #[tokio::test]
+    async fn test_log_safety_override_multiple() {
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+
+        // Call log_safety_override 3 times
+        for i in 1..=3 {
+            let result = log_safety_override_internal(190.0 + i as f32, 180.0, &db).await;
+            assert!(result.is_ok(), "Override {} failed: {:?}", i, result);
+        }
+
+        // Verify count is 3
+        {
+            let conn = db.conn.lock().unwrap();
+            let count = db::queries::settings::get_setting(&conn, "safety_override_count")
+                .expect("Query failed")
+                .expect("Count should exist");
+            assert_eq!(count, "3", "Count should be 3 after three overrides");
+        }
+    }
+
+    // Story 3.6, Task 5.13: Test timestamp is stored
+    #[tokio::test]
+    async fn test_log_safety_override_stores_timestamp() {
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+
+        // Call log_safety_override
+        let result = log_safety_override_internal(200.0, 180.0, &db).await;
+        assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
+
+        // Verify timestamp is set
+        {
+            let conn = db.conn.lock().unwrap();
+            let timestamp = db::queries::settings::get_setting(&conn, "safety_override_last")
+                .expect("Query failed")
+                .expect("Timestamp should exist");
+            // Should be a valid datetime string (not empty)
+            assert!(!timestamp.is_empty(), "Timestamp should not be empty");
+            // Should contain date-like characters
+            assert!(timestamp.contains("-"), "Timestamp should contain date separators");
+        }
+    }
+
+    // =========================================================================
+    // Story 3.8: CooldownState tests
+    // =========================================================================
+
+    // Story 3.8, Task 7.5: Test get_cooldown_remaining returns 0 when no cooldown active
+    #[test]
+    fn test_cooldown_remaining_no_active() {
+        let cooldown = CooldownState::new();
+        assert_eq!(cooldown.remaining_seconds(), 0, "Should return 0 with no prior generation");
+    }
+
+    // Story 3.8, Task 7.6: Test get_cooldown_remaining returns correct remaining seconds
+    #[test]
+    fn test_cooldown_remaining_active() {
+        let cooldown = CooldownState::new();
+
+        // Record a generation
+        cooldown.record();
+
+        // Should return approximately 120 seconds (within 1 second of recording)
+        let remaining = cooldown.remaining_seconds();
+        assert!(
+            remaining >= 119 && remaining <= 120,
+            "Should return ~120 seconds, got {}",
+            remaining
+        );
+    }
+
+    // Story 3.8, Task 7.1: Test cooldown blocks within 120s window
+    #[test]
+    fn test_cooldown_blocks_within_window() {
+        let cooldown = CooldownState::new();
+
+        // Record a generation
+        cooldown.record();
+
+        // Should have remaining time (blocking)
+        let remaining = cooldown.remaining_seconds();
+        assert!(remaining > 0, "Should block within 120s window, got {} remaining", remaining);
+    }
+
+    // Story 3.8, Task 7.2: Test cooldown allows after expiry
+    // Note: This test uses a mock approach by directly setting last_generation to past
+    #[test]
+    fn test_cooldown_allows_after_expiry() {
+        let cooldown = CooldownState::new();
+
+        // Set last_generation to 121 seconds ago (past cooldown window)
+        {
+            let mut guard = cooldown.last_generation.lock().unwrap();
+            *guard = Some(Instant::now() - std::time::Duration::from_secs(121));
+        }
+
+        // Should return 0 (no cooldown)
+        let remaining = cooldown.remaining_seconds();
+        assert_eq!(remaining, 0, "Should allow after 120s expiry, got {} remaining", remaining);
+    }
+
+    // Story 3.8, Task 7.3: Test cooldown returns accurate remaining seconds
+    #[test]
+    fn test_cooldown_returns_remaining_seconds() {
+        let cooldown = CooldownState::new();
+
+        // Set last_generation to 60 seconds ago
+        {
+            let mut guard = cooldown.last_generation.lock().unwrap();
+            *guard = Some(Instant::now() - std::time::Duration::from_secs(60));
+        }
+
+        // Should return approximately 60 seconds remaining
+        let remaining = cooldown.remaining_seconds();
+        assert!(
+            remaining >= 59 && remaining <= 61,
+            "Should return ~60 seconds remaining, got {}",
+            remaining
+        );
+    }
+
+    // Story 3.8: Test CooldownState Default impl
+    #[test]
+    fn test_cooldown_default() {
+        let cooldown = CooldownState::default();
+        assert_eq!(cooldown.remaining_seconds(), 0, "Default should have no cooldown");
+    }
+
+    // Story 3.8: Test record() updates timestamp
+    #[test]
+    fn test_cooldown_record_updates_timestamp() {
+        let cooldown = CooldownState::new();
+
+        // Initially no generation
+        assert!(cooldown.last_generation.lock().unwrap().is_none());
+
+        // Record generation
+        cooldown.record();
+
+        // Should now have a timestamp
+        assert!(cooldown.last_generation.lock().unwrap().is_some());
+    }
+
+    // ============================================================================
+    // User Skills Tests (Story 4b.1, Task 7, Subtasks 7.6-7.7)
+    // ============================================================================
+
+    #[test]
+    fn test_get_skill_suggestions_with_query_java() {
+        // Task 7, Subtask 7.6: Test get_skill_suggestions with query "java" → returns ["JavaScript"]
+        let result = get_skill_suggestions("java".to_string());
+        assert!(result.is_ok(), "Should return Ok");
+
+        let suggestions = result.unwrap();
+        assert!(
+            suggestions.contains(&"JavaScript".to_string()),
+            "Should include JavaScript"
+        );
+        assert!(suggestions.len() <= 10, "Should return max 10 suggestions");
+    }
+
+    #[test]
+    fn test_get_skill_suggestions_with_query_xyz() {
+        // Task 7, Subtask 7.7: Test get_skill_suggestions with query "xyz" → returns empty array
+        let result = get_skill_suggestions("xyz".to_string());
+        assert!(result.is_ok(), "Should return Ok");
+
+        let suggestions = result.unwrap();
+        assert_eq!(suggestions.len(), 0, "Should return empty array for no matches");
+    }
+
+    #[test]
+    fn test_get_skill_suggestions_case_insensitive() {
+        // Test case-insensitive matching
+        let result = get_skill_suggestions("PYTHON".to_string());
+        assert!(result.is_ok(), "Should return Ok");
+
+        let suggestions = result.unwrap();
+        assert!(
+            suggestions.contains(&"Python".to_string()),
+            "Should match case-insensitively"
+        );
+    }
+
+    #[test]
+    fn test_get_skill_suggestions_sorted_alphabetically() {
+        // Test suggestions are sorted alphabetically
+        let result = get_skill_suggestions("p".to_string());
+        assert!(result.is_ok(), "Should return Ok");
+
+        let suggestions = result.unwrap();
+        // Verify sorted (case-insensitive)
+        let mut sorted = suggestions.clone();
+        sorted.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+        assert_eq!(
+            suggestions, sorted,
+            "Suggestions should be sorted alphabetically"
+        );
+    }
+
+    #[test]
+    fn test_get_skill_suggestions_max_10() {
+        // Test max 10 suggestions even if more matches exist
+        let result = get_skill_suggestions("".to_string());
+        assert!(result.is_ok(), "Should return Ok");
+
+        let suggestions = result.unwrap();
+        assert!(
+            suggestions.len() <= 10,
+            "Should return max 10 suggestions, got {}",
+            suggestions.len()
+        );
+    }
 }

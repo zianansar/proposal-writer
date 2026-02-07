@@ -1,0 +1,183 @@
+/* User Skills Configuration Component (Story 4b.1) */
+/* Dark mode colors (UX-1): #1a1a1a background, #e0e0e0 text, #3b82f6 accent */
+
+.user-skills-config {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skills-input-container {
+  position: relative;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skills-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.skills-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.skills-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.skills-input::placeholder {
+  color: #888;
+}
+
+.saving-indicator {
+  position: absolute;
+  right: 1rem;
+  color: #3b82f6;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+/* Autocomplete suggestions dropdown */
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.suggestion-item {
+  padding: 0.75rem 1rem;
+  color: #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.suggestion-item:hover,
+.suggestion-item--selected {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.suggestion-item:first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.suggestion-item:last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Error message */
+.error-message {
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #f87171;
+  font-size: 0.9rem;
+}
+
+/* Skills tags container */
+.skills-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+}
+
+.empty-state {
+  color: #888;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* Individual skill tag */
+.skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #3b82f6;
+  color: #ffffff;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.skill-tag:hover {
+  background: #2563eb;
+}
+
+.skill-name {
+  font-weight: 500;
+}
+
+.skill-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.skill-remove-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.skill-remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.skill-remove-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* Accessibility: High contrast mode support */
+@media (prefers-contrast: high) {
+  .skills-input {
+    border-width: 2px;
+  }
+
+  .skill-tag {
+    border: 2px solid #ffffff;
+  }
+
+  .suggestion-item:hover {
+    border: 2px solid #ffffff;
+  }
+}
