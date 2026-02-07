@@ -13,12 +13,16 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { HumanizationIntensity } from "../stores/useSettingsStore";
 import type { PerplexityAnalysis } from "../types/perplexity";
+import { DEFAULT_PERPLEXITY_THRESHOLD } from "../types/perplexity";
 
 interface RegenerationResult {
   generated_text: string;
   new_intensity: string;
   attempt_count: number;
 }
+
+/** Valid humanization intensity values (for validation) */
+const VALID_INTENSITIES: readonly string[] = ["off", "light", "medium", "heavy"];
 
 interface UseRehumanizationOptions {
   onSuccess?: (text: string, analysis: PerplexityAnalysis) => void;
@@ -85,6 +89,11 @@ export function useRehumanization(
       // Update attempt count and track the escalated intensity for next attempt
       const newAttemptCount = result.attempt_count;
       setAttemptCount(newAttemptCount);
+
+      // M1 fix (Review 3): Validate intensity before type assertion
+      if (!VALID_INTENSITIES.includes(result.new_intensity)) {
+        throw new Error(`Invalid intensity from backend: ${result.new_intensity}`);
+      }
       setEffectiveIntensity(result.new_intensity as HumanizationIntensity);
 
       // Analyze perplexity of regenerated text
@@ -93,8 +102,7 @@ export function useRehumanization(
       });
 
       // Check if passing
-      const THRESHOLD = 180;
-      if (analysis.score < THRESHOLD) {
+      if (analysis.score < DEFAULT_PERPLEXITY_THRESHOLD) {
         // Success! Close modal and show success state
         optionsRef.current.onSuccess?.(result.generated_text, analysis);
         setAttemptCount(0); // Reset for next generation

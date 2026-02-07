@@ -1,0 +1,168 @@
+/* Story 4a.6: Job Analysis Loading State
+   Progress indicator with staged messages and animations */
+
+.analysis-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 4px;
+  /* AC-4: Fade-in transition on stage changes */
+  animation: analysis-fade-in 300ms ease-in;
+}
+
+/* AC-4: Fade-in animation for stage transitions */
+@keyframes analysis-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Pulsing dot for in-progress stages */
+.analysis-progress__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-accent, #24c8db);
+  animation: analysis-pulse 1s ease-in-out infinite alternate;
+}
+
+/* AC-4: Pulsing animation for in-progress indicator (M1 fix: 0.3→1.0 per spec) */
+@keyframes analysis-pulse {
+  0% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Analyzing stage */
+.analysis-progress--analyzing {
+  color: var(--color-text-muted, #a0a0a0);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Extracting stage */
+.analysis-progress--extracting {
+  color: var(--color-text-muted, #a0a0a0);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Complete stage - success styling */
+.analysis-progress--complete {
+  color: var(--color-success, #22c55e);
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.analysis-progress__complete {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* Saved stage - subtle muted success styling (Story 4a.8) */
+.analysis-progress--saved {
+  color: var(--color-text-muted, #a0a0a0);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.analysis-progress__saved {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* AC-4: Checkmark with fade-in + scale animation */
+.analysis-progress__checkmark {
+  display: inline-block;
+  animation: analysis-checkmark 400ms ease-out;
+}
+
+@keyframes analysis-checkmark {
+  0% {
+    opacity: 0;
+    transform: scale(1.0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1.0);
+  }
+}
+
+/* Error stage */
+.analysis-progress--error {
+  color: var(--color-error, #ff6b6b);
+  background-color: rgba(255, 107, 107, 0.1);
+}
+
+.analysis-progress__error {
+  line-height: 1.4;
+}
+
+/* ===========================================
+   Light Mode
+   =========================================== */
+@media (prefers-color-scheme: light) {
+
+  .analysis-progress--analyzing,
+  .analysis-progress--extracting {
+    color: var(--color-text-muted-light, #666);
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .analysis-progress__dot {
+    background-color: var(--color-accent-light, #396cd8);
+  }
+
+  .analysis-progress--complete {
+    color: var(--color-success-light, #16a34a);
+    background-color: rgba(22, 163, 74, 0.1);
+  }
+
+  .analysis-progress--saved {
+    color: var(--color-text-muted-light, #666);
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+
+  .analysis-progress--error {
+    color: var(--color-error-light, #c92a2a);
+    background-color: rgba(201, 42, 42, 0.1);
+  }
+}
+
+/* ===========================================
+   Reduced Motion - Accessibility
+   =========================================== */
+@media (prefers-reduced-motion: reduce) {
+  .analysis-progress {
+    animation: none;
+  }
+
+  .analysis-progress__dot {
+    /* Keep dot visible but disable pulsing */
+    animation: none;
+    opacity: 1;
+  }
+
+  .analysis-progress__checkmark {
+    /* Keep checkmark visible but disable scale animation */
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

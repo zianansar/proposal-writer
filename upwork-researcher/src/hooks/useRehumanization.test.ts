@@ -343,4 +343,30 @@ describe("useRehumanization", () => {
 
     expect(result.current.canRegenerate).toBe(false);
   });
+
+  // M2 fix (Review 3): Test that intensity changes are ignored during active regeneration
+  it("ignores currentIntensity prop changes when attemptCount > 0", async () => {
+    // Attempt escalates to heavy
+    mockInvoke
+      .mockResolvedValueOnce({ generated_text: "t1", new_intensity: "heavy", attempt_count: 1 })
+      .mockResolvedValueOnce({ score: 190, threshold: 180, flaggedSentences: [] });
+
+    const { result, rerender } = renderHook(
+      ({ intensity }) => useRehumanization("job text", intensity, 200),
+      { initialProps: { intensity: "medium" as const } }
+    );
+
+    // Run one regeneration attempt
+    await act(async () => { await result.current.handleRegenerate(); });
+
+    expect(result.current.attemptCount).toBe(1);
+    // After escalation, effectiveIntensity is "heavy"
+    expect(result.current.canRegenerate).toBe(false);
+
+    // Now change the settings store to "light" — should be IGNORED since attemptCount > 0
+    rerender({ intensity: "light" as const });
+
+    // canRegenerate should still be false (using escalated "heavy", not new "light")
+    expect(result.current.canRegenerate).toBe(false);
+  });
 });

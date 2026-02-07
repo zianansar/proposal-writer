@@ -8,15 +8,19 @@ dependencies:
   - 3-3-humanization-injection-during-generation
 assignedTo: dev-agent
 tasksCompleted: 6/6
-testsWritten: 14
+testsWritten: 22
 fileList:
   - src-tauri/src/humanization.rs (modified - added escalate method)
-  - src-tauri/src/lib.rs (modified - added regenerate_with_humanization command)
+  - src-tauri/src/lib.rs (modified - added regenerate_with_humanization command, L2 doc)
   - src/components/SafetyWarningModal.tsx (modified - regeneration UI)
   - src/components/SafetyWarningModal.css (modified - regeneration styles)
   - src/components/SafetyWarningModal.test.tsx (modified - 9 new tests)
-  - src/hooks/useRehumanization.ts (new - integration hook)
-  - src/App.tsx (modified - integrated Stories 3.1+3.2+3.4, perplexity analysis + safety modal + regeneration)
+  - src/hooks/useRehumanization.ts (modified - type validation, threshold constant)
+  - src/hooks/useRehumanization.test.ts (modified - added M2 edge case test, 14 tests)
+  - src/types/perplexity.ts (modified - added DEFAULT_PERPLEXITY_THRESHOLD)
+  - src/App.tsx (modified - threshold constant, analysisSkipped state)
+  - src/App.css (modified - analysis-skipped-warning styles)
+  - src/App.perplexity.test.tsx (new - 8 integration tests)
 ---
 
 # Story 3.4: One-Click Re-Humanization
@@ -274,7 +278,24 @@ So that I can pass AI detection without manual editing.
 - [x] [AI-Review][MEDIUM] Stabilize `options` object in App.tsx `useRehumanization` call to prevent referential instability — FIXED: used `useRef` inside hook (Review 2, M1)
 - [x] [AI-Review][MEDIUM] Add integration tests for perplexity analysis useEffect in App.tsx — verify analyze_perplexity called after generation, modal shown on threshold breach [src/App.perplexity.test.tsx] — 8 tests, all passing. Also discovered & fixed modal re-appearance bug (analyzedTextRef guard)
 
+### Review 3 Follow-ups (2026-02-07)
+- [x] [AI-Review][HIGH] H1: Extract duplicate THRESHOLD constant to shared location — FIXED: added `DEFAULT_PERPLEXITY_THRESHOLD` to types/perplexity.ts, updated App.tsx + useRehumanization.ts
+- [x] [AI-Review][MEDIUM] M1: Add type validation before intensity assertion — FIXED: added `VALID_INTENSITIES` validation before type assertion
+- [x] [AI-Review][MEDIUM] M2: Add test for settings change ignored during active regeneration — FIXED: added test case, 14 hook tests now passing
+- [x] [AI-Review][MEDIUM] M3: Add subtle UI feedback when perplexity analysis fails — FIXED: added `analysisSkipped` state + warning banner in App.tsx
+- [x] [AI-Review][LOW] L1: Document unused analysis param in onSuccess callback — FIXED: added explanatory comment
+- [x] [AI-Review][LOW] L2: Note backend attempt_count trust assumption — FIXED: added doc comment in lib.rs
+
 ## Change Log
+
+- **2026-02-07**: Code Review 3 (Adversarial) — 0C/1H/3M/2L findings, ALL FIXED
+  - **[H1 FIXED]** Extracted duplicate THRESHOLD constant to `DEFAULT_PERPLEXITY_THRESHOLD` in types/perplexity.ts
+  - **[M1 FIXED]** Added intensity validation before type assertion in useRehumanization.ts
+  - **[M2 FIXED]** Added test for settings change ignored during active regeneration (14 hook tests now)
+  - **[M3 FIXED]** Added `analysisSkipped` state + warning banner when perplexity analysis fails
+  - **[L1 FIXED]** Documented unused `analysis` param in onSuccess callback
+  - **[L2 FIXED]** Documented backend attempt_count trust assumption in lib.rs
+  - **All 22 tests passing** (14 hook tests + 8 integration tests)
 
 - **2026-02-06**: Code Review 2 (Adversarial) — 0C/2H/3M/2L findings
   - **[H1 FIXED]** Escalation didn't compound across attempts — added `effectiveIntensity` local state in `useRehumanization` hook

@@ -165,6 +165,23 @@ pub fn update_proposal_status(
     Ok(())
 }
 
+/// Delete a proposal and all its revisions (Story 6.8).
+/// Uses CASCADE delete via foreign key constraint on proposal_revisions table.
+/// Returns true if a proposal was deleted, false if not found.
+///
+/// # GDPR Compliance
+/// This implements the "right to deletion" requirement from the Round 5 Security Audit.
+/// All related data (revisions via CASCADE) is permanently removed.
+///
+/// # Atomicity
+/// DELETE is atomic in SQLite. CASCADE deletes are part of the same transaction.
+pub fn delete_proposal(conn: &Connection, id: i64) -> Result<bool, rusqlite::Error> {
+    // Delete the proposal - CASCADE will handle revisions
+    let rows_affected = conn.execute("DELETE FROM proposals WHERE id = ?1", params![id])?;
+
+    Ok(rows_affected > 0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -479,5 +496,99 @@ mod tests {
         // Verify no draft exists anymore
         let no_draft = get_latest_draft(&conn).unwrap();
         assert!(no_draft.is_none());
+    }
+
+    // =========================================================================
+    // Story 6.8: Delete Proposal tests
+    // =========================================================================
+
+    #[test]
+    fn test_delete_proposal_existing() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id = insert_proposal(&conn, "Job to delete", "Text to delete", None).unwrap();
+
+        // Verify it exists
+        assert!(get_proposal(&conn, id).unwrap().is_some());
+
+        // Delete it
+        let deleted = delete_proposal(&conn, id).unwrap();
+        assert!(deleted, "Should return true when proposal is deleted");
+
+        // Verify it's gone
+        assert!(get_proposal(&conn, id).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_proposal_nonexistent() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // Try to delete non-existent proposal
+        let deleted = delete_proposal(&conn, 99999).unwrap();
+        assert!(!deleted, "Should return false when proposal doesn't exist");
+    }
+
+    #[test]
+    fn test_delete_proposal_does_not_affect_others() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id1 = insert_proposal(&conn, "Job 1", "Proposal 1", None).unwrap();
+        let id2 = insert_proposal(&conn, "Job 2", "Proposal 2", None).unwrap();
+        let id3 = insert_proposal(&conn, "Job 3", "Proposal 3", None).unwrap();
+
+        // Delete the middle one
+        let deleted = delete_proposal(&conn, id2).unwrap();
+        assert!(deleted);
+
+        // Verify others still exist
+        assert!(get_proposal(&conn, id1).unwrap().is_some());
+        assert!(get_proposal(&conn, id2).unwrap().is_none());
+        assert!(get_proposal(&conn, id3).unwrap().is_some());
+
+        // Verify list count
+        let proposals = list_proposals(&conn).unwrap();
+        assert_eq!(proposals.len(), 2);
+    }
+
+    #[test]
+    fn test_delete_proposal_cascades_to_revisions() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // Create a proposal
+        let proposal_id = insert_proposal(&conn, "Job with revisions", "Original text", None).unwrap();
+
+        // Insert revisions directly (proposal_revisions table from V8 migration)
+        conn.execute(
+            "INSERT INTO proposal_revisions (proposal_id, content, revision_number) VALUES (?1, ?2, ?3)",
+            params![proposal_id, "Revision 1 content", 1],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO proposal_revisions (proposal_id, content, revision_number) VALUES (?1, ?2, ?3)",
+            params![proposal_id, "Revision 2 content", 2],
+        ).unwrap();
+
+        // Verify revisions exist
+        let revision_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM proposal_revisions WHERE proposal_id = ?1",
+            params![proposal_id],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(revision_count, 2, "Should have 2 revisions before delete");
+
+        // Delete the proposal
+        let deleted = delete_proposal(&conn, proposal_id).unwrap();
+        assert!(deleted);
+
+        // Verify revisions are CASCADE deleted
+        let revision_count_after: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM proposal_revisions WHERE proposal_id = ?1",
+            params![proposal_id],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(revision_count_after, 0, "Revisions should be CASCADE deleted");
     }
 }

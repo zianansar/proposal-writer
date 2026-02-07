@@ -61,7 +61,7 @@ function OverrideConfirmDialog({
         <div className="override-confirm__actions">
           <button
             ref={cancelButtonRef}
-            className="override-confirm__button button--primary"
+            className="override-confirm__button button--secondary"
             onClick={onCancel}
             autoFocus
           >

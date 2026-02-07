@@ -144,6 +144,28 @@ h1 {
   box-shadow: 0 0 0 2px rgba(36, 200, 219, 0.2);
 }
 
+/* Story 4a.1: Input type indicator */
+.input-type-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.input-type-url {
+  color: #24c8db;
+  background-color: rgba(36, 200, 219, 0.12);
+}
+
+.input-type-text {
+  color: #a0a0a0;
+  background-color: rgba(160, 160, 160, 0.12);
+}
+
 /* Generate Button */
 .generate-button {
   margin-top: 1rem;
@@ -166,6 +188,40 @@ h1 {
   background-color: #555;
   color: #888;
   cursor: not-allowed;
+}
+
+/* Story 3.8: Cooldown state - distinct from disabled/loading */
+.generate-button.cooldown {
+  background-color: #4a4a4a;
+  color: #b0b0b0;
+  opacity: 0.85;
+}
+
+/* Analyze Button (Story 4a.2) - Secondary/Outline variant */
+.analyze-button {
+  margin-top: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #24c8db;
+  background-color: transparent;
+  border: 2px solid #24c8db;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.analyze-button:hover:not(:disabled) {
+  background-color: rgba(36, 200, 219, 0.1);
+  border-color: #1ba8b8;
+  color: #1ba8b8;
+}
+
+.analyze-button:disabled {
+  border-color: #555;
+  color: #555;
+  cursor: not-allowed;
+  background-color: transparent;
 }
 
 /* Proposal Output */
@@ -303,6 +359,48 @@ h1 {
 .copy-error {
   color: #f88;
   font-size: 0.85rem;
+}
+
+/* Proposal Actions (Story 6.8) */
+.proposal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* Delete Button (Story 6.8) */
+.delete-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #ef4444;
+  background-color: transparent;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-button:hover:not(:disabled) {
+  background-color: #ef4444;
+  color: #fff;
+}
+
+.delete-button:disabled {
+  color: #666;
+  border-color: #666;
+  cursor: not-allowed;
+}
+
+.delete-error {
+  color: #f88;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
 }
 
 /* API Key Setup */
@@ -565,6 +663,17 @@ h1 {
     box-shadow: 0 0 0 2px rgba(57, 108, 216, 0.2);
   }
 
+  /* Story 4a.1: Input type indicator light mode */
+  .input-type-url {
+    color: #396cd8;
+    background-color: rgba(57, 108, 216, 0.1);
+  }
+
+  .input-type-text {
+    color: #666;
+    background-color: rgba(102, 102, 102, 0.1);
+  }
+
   .generate-button {
     color: #fff;
     background-color: #396cd8;
@@ -577,6 +686,27 @@ h1 {
   .generate-button:disabled {
     background-color: #999;
     color: #fff;
+  }
+
+  .generate-button.cooldown {
+    background-color: #bbb;
+    color: #666;
+  }
+
+  .analyze-button {
+    color: #396cd8;
+    border-color: #396cd8;
+  }
+
+  .analyze-button:hover:not(:disabled) {
+    background-color: rgba(57, 108, 216, 0.1);
+    border-color: #2d5bb8;
+    color: #2d5bb8;
+  }
+
+  .analyze-button:disabled {
+    border-color: #ccc;
+    color: #999;
   }
 
   .saved-indicator {
@@ -975,5 +1105,111 @@ h1 {
 
   .humanization-option__description {
     color: #666;
+  }
+}
+
+/* ===========================================
+   Analysis Skipped Warning - Story 3.4 M3 fix
+   =========================================== */
+
+.analysis-skipped-warning {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  color: #f59e0b;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+@media (prefers-color-scheme: light) {
+  .analysis-skipped-warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #b45309;
+  }
+}
+
+/* ===========================================
+   Focus-Visible Styles - Story 3.9
+   Keyboard navigation focus indicators
+   =========================================== */
+
+/* Generate button focus - blue outline */
+.generate-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Copy button focus - blue outline */
+.copy-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Analyze button focus - blue outline (Story 4a.2) */
+.analyze-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Client Name Display (Story 4a.2) */
+.client-name-display {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #a0a0a0;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  border-left: 3px solid #24c8db;
+}
+
+.analysis-error {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #ff6b6b;
+  background-color: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #ff6b6b;
+}
+
+/* Light mode overrides for analysis displays */
+@media (prefers-color-scheme: light) {
+  .client-name-display {
+    color: #666;
+    background-color: rgba(57, 108, 216, 0.05);
+    border-left-color: #396cd8;
+  }
+
+  .analysis-error {
+    color: #c92a2a;
+    background-color: rgba(201, 42, 42, 0.1);
+    border-left-color: #c92a2a;
+  }
+}
+
+/* Navigation tab focus - cyan accent matching theme */
+.nav-tab:focus-visible {
+  outline: 2px solid #24c8db;
+  outline-offset: 2px;
+}
+
+/* Export button focus - blue outline */
+.export-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Delete button focus - blue outline (Story 6.8) */
+.delete-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Light mode focus adjustments */
+@media (prefers-color-scheme: light) {
+  .nav-tab:focus-visible {
+    outline-color: #396cd8;
   }
 }

@@ -20,3 +20,4 @@ CREATE INDEX idx_settings_updated_at ON settings(updated_at);
 INSERT INTO settings (key, value) VALUES ('theme', 'dark');
 INSERT INTO settings (key, value) VALUES ('api_provider', 'anthropic');
 INSERT INTO settings (key, value) VALUES ('log_level', 'INFO');
+INSERT INTO settings (key, value) VALUES ('safety_threshold', '180');

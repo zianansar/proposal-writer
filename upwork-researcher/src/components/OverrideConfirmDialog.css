@@ -107,14 +107,17 @@
   outline-offset: 3px;
 }
 
-/* Reuse button styles from SafetyWarningModal */
-.override-confirm__button.button--primary {
-  background: #22c55e; /* Green accent */
-  color: #ffffff;
+/* Cancel button: neutral secondary style (AI-Review M3 fix) */
+/* Changed from green primary to neutral - Cancel should not look like positive action */
+.override-confirm__button.button--secondary {
+  background: #404040; /* Neutral dark gray */
+  color: #e0e0e0;
+  border: 1px solid #606060;
 }
 
-.override-confirm__button.button--primary:hover {
-  background: #16a34a;
+.override-confirm__button.button--secondary:hover {
+  background: #505050;
+  border-color: #707070;
 }
 
 .override-confirm__button.button--danger {

@@ -703,4 +703,115 @@ mod tests {
         // Verify health check
         assert!(db.health_check().is_ok());
     }
+
+    // ====================
+    // Story 4a.3 Tests: Job Skills Migration (Task 1)
+    // ====================
+
+    #[test]
+    fn test_job_skills_table_created() {
+        // Task 1.2: Verify V9 migration creates job_skills table
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Check that job_skills table exists
+        let table_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='job_skills'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(table_exists, 1);
+    }
+
+    #[test]
+    fn test_job_skills_table_has_correct_columns() {
+        // Task 1.2: Verify job_skills table schema
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Get column info
+        let mut stmt = conn.prepare("PRAGMA table_info(job_skills)").unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        assert!(columns.contains(&"id".to_string()));
+        assert!(columns.contains(&"job_post_id".to_string()));
+        assert!(columns.contains(&"skill_name".to_string()));
+    }
+
+    #[test]
+    fn test_job_skills_foreign_key_constraint() {
+        // Task 1.3: Verify foreign key constraint works (should fail with invalid job_post_id)
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Verify foreign keys are enabled
+        let fk_enabled: i32 = conn
+            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(fk_enabled, 1, "Foreign keys should be enabled");
+
+        // Try to insert skill with invalid job_post_id (999999 doesn't exist)
+        let result = conn.execute(
+            "INSERT INTO job_skills (job_post_id, skill_name) VALUES (?, ?)",
+            rusqlite::params![999999, "React"],
+        );
+
+        // Should fail due to foreign key constraint
+        assert!(result.is_err(), "Insert should fail with invalid foreign key");
+
+        // Verify error is foreign key constraint violation
+        let error = result.unwrap_err();
+        let error_msg = error.to_string();
+        assert!(
+            error_msg.contains("foreign key") || error_msg.contains("FOREIGN KEY"),
+            "Error should mention foreign key constraint: {}",
+            error_msg
+        );
+    }
+
+    #[test]
+    fn test_job_skills_indexes_created() {
+        // Task 1.2: Verify indexes exist for performance
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Check job_post_id index
+        let job_post_id_index_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_skills_job_post_id'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(job_post_id_index_exists, 1);
+
+        // Check skill_name index
+        let skill_name_index_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_skills_skill_name'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(skill_name_index_exists, 1);
+    }
 }

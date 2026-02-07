@@ -1,0 +1,127 @@
+/* Delete Confirmation Dialog (Story 6.8) - Dark mode by default */
+/* Matches OverrideConfirmDialog styling for visual consistency */
+
+.delete-confirm__backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  animation: deleteFadeIn 0.2s ease-in;
+}
+
+@keyframes deleteFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.delete-confirm {
+  background: #1a1a1a;
+  color: #e0e0e0;
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: deleteSlideIn 0.3s ease-out;
+  text-align: center;
+}
+
+@keyframes deleteSlideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.delete-confirm__title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #e0e0e0;
+}
+
+.delete-confirm__warning {
+  font-size: 16px;
+  margin: 0 0 8px 0;
+  color: #ef4444; /* Red danger - AC text with emoji */
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.delete-confirm__consequence {
+  font-size: 15px;
+  margin: 0 0 24px 0;
+  color: #9ca3af; /* Muted gray */
+  font-style: italic;
+}
+
+.delete-confirm__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.delete-confirm__button {
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.delete-confirm__button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.delete-confirm__button:active {
+  transform: translateY(0);
+}
+
+.delete-confirm__button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.delete-confirm__button:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 3px;
+}
+
+/* Cancel button: neutral secondary style */
+.delete-confirm__button.button--secondary {
+  background: #404040;
+  color: #e0e0e0;
+  border: 1px solid #606060;
+}
+
+.delete-confirm__button.button--secondary:hover {
+  background: #505050;
+  border-color: #707070;
+}
+
+.delete-confirm__button.button--danger {
+  background: #ef4444; /* Red danger */
+  color: #ffffff;
+}
+
+.delete-confirm__button.button--danger:hover {
+  background: #dc2626;
+}

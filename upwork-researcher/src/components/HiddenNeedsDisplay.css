@@ -1,0 +1,61 @@
+/**
+ * Story 4a.4: Hidden Needs Display Styles
+ * AC-2: Structured display with need as bold, evidence as muted
+ * Follows existing theme patterns (dark/light mode via CSS variables)
+ */
+
+.hidden-needs-container {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.hidden-needs-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.hidden-need-item {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--bg-secondary, #f5f5f5);
+  border-radius: 4px;
+}
+
+.hidden-need-label {
+  font-weight: 600;
+  color: var(--text-primary, #1a1a1a);
+  margin-bottom: 0.25rem;
+}
+
+.hidden-need-evidence {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+  margin-left: 1rem;
+}
+
+.hidden-needs-empty {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted, #999);
+  font-style: italic;
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  .hidden-need-item {
+    background-color: var(--bg-secondary, #2a2a2a);
+  }
+
+  .hidden-need-label {
+    color: var(--text-primary, #e0e0e0);
+  }
+
+  .hidden-need-evidence {
+    color: var(--text-secondary, #a0a0a0);
+  }
+
+  .hidden-needs-empty {
+    color: var(--text-muted, #666);
+  }
+}

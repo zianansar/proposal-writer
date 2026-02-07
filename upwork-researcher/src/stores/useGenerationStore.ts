@@ -23,6 +23,12 @@ interface GenerationState {
   retryCount: number;
   /** Draft recovery data from previous session (Story 1.14) */
   draftRecovery: DraftRecovery | null;
+  /** Cooldown end timestamp (Date.now() + duration) (Story 3.8) */
+  cooldownEnd: number | null;
+  /** Remaining cooldown seconds for display (Story 3.8) */
+  cooldownRemaining: number;
+  /** Whether job content was truncated during generation (Story 4a.9 H3) */
+  generationWasTruncated: boolean;
 }
 
 interface GenerationActions {
@@ -32,8 +38,8 @@ interface GenerationActions {
   setStreaming: (isStreaming: boolean) => void;
   /** Set error message (preserves tokens for partial result) */
   setError: (message: string) => void;
-  /** Set full text when generation completes */
-  setComplete: (fullText: string) => void;
+  /** Set full text when generation completes (Story 4a.9 H3: includes truncation flag) */
+  setComplete: (fullText: string, wasTruncated?: boolean) => void;
   /** Mark proposal as saved with its database ID */
   setSaved: (id: number) => void;
   /** Increment retry count (Story 1.13) */
@@ -44,6 +50,12 @@ interface GenerationActions {
   clearDraftRecovery: () => void;
   /** Reset store to initial state for new generation */
   reset: () => void;
+  /** Set cooldown timer (Story 3.8) */
+  setCooldown: (durationMs: number) => void;
+  /** Clear cooldown timer (Story 3.8) */
+  clearCooldown: () => void;
+  /** Update remaining seconds from cooldownEnd (Story 3.8) */
+  tickCooldown: () => void;
 }
 
 const initialState: GenerationState = {
@@ -55,6 +67,9 @@ const initialState: GenerationState = {
   savedId: null,
   retryCount: 0,
   draftRecovery: null,
+  cooldownEnd: null,
+  cooldownRemaining: 0,
+  generationWasTruncated: false,
 };
 
 export const useGenerationStore = create<GenerationState & GenerationActions>(
@@ -80,10 +95,11 @@ export const useGenerationStore = create<GenerationState & GenerationActions>(
         // Note: tokens are preserved so partial result is kept
       }),
 
-    setComplete: (fullText) =>
+    setComplete: (fullText, wasTruncated = false) =>
       set({
         fullText,
         isStreaming: false,
+        generationWasTruncated: wasTruncated,
       }),
 
     setSaved: (id) =>
@@ -108,6 +124,28 @@ export const useGenerationStore = create<GenerationState & GenerationActions>(
       }),
 
     reset: () => set(initialState),
+
+    // Story 3.8: Cooldown actions
+    setCooldown: (durationMs) =>
+      set({
+        cooldownEnd: Date.now() + durationMs,
+        cooldownRemaining: Math.ceil(durationMs / 1000),
+      }),
+
+    clearCooldown: () =>
+      set({
+        cooldownEnd: null,
+        cooldownRemaining: 0,
+      }),
+
+    tickCooldown: () =>
+      set((state) => {
+        if (!state.cooldownEnd) {
+          return { cooldownRemaining: 0 };
+        }
+        const remaining = Math.max(0, Math.ceil((state.cooldownEnd - Date.now()) / 1000));
+        return { cooldownRemaining: remaining };
+      }),
   })
 );
 

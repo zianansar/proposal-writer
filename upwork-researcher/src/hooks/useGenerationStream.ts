@@ -18,6 +18,8 @@ interface TokenPayload {
 /** Payload for generation complete events */
 interface CompletePayload {
   fullText: string;
+  /** Story 4a.9 H3: Indicates if job content was truncated during sanitization */
+  wasTruncated: boolean;
 }
 
 /** Payload for error events */
@@ -48,8 +50,9 @@ export function useGenerationStream(): { ensureListenersReady: () => Promise<voi
           appendTokens(event.payload.tokens);
         }),
         // Listen for generation complete
+        // Story 4a.9 H3: Pass wasTruncated to show warning in UI
         listen<CompletePayload>(EVENTS.GENERATION_COMPLETE, (event) => {
-          setComplete(event.payload.fullText);
+          setComplete(event.payload.fullText, event.payload.wasTruncated);
         }),
         // Listen for errors (preserves tokens for partial result)
         listen<ErrorPayload>(EVENTS.GENERATION_ERROR, (event) => {

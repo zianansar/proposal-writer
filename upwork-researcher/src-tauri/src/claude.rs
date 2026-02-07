@@ -1,4 +1,4 @@
-use crate::{db, events, humanization, DraftState};
+use crate::{db, events, humanization, sanitization::sanitize_job_content, DraftState};
 use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -54,6 +54,8 @@ pub struct TokenPayload {
 #[serde(rename_all = "camelCase")]
 pub struct CompletePayload {
     pub full_text: String,
+    /// Story 4a.9 H3: Indicates if job content was truncated during sanitization
+    pub was_truncated: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -132,6 +134,17 @@ pub async fn generate_proposal_with_key(
 ) -> Result<String, String> {
     let api_key = resolve_api_key(api_key)?;
 
+    // Story 4a.9: Sanitize input before constructing prompt (AC-1, AC-5)
+    let sanitization_result = sanitize_job_content(job_content);
+
+    // AC-3: Log truncation warning if content was truncated
+    if sanitization_result.was_truncated {
+        tracing::warn!(
+            "Job post truncated: original {} chars, kept ~100K chars",
+            sanitization_result.original_length
+        );
+    }
+
     // Story 3.3: Build system prompt with humanization (single API call, zero latency overhead)
     let system_prompt = humanization::build_system_prompt(SYSTEM_PROMPT, humanization_intensity);
 
@@ -143,10 +156,11 @@ pub async fn generate_proposal_with_key(
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
-    // Prompt boundary enforcement: job content in user role with explicit delimiters
+    // Story 4a.9 AC-2: Prompt boundary enforcement with XML delimiters (AR-13)
+    // Sanitized content is already XML-escaped, safe to wrap in <job_post> tags
     let user_message = format!(
-        "[JOB_CONTENT_DELIMITER_START]\n{}\n[JOB_CONTENT_DELIMITER_END]\n\nGenerate a proposal for this job:",
-        job_content
+        "<job_post>\n{}\n</job_post>\n\nGenerate a proposal for this job:",
+        sanitization_result.content
     );
 
     let request_body = ClaudeRequest {
@@ -220,6 +234,7 @@ pub async fn generate_proposal_streaming(
 /// Auto-saves draft every 50ms during generation (Story 1.14).
 /// Uses async queue to prevent race conditions in draft saving (Code Review Fix).
 /// Story 3.3: Humanization instructions injected via system prompt (zero latency overhead).
+/// Story 4a.9: Input sanitization with prompt injection defense (AR-13, AC-1, AC-2, AC-3).
 pub async fn generate_proposal_streaming_with_key(
     job_content: &str,
     app_handle: AppHandle,
@@ -229,6 +244,19 @@ pub async fn generate_proposal_streaming_with_key(
     humanization_intensity: &str,
 ) -> Result<String, String> {
     let api_key = resolve_api_key(api_key)?;
+
+    // Story 4a.9: Sanitize input before constructing prompt (AC-1, AC-5)
+    let sanitization_result = sanitize_job_content(job_content);
+    // H3 fix: Track truncation to propagate to frontend via completion event
+    let was_truncated = sanitization_result.was_truncated;
+
+    // AC-3: Log truncation warning if content was truncated
+    if was_truncated {
+        tracing::warn!(
+            "Job post truncated during generation: original {} chars, kept ~100K chars",
+            sanitization_result.original_length
+        );
+    }
 
     // Story 3.3: Build system prompt with humanization (single API call, zero latency overhead)
     let system_prompt = humanization::build_system_prompt(SYSTEM_PROMPT, humanization_intensity);
@@ -245,10 +273,11 @@ pub async fn generate_proposal_streaming_with_key(
     // Queue ensures saves execute sequentially even if token batches arrive faster than saves complete
     let (save_tx, mut save_rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
 
-    // Prompt boundary enforcement: job content in user role with explicit delimiters
+    // Story 4a.9 AC-2: Prompt boundary enforcement with XML delimiters (AR-13)
+    // Sanitized content is already XML-escaped, safe to wrap in <job_post> tags
     let user_message = format!(
-        "[JOB_CONTENT_DELIMITER_START]\n{}\n[JOB_CONTENT_DELIMITER_END]\n\nGenerate a proposal for this job:",
-        job_content
+        "<job_post>\n{}\n</job_post>\n\nGenerate a proposal for this job:",
+        sanitization_result.content
     );
 
     let request_body = ClaudeRequest {
@@ -454,10 +483,12 @@ pub async fn generate_proposal_streaming_with_key(
     }
 
     // Emit completion event
+    // H3 fix: Include was_truncated to show warning in frontend
     let _ = app_handle.emit(
         events::GENERATION_COMPLETE,
         CompletePayload {
             full_text: full_text.clone(),
+            was_truncated,
         },
     );
 
@@ -609,11 +640,13 @@ pub async fn analyze_perplexity(text: &str, api_key: Option<&str>) -> Result<f32
     Ok(score)
 }
 
-/// Enhanced perplexity analysis with flagged sentences (Story 3.2)
+/// Enhanced perplexity analysis with flagged sentences (Story 3.2 + 3.5)
 /// Returns perplexity score AND specific risky sentences with humanization suggestions
 /// Uses Claude Haiku for cost-effective detailed analysis
+/// Story 3.5: Accepts configurable threshold parameter (140-220, default 180)
 pub async fn analyze_perplexity_with_sentences(
     text: &str,
+    threshold: i32,
     api_key: Option<&str>,
 ) -> Result<PerplexityAnalysis, String> {
     let api_key = resolve_api_key(api_key)?;
@@ -723,7 +756,7 @@ Return ONLY valid JSON, no other text."#,
 
     let result = PerplexityAnalysis {
         score: analysis.score,
-        threshold: 180.0, // FR-11 threshold
+        threshold: threshold as f32, // Story 3.5: Use configurable threshold
         flagged_sentences: analysis.flagged_sentences,
     };
 

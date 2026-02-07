@@ -1,6 +1,11 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
 import ProposalOutput from "./ProposalOutput";
+
+// Mock Tauri invoke for delete tests
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
 
 describe("ProposalOutput", () => {
   it("renders nothing when no proposal, not loading, no error", () => {
@@ -119,5 +124,86 @@ describe("ProposalOutput", () => {
       <ProposalOutput proposal="Complete proposal" loading={false} error={null} />
     );
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+  });
+
+  // Story 6.8: Delete button tests
+  describe("Delete functionality", () => {
+    it("shows delete button for saved proposals with proposalId", () => {
+      render(
+        <ProposalOutput
+          proposal="Complete proposal"
+          loading={false}
+          error={null}
+          isSaved={true}
+          proposalId={123}
+        />
+      );
+      expect(screen.getByRole("button", { name: /delete proposal/i })).toBeInTheDocument();
+    });
+
+    it("does not show delete button when not saved", () => {
+      render(
+        <ProposalOutput
+          proposal="Complete proposal"
+          loading={false}
+          error={null}
+          isSaved={false}
+          proposalId={123}
+        />
+      );
+      expect(screen.queryByRole("button", { name: /delete proposal/i })).not.toBeInTheDocument();
+    });
+
+    it("does not show delete button without proposalId", () => {
+      render(
+        <ProposalOutput
+          proposal="Complete proposal"
+          loading={false}
+          error={null}
+          isSaved={true}
+        />
+      );
+      expect(screen.queryByRole("button", { name: /delete proposal/i })).not.toBeInTheDocument();
+    });
+
+    it("opens confirmation dialog when delete button clicked", () => {
+      render(
+        <ProposalOutput
+          proposal="Complete proposal"
+          loading={false}
+          error={null}
+          isSaved={true}
+          proposalId={123}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /delete proposal/i }));
+
+      // Confirmation dialog should appear
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+      expect(screen.getByText(/⚠️ This will permanently delete/)).toBeInTheDocument();
+    });
+
+    it("closes confirmation dialog when cancel clicked", () => {
+      render(
+        <ProposalOutput
+          proposal="Complete proposal"
+          loading={false}
+          error={null}
+          isSaved={true}
+          proposalId={123}
+        />
+      );
+
+      // Open dialog
+      fireEvent.click(screen.getByRole("button", { name: /delete proposal/i }));
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+      // Click cancel
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+      // Dialog should be closed
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
   });
 });

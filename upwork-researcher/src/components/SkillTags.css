@@ -1,0 +1,40 @@
+/**
+ * SkillTags Styles (Story 4a.3: Task 5)
+ *
+ * Consistent with existing theme (dark/light mode via CSS variables)
+ */
+
+.skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.skill-tag {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: var(--tag-bg, #e0e7ff);
+  color: var(--tag-text, #4338ca);
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Dark mode support (via CSS variable overrides in App.css) */
+[data-theme="dark"] .skill-tag {
+  background-color: var(--tag-bg-dark, #3730a3);
+  color: var(--tag-text-dark, #c7d2fe);
+}
+
+.no-skills {
+  color: var(--text-muted, #6b7280);
+  font-size: 0.875rem;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+[data-theme="dark"] .no-skills {
+  color: var(--text-muted-dark, #9ca3af);
+}

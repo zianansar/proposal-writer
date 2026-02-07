@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import JobInput from "./components/JobInput";
+import AnalyzeButton from "./components/AnalyzeButton";
+import AnalysisProgress from "./components/AnalysisProgress"; // Story 4a.6
+import type { AnalysisStage } from "./components/AnalysisProgress"; // Story 4a.6
+import JobAnalysisPanel from "./components/JobAnalysisPanel"; // Story 4a.7
 import GenerateButton from "./components/GenerateButton";
 import ProposalOutput from "./components/ProposalOutput";
 import Navigation from "./components/Navigation";
@@ -15,6 +19,10 @@ import { PreMigrationBackup } from "./components/PreMigrationBackup";
 import { DatabaseMigration } from "./components/DatabaseMigration";
 import { MigrationVerification } from "./components/MigrationVerification";
 import SafetyWarningModal from "./components/SafetyWarningModal";
+import OverrideConfirmDialog from "./components/OverrideConfirmDialog";
+import ThresholdAdjustmentNotification, {
+  ThresholdSuggestion,
+} from "./components/ThresholdAdjustmentNotification";
 import EncryptionStatusIndicator from "./components/EncryptionStatusIndicator";
 import type { EncryptionStatus } from "./components/EncryptionStatusIndicator";
 import EncryptionDetailsModal from "./components/EncryptionDetailsModal";
@@ -24,7 +32,10 @@ import { useSettingsStore, getHumanizationIntensity } from "./stores/useSettings
 import { useOnboardingStore } from "./stores/useOnboardingStore";
 import { useGenerationStream } from "./hooks/useGenerationStream";
 import { useRehumanization } from "./hooks/useRehumanization";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useSafeCopy } from "./hooks/useSafeCopy";
 import type { PerplexityAnalysis } from "./types/perplexity";
+import { DEFAULT_PERPLEXITY_THRESHOLD } from "./types/perplexity";
 import "./App.css";
 
 type View = "generate" | "history" | "settings";
@@ -54,10 +65,15 @@ function App() {
     setShowEncryptionDetails(false);
   }, []);
 
+  // Threshold adjustment notification state (Story 3.7)
+  const [thresholdSuggestion, setThresholdSuggestion] = useState<ThresholdSuggestion | null>(null);
+
   // Perplexity analysis state (Stories 3.1 + 3.2 integration)
   const [perplexityAnalysis, setPerplexityAnalysis] = useState<PerplexityAnalysis | null>(null);
   // Track which fullText was already analyzed to prevent re-analysis after modal dismissal
   const analyzedTextRef = useRef<string | null>(null);
+  // M3 fix (Review 3): Track when analysis failed so user knows safety check was skipped
+  const [analysisSkipped, setAnalysisSkipped] = useState(false);
 
   // Streaming state from Zustand store
   const {
@@ -65,18 +81,77 @@ function App() {
     error: streamError,
     fullText,
     isSaved,
+    savedId, // Story 3.7: Proposal ID for override tracking
     retryCount,
     draftRecovery,
+    cooldownRemaining, // Story 3.8: Rate limiting
+    generationWasTruncated, // Story 4a.9 H3: Truncation during generation
     reset,
     setStreaming,
     setSaved,
     incrementRetry,
     setDraftRecovery,
+    setCooldown, // Story 3.8
+    clearCooldown, // Story 3.8
+    tickCooldown, // Story 3.8
   } = useGenerationStore();
   const streamedText = useGenerationStore(getStreamedText);
 
   // Local error for input validation
   const [inputError, setInputError] = useState<string | null>(null);
+
+  // Job analysis state (Story 4a.2 + 4a.3 + 4a.4 + 4a.6 + 4a.9)
+  const [analysisStage, setAnalysisStage] = useState<AnalysisStage>("idle"); // Story 4a.6
+  const [clientName, setClientName] = useState<string | null>(null);
+  const [keySkills, setKeySkills] = useState<string[]>([]); // Story 4a.3
+  const [hiddenNeeds, setHiddenNeeds] = useState<Array<{ need: string; evidence: string }>>([]); // Story 4a.4
+  const [hasAnalyzed, setHasAnalyzed] = useState(false); // Story 4a.3: AC-5 - track if analysis ran
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [wasTruncated, setWasTruncated] = useState(false); // Story 4a.9: AC-3 - input truncation warning
+
+  // Story 4a.6: Timer refs for analysis progress stages
+  const extractingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // M2 Code Review Fix: Separate ref for auto-dismiss timer to prevent overwrite
+  const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Story 4a.6: Cleanup timers on unmount
+  // M2 Code Review Fix: Include autoDismissTimerRef in cleanup
+  useEffect(() => {
+    return () => {
+      if (extractingTimerRef.current) {
+        clearTimeout(extractingTimerRef.current);
+      }
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+      }
+      if (autoDismissTimerRef.current) {
+        clearTimeout(autoDismissTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Code Review M5: Reset analysis state when job content changes
+  // This prevents showing stale results from previous job post
+  useEffect(() => {
+    // Only reset if we've previously analyzed (avoid resetting on initial mount)
+    if (hasAnalyzed) {
+      setClientName(null);
+      setKeySkills([]);
+      setHiddenNeeds([]);
+      setHasAnalyzed(false);
+      setAnalysisError(null);
+      setAnalysisStage("idle");
+      setWasTruncated(false); // Story 4a.9: Clear truncation warning on new input
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobContent]); // Only depend on jobContent, not analysis state vars
+
+  // Story 4a.6: Derived loading state for button (backwards compat)
+  const analyzingJob = analysisStage === "analyzing" || analysisStage === "extracting";
+
+  // Story 4a.1: Detected URL from job input
+  const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
 
   // Track job content at generation time for saving
   const jobContentRef = useRef<string>("");
@@ -99,8 +174,9 @@ function App() {
     handleRegenerate,
     resetAttempts,
   } = useRehumanization(jobContent, humanizationIntensity, perplexityAnalysis?.score, {
+    // L1 fix (Review 3): Second param `analysis` unused - we only need the text since
+    // score is now passing (< threshold), so we close modal rather than display analysis
     onSuccess: (text) => {
-      // Regeneration succeeded - score is now passing
       setPerplexityAnalysis(null);
       useGenerationStore.getState().setComplete(text);
     },
@@ -113,6 +189,12 @@ function App() {
       useGenerationStore.getState().setError(error);
     },
   });
+
+  // Story 3.9: Safe copy hook for keyboard shortcut-triggered copies
+  const {
+    state: safeCopyState,
+    actions: safeCopyActions,
+  } = useSafeCopy();
 
   // Load settings and check for API key on startup
   useEffect(() => {
@@ -165,8 +247,51 @@ function App() {
           }
         });
 
+      // Story 3.8: Sync cooldown state from backend on startup (AC4)
+      const cooldownPromise = invoke<number>("get_cooldown_remaining")
+        .then((remaining) => {
+          if (remaining > 0) {
+            setCooldown(remaining * 1000); // Convert seconds to ms
+          }
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.error("Failed to get cooldown status:", err);
+          }
+          // Non-blocking - app works without cooldown sync
+        });
+
+      // Story 3.7: Check for threshold learning opportunity on startup
+      const learningPromise = invoke<ThresholdSuggestion | null>("check_threshold_learning")
+        .then((suggestion) => {
+          if (suggestion) {
+            setThresholdSuggestion(suggestion);
+          }
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.error("Failed to check threshold learning:", err);
+          }
+          // Non-blocking - learning is optional enhancement
+        });
+
+      // Story 3.7: Also check for downward adjustment on startup (AC8)
+      const decreasePromise = invoke<ThresholdSuggestion | null>("check_threshold_decrease")
+        .then((suggestion) => {
+          if (suggestion) {
+            // Only set if no increase suggestion already exists
+            setThresholdSuggestion((prev) => prev || suggestion);
+          }
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.error("Failed to check threshold decrease:", err);
+          }
+          // Non-blocking
+        });
+
       // Wait for all to complete
-      await Promise.all([settingsPromise, apiKeyPromise, draftPromise, encryptionPromise]);
+      await Promise.all([settingsPromise, apiKeyPromise, draftPromise, encryptionPromise, cooldownPromise, learningPromise, decreasePromise]);
       setCheckingApiKey(false);
 
       // Check for first launch ONLY if API key is configured (Review Fix: #1, #2, #8)
@@ -194,12 +319,36 @@ function App() {
     };
 
     initializeApp();
-  }, [loadSettings, setDraftRecovery, setShowOnboarding]);
+  }, [loadSettings, setDraftRecovery, setShowOnboarding, setCooldown]);
 
   // Handler for when API key setup is complete
   const handleApiKeySetupComplete = useCallback(() => {
     setHasApiKey(true);
     setActiveView("generate");
+  }, []);
+
+  // Story 3.7: Threshold adjustment handlers (AC5, AC6)
+  const handleThresholdAccept = useCallback((newThreshold: number) => {
+    setThresholdSuggestion(null);
+    // Toast notification will be shown by future enhancement
+    if (import.meta.env.DEV) {
+      console.log(`[Learning] Threshold adjusted to ${newThreshold}`);
+    }
+  }, []);
+
+  const handleThresholdReject = useCallback(() => {
+    setThresholdSuggestion(null);
+    if (import.meta.env.DEV) {
+      console.log("[Learning] Threshold suggestion rejected");
+    }
+  }, []);
+
+  const handleThresholdRemindLater = useCallback(() => {
+    setThresholdSuggestion(null);
+    // Suggestion will reappear on next trigger (counter preserved in backend)
+    if (import.meta.env.DEV) {
+      console.log("[Learning] Threshold suggestion deferred");
+    }
   }, []);
 
   // Handler for passphrase setup completion (Story 2.1)
@@ -361,19 +510,144 @@ function App() {
         analyzedTextRef.current = fullText;
 
         // Only show modal if score exceeds threshold
-        const THRESHOLD = 180;
-        if (analysis.score >= THRESHOLD) {
+        if (analysis.score >= DEFAULT_PERPLEXITY_THRESHOLD) {
           setPerplexityAnalysis(analysis);
         }
         // If score is passing, no modal needed - user can copy directly
       } catch (error) {
         console.error("Perplexity analysis failed:", error);
-        // Non-blocking - user can still copy proposal even if analysis fails
+        // M3 fix (Review 3): Inform user that safety check was skipped
+        setAnalysisSkipped(true);
       }
     };
 
     runPerplexityAnalysis();
   }, [fullText, isStreaming, streamError, isRegenerating]);
+
+  // Story 3.8: Start cooldown timer after successful generation (AC1)
+  useEffect(() => {
+    if (fullText && !streamError && !isStreaming) {
+      setCooldown(120_000); // 2 minutes in ms (FR-12)
+    }
+  }, [fullText, streamError, isStreaming, setCooldown]);
+
+  // Story 3.8: Countdown timer effect (AC1)
+  useEffect(() => {
+    if (cooldownRemaining <= 0) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      tickCooldown();
+      const remaining = useGenerationStore.getState().cooldownRemaining;
+      if (remaining <= 0) {
+        clearCooldown();
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [cooldownRemaining, tickCooldown, clearCooldown]);
+
+  // Story 4a.2 + 4a.6 + 4a.8: Analyze job post with staged progress indicator + atomic save
+  const handleAnalyze = async () => {
+    if (!jobContent.trim()) {
+      setInputError("Please paste a job post first.");
+      return;
+    }
+
+    // Story 4a.6: Clear any existing timers
+    // M2 Code Review Fix: Clear all three timer refs
+    if (extractingTimerRef.current) {
+      clearTimeout(extractingTimerRef.current);
+      extractingTimerRef.current = null;
+    }
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+    if (autoDismissTimerRef.current) {
+      clearTimeout(autoDismissTimerRef.current);
+      autoDismissTimerRef.current = null;
+    }
+
+    // Story 4a.6 AC-2: Stage 1 - "Analyzing job post..." immediately
+    setAnalysisStage("analyzing");
+    setAnalysisError(null);
+
+    // Story 4a.6 AC-2: Start 1.5s timer for Stage 2 transition
+    extractingTimerRef.current = setTimeout(() => {
+      setAnalysisStage("extracting");
+    }, 1500);
+
+    try {
+      // Story 4a.8: Save job post first to get ID for analysis
+      const saveResult = await invoke<{ id: number; saved: boolean }>(
+        "save_job_post",
+        {
+          jobContent: jobContent,
+          url: detectedUrl,
+          clientName: null, // Will be updated by analysis
+        }
+      );
+
+      const jobPostId = saveResult.id;
+
+      // Story 4a.8: Analyze with job_post_id for atomic save
+      const result = await invoke<{
+        clientName: string | null;
+        keySkills: string[];
+        hiddenNeeds: Array<{ need: string; evidence: string }>;
+        wasTruncated: boolean; // Story 4a.9: AC-3 - truncation flag
+      }>(
+        "analyze_job_post",
+        {
+          rawContent: jobContent,
+          jobPostId: jobPostId, // Story 4a.8: Pass ID for atomic save
+        }
+      );
+
+      // Story 4a.6 AC-3: Clear extracting timer (may not have fired yet for fast responses)
+      if (extractingTimerRef.current) {
+        clearTimeout(extractingTimerRef.current);
+        extractingTimerRef.current = null;
+      }
+
+      setClientName(result.clientName);
+      setKeySkills(result.keySkills || []); // Story 4a.3: Set extracted skills
+      setHiddenNeeds(result.hiddenNeeds || []); // Story 4a.4: Set extracted hidden needs
+      setHasAnalyzed(true); // Story 4a.3: AC-5 - mark analysis complete for "No skills detected" display
+      setWasTruncated(result.wasTruncated || false); // Story 4a.9: AC-3 - Set truncation flag
+
+      // Story 4a.6 AC-2: Stage 3 - "Complete ✓"
+      setAnalysisStage("complete");
+
+      // Story 4a.8 AC-4: Show "Saved" indicator after successful save
+      // M2 Code Review Fix: Use separate refs to avoid timer overwrite issue
+      dismissTimerRef.current = setTimeout(() => {
+        setAnalysisStage("saved");
+
+        // Auto-dismiss "Saved" after 2s (Story 4a.8 AC-4)
+        autoDismissTimerRef.current = setTimeout(() => {
+          setAnalysisStage("idle");
+        }, 2000);
+      }, 500); // Show "Complete" for 500ms before transitioning to "Saved"
+    } catch (err) {
+      // Story 4a.6 AC-6: Clear timers and show error
+      if (extractingTimerRef.current) {
+        clearTimeout(extractingTimerRef.current);
+        extractingTimerRef.current = null;
+      }
+
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Story 4a.8 AC-5: On save failure, show error but keep analysis results
+      setAnalysisError(errorMessage);
+      setAnalysisStage("error");
+      // AC-6: Preserve previously extracted data on error (don't clear)
+      console.error("Job analysis failed:", errorMessage);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!jobContent.trim()) {
@@ -391,6 +665,7 @@ function App() {
     // Clear previous perplexity analysis for new generation
     setPerplexityAnalysis(null);
     analyzedTextRef.current = null;
+    setAnalysisSkipped(false);
     resetAttempts();
 
     try {
@@ -404,6 +679,18 @@ function App() {
     } catch (err) {
       // Error will be set via event, but catch invoke errors too
       const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Story 3.8: Handle RATE_LIMITED error from backend (AC2)
+      if (errorMessage.startsWith("RATE_LIMITED:")) {
+        const remaining = parseInt(errorMessage.split(":")[1], 10);
+        if (!isNaN(remaining) && remaining > 0) {
+          setCooldown(remaining * 1000);
+          // Clear streaming state - rate limit is not an error to display
+          setStreaming(false);
+          return;
+        }
+      }
+
       useGenerationStore.getState().setError(errorMessage);
     }
   };
@@ -423,6 +710,14 @@ function App() {
     await handleGenerate();
   };
 
+  // Story 4a.1: Handle input type detection
+  const handleInputTypeChange = useCallback(
+    (_type: "url" | "text" | null, url: string | null) => {
+      setDetectedUrl(url);
+    },
+    []
+  );
+
   // Story 1.13: Save job for later when API fails
   const handleSaveForLater = async () => {
     if (!jobContentRef.current) {
@@ -430,9 +725,12 @@ function App() {
     }
 
     try {
+      // Story 4a.1: Pass detected URL instead of hardcoded null
+      // Story 4a.2: AC-3 - Pass extracted client name for DB persistence
       const result = await invoke<{ id: number; saved: boolean }>("save_job_post", {
         jobContent: jobContentRef.current,
-        url: null, // User pasted text, no URL
+        url: detectedUrl,
+        clientName: clientName,
       });
 
       if (result.saved) {
@@ -446,11 +744,38 @@ function App() {
     }
   };
 
+  // Story 3.9: Keyboard shortcuts
+  // Compute whether actions are allowed
+  const canGenerate =
+    activeView === "generate" &&
+    jobContent.trim() !== "" &&
+    !isStreaming &&
+    cooldownRemaining <= 0;
+
+  const canCopy =
+    !!fullText &&
+    !isStreaming &&
+    !safeCopyState.analyzing;
+
+  useKeyboardShortcuts({
+    onGenerate: handleGenerate,
+    onCopy: () => {
+      if (fullText) {
+        safeCopyActions.triggerCopy(fullText);
+      }
+    },
+    canGenerate,
+    canCopy,
+  });
+
   // Combine errors for display
   const displayError = inputError || streamError;
 
   // Show streamed text while streaming, or full text when complete
   const displayText = isStreaming ? streamedText : (fullText || streamedText);
+
+  // Story 4a.7: Derived state for panel visibility
+  const hasAnalysisResults = clientName !== null || keySkills.length > 0 || hiddenNeeds.length > 0;
 
   // Show loading while checking API key
   if (checkingApiKey) {
@@ -553,21 +878,90 @@ function App() {
 
       {activeView === "generate" && (
         <>
-          <JobInput onJobContentChange={setJobContent} value={jobContent} />
+          <JobInput
+            onJobContentChange={setJobContent}
+            onInputTypeChange={handleInputTypeChange}
+            value={jobContent}
+          />
+          <AnalyzeButton
+            onClick={handleAnalyze}
+            disabled={!jobContent.trim()}
+            loading={analyzingJob}
+          />
+          {/* Story 4a.6: Progress indicator below Analyze button */}
+          <AnalysisProgress
+            stage={analysisStage}
+            errorMessage={analysisError || undefined}
+          />
+          {/* Story 4a.9: AC-3 - Truncation warning */}
+          {wasTruncated && hasAnalysisResults && (
+            <div
+              style={{
+                padding: "8px 12px",
+                marginTop: "8px",
+                backgroundColor: "#fffbeb",
+                border: "1px solid #fbbf24",
+                borderRadius: "4px",
+                color: "#92400e",
+                fontSize: "14px",
+                lineHeight: "1.5",
+              }}
+            >
+              ⚠️ Job post too long. Content was trimmed to fit analysis limits.
+              Consider summarizing the post manually.
+            </div>
+          )}
+          {/* Story 4a.7: Unified job analysis panel */}
+          <JobAnalysisPanel
+            clientName={clientName}
+            keySkills={keySkills}
+            hiddenNeeds={hiddenNeeds}
+            onGenerateClick={handleGenerate}
+            visible={hasAnalysisResults}
+            isGenerating={isStreaming}
+          />
           <GenerateButton
             onClick={handleGenerate}
             disabled={!jobContent.trim()}
             loading={isStreaming}
+            cooldownSeconds={cooldownRemaining}
           />
           <ProposalOutput
             proposal={displayText || null}
             loading={isStreaming}
             error={displayError}
             isSaved={isSaved}
+            proposalId={savedId}
             onRetry={handleRetry}
             onSaveForLater={handleSaveForLater}
             retryCount={retryCount}
+            enableEditor={true}
           />
+          {/* Story 4a.9 H3: Show truncation warning when generation input was truncated */}
+          {generationWasTruncated && fullText && !isStreaming && (
+            <div
+              style={{
+                padding: "8px 12px",
+                marginTop: "8px",
+                backgroundColor: "#fffbeb",
+                border: "1px solid #fbbf24",
+                borderRadius: "4px",
+                color: "#92400e",
+                fontSize: "14px",
+                lineHeight: "1.5",
+              }}
+              role="alert"
+            >
+              ⚠️ Job post too long. Content was trimmed to fit generation limits.
+              The proposal may not address all details from the original post.
+            </div>
+          )}
+          {/* M3 fix (Review 3): Show subtle warning when safety analysis was skipped */}
+          {analysisSkipped && fullText && !isStreaming && (
+            <div className="analysis-skipped-warning" role="alert">
+              ⚠️ AI detection check was skipped due to an error. Review your proposal before submitting.
+            </div>
+          )}
         </>
       )}
 
@@ -604,11 +998,21 @@ function App() {
         />
       )}
 
+      {/* Threshold Adjustment Notification (Story 3.7) */}
+      {thresholdSuggestion && (
+        <ThresholdAdjustmentNotification
+          suggestion={thresholdSuggestion}
+          onAccept={handleThresholdAccept}
+          onReject={handleThresholdReject}
+          onRemindLater={handleThresholdRemindLater}
+        />
+      )}
+
       {/* Safety Warning Modal (Stories 3.1 + 3.2 + 3.4 integration) */}
-      {perplexityAnalysis && perplexityAnalysis.score >= 180 && (
+      {perplexityAnalysis && perplexityAnalysis.score >= DEFAULT_PERPLEXITY_THRESHOLD && (
         <SafetyWarningModal
           score={perplexityAnalysis.score}
-          threshold={180}
+          threshold={DEFAULT_PERPLEXITY_THRESHOLD}
           flaggedSentences={perplexityAnalysis.flaggedSentences}
           humanizationIntensity={humanizationIntensity}
           onRegenerate={handleRegenerate}
@@ -621,9 +1025,44 @@ function App() {
             resetAttempts();
           }}
           onOverride={() => {
-            // User chooses to proceed despite warning (Story 3.6)
+            // User chooses to proceed despite warning (Story 3.6 + 3.7)
+            // Record override for adaptive learning if proposal is saved
+            if (savedId && perplexityAnalysis) {
+              invoke("record_safety_override", {
+                proposalId: savedId,
+                aiScore: perplexityAnalysis.score,
+                threshold: perplexityAnalysis.threshold,
+              }).catch((err) => {
+                if (import.meta.env.DEV) {
+                  console.warn("Override recording failed:", err);
+                }
+              });
+            }
             setPerplexityAnalysis(null);
             resetAttempts();
+          }}
+        />
+      )}
+
+      {/* Story 3.9: Safety Warning Modal for keyboard shortcut-triggered copies */}
+      {safeCopyState.showWarningModal && safeCopyState.analysisResult && (
+        <SafetyWarningModal
+          score={safeCopyState.analysisResult.score}
+          threshold={safeCopyState.analysisResult.threshold}
+          flaggedSentences={safeCopyState.analysisResult.flaggedSentences}
+          onEdit={() => safeCopyActions.dismissWarning()}
+          onOverride={() => safeCopyActions.showOverrideDialog()}
+        />
+      )}
+
+      {/* Story 3.9: Override Confirmation Dialog for keyboard shortcut-triggered copies */}
+      {safeCopyState.showOverrideConfirm && (
+        <OverrideConfirmDialog
+          onCancel={() => safeCopyActions.cancelOverride()}
+          onConfirm={() => {
+            if (fullText) {
+              safeCopyActions.confirmOverride(fullText, savedId);
+            }
           }}
         />
       )}

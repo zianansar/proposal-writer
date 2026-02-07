@@ -1,0 +1,165 @@
+/**
+ * Story 4a.7: Job Analysis Panel Styles
+ * Card container for displaying analysis results with clear visual hierarchy
+ */
+
+/* ===========================================
+   Panel Container (Dark Mode Default)
+   =========================================== */
+
+.job-analysis-panel {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  background-color: #1a1a1a;
+  border: 1px solid #555;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  /* AC-5: Fade-in animation (respects prefers-reduced-motion) */
+  animation: fadeIn 300ms ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .job-analysis-panel {
+    animation: none;
+  }
+}
+
+/* ===========================================
+   Section Styling
+   =========================================== */
+
+.job-analysis-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* AC-5: Section headers - muted, uppercase, small font */
+.job-analysis-section__header {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #888; /* Muted text for hierarchy */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.job-analysis-section__content {
+  /* Content area for data display */
+}
+
+/* Section dividers - subtle spacing between sections */
+.job-analysis-section:not(:last-of-type) {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(85, 85, 85, 0.3);
+}
+
+/* ===========================================
+   Client Name Inline Display
+   =========================================== */
+
+.job-analysis-panel .client-name-display {
+  margin-top: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #e0e0e0; /* Primary text for content */
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  border-left: 3px solid #24c8db;
+}
+
+/* ===========================================
+   Action Section - Generate Proposal CTA
+   =========================================== */
+
+.job-analysis-actions {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(85, 85, 85, 0.3);
+}
+
+.generate-proposal-cta {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  background-color: #24c8db;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.generate-proposal-cta:hover:not(:disabled) {
+  background-color: #1ba8b8;
+}
+
+.generate-proposal-cta:disabled {
+  background-color: #555;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.generate-proposal-cta:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ===========================================
+   Light Mode Overrides
+   =========================================== */
+
+@media (prefers-color-scheme: light) {
+  .job-analysis-panel {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+  }
+
+  .job-analysis-section__header {
+    color: #6b7280; /* Muted text in light mode */
+  }
+
+  .job-analysis-section:not(:last-of-type) {
+    border-bottom-color: rgba(209, 213, 219, 0.5);
+  }
+
+  .job-analysis-panel .client-name-display {
+    color: #374151; /* Primary text in light mode */
+    background-color: rgba(57, 108, 216, 0.05);
+    border-left-color: #396cd8;
+  }
+
+  .job-analysis-actions {
+    border-top-color: rgba(209, 213, 219, 0.5);
+  }
+
+  .generate-proposal-cta {
+    color: #fff;
+    background-color: #396cd8;
+  }
+
+  .generate-proposal-cta:hover:not(:disabled) {
+    background-color: #2d5bb8;
+  }
+
+  .generate-proposal-cta:disabled {
+    background-color: #9ca3af;
+    color: #d1d5db;
+  }
+}

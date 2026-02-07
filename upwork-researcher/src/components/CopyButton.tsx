@@ -1,12 +1,14 @@
-import { useState, useCallback } from "react";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { invoke } from "@tauri-apps/api/core";
-import type { PerplexityAnalysis } from "../types/perplexity";
+import { useCallback } from "react";
 import SafetyWarningModal from "./SafetyWarningModal";
+import OverrideConfirmDialog from "./OverrideConfirmDialog";
+import { useSafeCopy } from "../hooks/useSafeCopy";
+import { getShortcutDisplay } from "../hooks/usePlatform";
 
 interface CopyButtonProps {
   text: string;
   disabled?: boolean;
+  /** Proposal ID for override tracking (Story 3.7) */
+  proposalId?: number | null;
 }
 
 /**
@@ -15,101 +17,43 @@ interface CopyButtonProps {
  *
  * Story 3.1: Pre-flight perplexity analysis before copy.
  * Story 3.2: Safety warning modal with flagged sentences.
+ * Story 3.9: Refactored to use useSafeCopy hook for keyboard shortcut reuse.
  * - Threshold: <180 = safe (proceed), ≥180 = risky (show warning)
  * - On analysis failure: allow copy (don't block user on API errors)
  */
-function CopyButton({ text, disabled = false }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showWarningModal, setShowWarningModal] = useState(false);
-  const [analysisResult, setAnalysisResult] =
-    useState<PerplexityAnalysis | null>(null);
+function CopyButton({ text, disabled = false, proposalId }: CopyButtonProps) {
+  const { state, actions } = useSafeCopy();
+  const { analyzing, copied, error, showWarningModal, showOverrideConfirm, analysisResult } = state;
+  const { triggerCopy, dismissWarning, showOverrideDialog, cancelOverride, confirmOverride } = actions;
 
   const handleCopy = useCallback(async () => {
     if (disabled || !text) return;
-
-    try {
-      // Story 3.1 + 3.2: Pre-flight perplexity analysis (FR-11)
-      setAnalyzing(true);
-      setError(null);
-
-      let analysis: PerplexityAnalysis;
-      try {
-        analysis = await invoke<PerplexityAnalysis>("analyze_perplexity", {
-          text,
-        });
-      } catch (analysisErr) {
-        // On analysis failure, allow copy (don't block user on API errors)
-        console.warn(
-          "Perplexity analysis failed, allowing copy:",
-          analysisErr
-        );
-        await writeText(text);
-        setCopied(true);
-        setAnalyzing(false);
-
-        setTimeout(() => {
-          setCopied(false);
-        }, 2000);
-        return;
-      }
-
-      setAnalyzing(false);
-
-      // Threshold check: <180 = safe, ≥180 = risky
-      if (analysis.score < analysis.threshold) {
-        // Safe to copy
-        await writeText(text);
-        setCopied(true);
-        setError(null);
-
-        setTimeout(() => {
-          setCopied(false);
-        }, 2000);
-      } else {
-        // AI detection risk too high - show warning modal (Story 3.2)
-        setAnalysisResult(analysis);
-        setShowWarningModal(true);
-      }
-    } catch (err) {
-      setAnalyzing(false);
-      setError("Failed to copy to clipboard");
-      console.error("Clipboard write failed:", err);
-    }
-  }, [text, disabled]);
+    await triggerCopy(text);
+  }, [text, disabled, triggerCopy]);
 
   // Story 3.2: Handle "Edit Proposal" - close modal
   const handleEdit = useCallback(() => {
-    setShowWarningModal(false);
-    setAnalysisResult(null);
-    setError(null);
+    dismissWarning();
     // TODO (Story 3.2, Task 3.3): Focus ProposalOutput editor
-    // This will be implemented when ProposalOutput ref is available
-  }, []);
+  }, [dismissWarning]);
 
-  // Story 3.2: Handle "Override (Risky)" - copy despite warning
-  const handleOverride = useCallback(async () => {
-    setShowWarningModal(false);
-    setAnalysisResult(null);
+  // Story 3.6: Handle "Override (Risky)" - show confirmation dialog
+  const handleOverride = useCallback(() => {
+    showOverrideDialog();
+  }, [showOverrideDialog]);
 
-    // Story 3.6: Override flow (stub for now)
-    // TODO: Implement full override confirmation dialog in Story 3.6
-    console.log("Override safety warning - copying proposal");
+  // Story 3.6: Handle cancel from override confirmation - return to SafetyWarningModal
+  const handleOverrideCancel = useCallback(() => {
+    cancelOverride();
+  }, [cancelOverride]);
 
-    try {
-      await writeText(text);
-      setCopied(true);
-      setError(null);
+  // Story 3.6 + 3.7: Handle confirm override - copy to clipboard and record override
+  const handleOverrideConfirm = useCallback(async () => {
+    await confirmOverride(text, proposalId);
+  }, [text, proposalId, confirmOverride]);
 
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch (err) {
-      setError("Failed to copy to clipboard");
-      console.error("Clipboard write failed:", err);
-    }
-  }, [text]);
+  // Story 3.9: Shortcut hint for tooltip
+  const shortcutHint = getShortcutDisplay("copy");
 
   return (
     <>
@@ -126,6 +70,7 @@ function CopyButton({ text, disabled = false }: CopyButtonProps) {
               ? "Copied to clipboard"
               : "Copy to clipboard"
           }
+          title={`Copy to clipboard (${shortcutHint})`}
         >
           {analyzing ? (
             <>
@@ -165,6 +110,14 @@ function CopyButton({ text, disabled = false }: CopyButtonProps) {
           flaggedSentences={analysisResult.flaggedSentences}
           onEdit={handleEdit}
           onOverride={handleOverride}
+        />
+      )}
+
+      {/* Story 3.6: Override Confirmation Dialog */}
+      {showOverrideConfirm && (
+        <OverrideConfirmDialog
+          onCancel={handleOverrideCancel}
+          onConfirm={handleOverrideConfirm}
         />
       )}
     </>

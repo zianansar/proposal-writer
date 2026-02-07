@@ -30,10 +30,14 @@ vi.mock("../stores/useOnboardingStore", () => ({
   })),
 }));
 
+// Helper: flush pending promises (allows React state updates + async invoke to resolve)
+const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
+    // Use fake timers with shouldAdvanceTime to prevent waitFor timeouts
+    vi.useFakeTimers({ shouldAdvanceTime: true });
 
     // Default mock: get_safety_threshold returns 180
     mockInvoke.mockImplementation((command: string) => {
@@ -51,6 +55,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   });
 
   afterEach(() => {
+    vi.runOnlyPendingTimers();
     vi.useRealTimers();
   });
 
@@ -116,17 +121,15 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
     // Immediately after change, set_setting should NOT be called yet (debouncing)
     expect(mockInvoke).not.toHaveBeenCalledWith("set_setting", expect.anything());
 
-    // Advance timers by 300ms (debounce period)
+    // Advance timers by 300ms (debounce period) and flush promises
     await act(async () => {
-      vi.advanceTimersByTime(300);
+      await vi.advanceTimersByTimeAsync(300);
     });
 
     // Now set_setting should be called
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("set_setting", {
-        key: "safety_threshold",
-        value: "200",
-      });
+    expect(mockInvoke).toHaveBeenCalledWith("set_setting", {
+      key: "safety_threshold",
+      value: "200",
     });
   });
 
@@ -167,23 +170,19 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
       fireEvent.change(slider, { target: { value: "150" } });
     });
 
-    // Advance past debounce
+    // Advance past debounce and flush promises
     await act(async () => {
-      vi.advanceTimersByTime(300);
+      await vi.advanceTimersByTimeAsync(300);
     });
 
-    // Wait for save to complete
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("set_setting", {
-        key: "safety_threshold",
-        value: "150",
-      });
+    // Verify save was called
+    expect(mockInvoke).toHaveBeenCalledWith("set_setting", {
+      key: "safety_threshold",
+      value: "150",
     });
 
     // Check success message appears
-    await waitFor(() => {
-      expect(screen.getByText("✓ Saved")).toBeInTheDocument();
-    });
+    expect(screen.getByText("✓ Saved")).toBeInTheDocument();
   });
 
   // Story 3.5: Test slider reverts on save error
@@ -220,29 +219,22 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
     // Slider should update locally
     expect(slider).toHaveValue("200");
 
-    // Advance past debounce
+    // Advance past debounce and flush promises (error handling + revert)
     await act(async () => {
-      vi.advanceTimersByTime(300);
+      await vi.advanceTimersByTimeAsync(300);
     });
 
-    // Wait for save attempt and revert
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("set_setting", {
-        key: "safety_threshold",
-        value: "200",
-      });
+    // Verify save was attempted
+    expect(mockInvoke).toHaveBeenCalledWith("set_setting", {
+      key: "safety_threshold",
+      value: "200",
     });
 
-    // Revert happens via get_safety_threshold call
-    await waitFor(() => {
-      // Check error message appears
-      expect(screen.getByText(/Failed:/)).toBeInTheDocument();
-    });
+    // Check error message appears
+    expect(screen.getByText(/Failed:/)).toBeInTheDocument();
 
     // Slider should revert to 180
-    await waitFor(() => {
-      expect(slider).toHaveValue("180");
-    });
+    expect(slider).toHaveValue("180");
   });
 
   // Story 3.5: Test multiple rapid changes only trigger one save (debouncing)
@@ -259,29 +251,20 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
 
     const slider = screen.getByRole("slider", { name: /ai detection threshold/i });
 
-    // Rapid changes: 150, 160, 170, 180
+    // Rapid changes: 150, 160, 170, 200
     await act(async () => {
       fireEvent.change(slider, { target: { value: "150" } });
-    });
-
-    await act(async () => {
-      vi.advanceTimersByTime(100);
+      await vi.advanceTimersByTimeAsync(100);
     });
 
     await act(async () => {
       fireEvent.change(slider, { target: { value: "160" } });
-    });
-
-    await act(async () => {
-      vi.advanceTimersByTime(100);
+      await vi.advanceTimersByTimeAsync(100);
     });
 
     await act(async () => {
       fireEvent.change(slider, { target: { value: "170" } });
-    });
-
-    await act(async () => {
-      vi.advanceTimersByTime(100);
+      await vi.advanceTimersByTimeAsync(100);
     });
 
     await act(async () => {
@@ -290,16 +273,14 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
 
     // Now wait for debounce to complete
     await act(async () => {
-      vi.advanceTimersByTime(300);
+      await vi.advanceTimersByTimeAsync(300);
     });
 
     // Only ONE set_setting call should have been made (for the last value 200)
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledTimes(1);
-      expect(mockInvoke).toHaveBeenCalledWith("set_setting", {
-        key: "safety_threshold",
-        value: "200",
-      });
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledWith("set_setting", {
+      key: "safety_threshold",
+      value: "200",
     });
   });
 });

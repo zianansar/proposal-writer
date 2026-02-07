@@ -4,6 +4,10 @@ status: ready-for-dev
 
 # Story 4b.10: Report Bad Scoring Feedback Loop
 
+Status: ready-for-dev
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
 ## Story
 
 As a freelancer,
@@ -12,19 +16,494 @@ So that the system can improve over time.
 
 ## Acceptance Criteria
 
-**Given** I disagree with a job's score
-**When** I click "Report Incorrect Score" on a job
-**Then** I see a form:
+1. **Given** I am viewing a job's scoring breakdown (from 4b-6) **When** I click "Report Incorrect Score" button **Then** a report form modal opens
+2. **And** the modal displays the current score summary at the top (overall score, color, component scores)
+3. **And** the form asks "What's wrong with this score?" with checkbox options:
+   - Skills mismatch ("Skills match is wrong")
+   - Client quality wrong ("Client quality assessment is wrong")
+   - Budget wrong ("Budget alignment is wrong")
+   - Overall too high ("Overall score is too high")
+   - Overall too low ("Overall score is too low")
+   - Other
+4. **And** the form has an optional free text field: "Tell us more (optional)" with 500 character limit
+5. **And** the form has a "Submit Report" button that is disabled until at least one checkbox is selected
+6. **And** when I submit, the feedback is saved to the local database with all context (job_id, score at time of report, selected issues, user notes, timestamp)
+7. **And** after successful submission, I see confirmation: "Thanks! We'll use this to improve scoring."
+8. **And** the modal closes automatically after 2 seconds OR on user click
+9. **And** I cannot submit duplicate reports for the same job within 24 hours (shows "You already reported this score" instead)
+10. **And** the form is fully keyboard accessible (Tab navigation, Enter to submit, Escape to close)
 
-- "What's wrong with this score?"
-- Checkboxes: Skills mismatch, Client quality wrong, Budget wrong, Other
-- Free text field for details
+## Tasks / Subtasks
 
-**And** when I submit, feedback is logged to database
-**And** I see: "Thanks! We'll use this to improve scoring."
+- [ ] Task 1: Create database migration for scoring_feedback table (AC: 6, 9)
+  - [ ] 1.1 Create migration `V{next}__add_scoring_feedback_table.sql`
+  - [ ] 1.2 Define table schema:
+    ```sql
+    CREATE TABLE scoring_feedback (
+        id INTEGER PRIMARY KEY,
+        job_post_id INTEGER NOT NULL REFERENCES job_posts(id) ON DELETE CASCADE,
+        reported_at TEXT NOT NULL DEFAULT (datetime('now')),
+        -- Snapshot of scores at report time
+        overall_score_at_report REAL,
+        color_flag_at_report TEXT,
+        skills_match_at_report REAL,
+        client_quality_at_report INTEGER,
+        budget_alignment_at_report INTEGER,
+        -- User feedback
+        issue_skills_mismatch INTEGER NOT NULL DEFAULT 0,
+        issue_client_quality INTEGER NOT NULL DEFAULT 0,
+        issue_budget_wrong INTEGER NOT NULL DEFAULT 0,
+        issue_score_too_high INTEGER NOT NULL DEFAULT 0,
+        issue_score_too_low INTEGER NOT NULL DEFAULT 0,
+        issue_other INTEGER NOT NULL DEFAULT 0,
+        user_notes TEXT,
+        -- Metadata
+        app_version TEXT
+    );
+    ```
+  - [ ] 1.3 Add index: `CREATE INDEX idx_scoring_feedback_job_reported ON scoring_feedback(job_post_id, reported_at DESC)`
+  - [ ] 1.4 Add unique constraint for 24h window enforcement (handled in application logic)
 
-## Technical Notes
+- [ ] Task 2: Define Rust types for feedback (AC: 3, 4, 6)
+  - [ ] 2.1 Create/update `src-tauri/src/feedback/types.rs`
+  - [ ] 2.2 Define `ScoringFeedbackIssue` enum:
+    ```rust
+    #[derive(Serialize, Deserialize, Clone)]
+    #[serde(rename_all = "camelCase")]
+    pub enum ScoringFeedbackIssue {
+        SkillsMismatch,
+        ClientQualityWrong,
+        BudgetWrong,
+        ScoreTooHigh,
+        ScoreTooLow,
+        Other,
+    }
+    ```
+  - [ ] 2.3 Define `SubmitScoringFeedbackInput` struct:
+    ```rust
+    pub struct SubmitScoringFeedbackInput {
+        pub job_post_id: i64,
+        pub issues: Vec<ScoringFeedbackIssue>,
+        pub user_notes: Option<String>,
+    }
+    ```
+  - [ ] 2.4 Define `ScoringFeedbackResult` struct for response
 
-- From Round 4 Red Team: feedback loop for bad scoring
-- Data collected for future ML improvements (v1.1+)
-- For now, just logged (not used to adjust scoring yet)
+- [ ] Task 3: Implement `submit_scoring_feedback` Tauri command (AC: 6, 9)
+  - [ ] 3.1 Create `src-tauri/src/commands/scoring_feedback.rs`
+  - [ ] 3.2 Implement duplicate check: query for existing feedback with same `job_post_id` within last 24 hours
+  - [ ] 3.3 If duplicate found, return `AppError::DuplicateFeedback` with message "You already reported this score"
+  - [ ] 3.4 Snapshot current scores from `job_scores` table at submission time
+  - [ ] 3.5 Insert feedback record with all context
+  - [ ] 3.6 Validate `user_notes` length <= 500 characters
+  - [ ] 3.7 Include `app_version` from Tauri app context
+  - [ ] 3.8 Return success response with feedback ID
+
+- [ ] Task 4: Implement `check_can_report_score` Tauri command (AC: 9)
+  - [ ] 4.1 Create command: `check_can_report_score(job_post_id: i64) -> Result<CanReportResult, AppError>`
+  - [ ] 4.2 Query for existing feedback within 24h window
+  - [ ] 4.3 Return `{ canReport: true }` or `{ canReport: false, lastReportedAt: "2026-02-07T10:30:00Z" }`
+  - [ ] 4.4 Use this to conditionally show/disable "Report" button
+
+- [ ] Task 5: Create feature folder structure (AC: all)
+  - [ ] 5.1 Create `src/features/scoring-feedback/` directory
+  - [ ] 5.2 Create `src/features/scoring-feedback/components/` directory
+  - [ ] 5.3 Create `src/features/scoring-feedback/hooks/` directory
+  - [ ] 5.4 Create `src/features/scoring-feedback/types.ts` with TypeScript interfaces
+  - [ ] 5.5 Create `src/features/scoring-feedback/index.ts` for public exports
+
+- [ ] Task 6: Create `ReportScoreModal.tsx` component (AC: 1, 2, 3, 4, 5, 7, 8, 10)
+  - [ ] 6.1 Create `src/features/scoring-feedback/components/ReportScoreModal.tsx`
+  - [ ] 6.2 Modal header: "Report Incorrect Score" with close button
+  - [ ] 6.3 Score summary section: display current overall score, color badge, component scores (read-only)
+  - [ ] 6.4 Issue checkboxes section with all 6 options
+  - [ ] 6.5 Free text textarea: "Tell us more (optional)" with character counter (0/500)
+  - [ ] 6.6 Submit button: disabled until >= 1 checkbox selected
+  - [ ] 6.7 Loading state during submission
+  - [ ] 6.8 Success state: "Thanks! We'll use this to improve scoring." with checkmark icon
+  - [ ] 6.9 Auto-close after 2 seconds OR on click anywhere in success state
+  - [ ] 6.10 Create co-located `ReportScoreModal.css`
+
+- [ ] Task 7: Implement modal accessibility (AC: 10)
+  - [ ] 7.1 Focus trap within modal (Tab cycles through interactive elements only)
+  - [ ] 7.2 Initial focus on first checkbox when modal opens
+  - [ ] 7.3 Escape key closes modal
+  - [ ] 7.4 Enter key submits form (if valid)
+  - [ ] 7.5 ARIA attributes: `role="dialog"`, `aria-modal="true"`, `aria-labelledby` for title
+  - [ ] 7.6 Screen reader announces modal open/close
+  - [ ] 7.7 Return focus to "Report" button when modal closes
+
+- [ ] Task 8: Create `useSubmitScoringFeedback` hook (AC: 6, 7)
+  - [ ] 8.1 Create `src/features/scoring-feedback/hooks/useSubmitScoringFeedback.ts`
+  - [ ] 8.2 Use TanStack Query mutation: `useMutation({ mutationFn: ... })`
+  - [ ] 8.3 Invoke `submit_scoring_feedback` Tauri command
+  - [ ] 8.4 Handle success: set success state, trigger auto-close timer
+  - [ ] 8.5 Handle error: display inline error message (keep modal open)
+  - [ ] 8.6 Export `{ mutate, isPending, isSuccess, isError, error }`
+
+- [ ] Task 9: Create `useCanReportScore` hook (AC: 9)
+  - [ ] 9.1 Create `src/features/scoring-feedback/hooks/useCanReportScore.ts`
+  - [ ] 9.2 Use TanStack Query: `useQuery({ queryKey: ['canReportScore', jobPostId], ... })`
+  - [ ] 9.3 Invoke `check_can_report_score` Tauri command
+  - [ ] 9.4 Return `{ canReport, lastReportedAt, isLoading }`
+
+- [ ] Task 10: Add "Report Incorrect Score" button to ScoringBreakdown (AC: 1, 9)
+  - [ ] 10.1 Modify `src/components/ScoringBreakdown.tsx` (from Story 4b-6)
+  - [ ] 10.2 Add "Report Incorrect Score" link/button at bottom of breakdown card
+  - [ ] 10.3 Style as subtle text button (not prominent primary button)
+  - [ ] 10.4 Use `useCanReportScore` hook to check if reporting allowed
+  - [ ] 10.5 If already reported: show "Reported" badge instead of button, or disable with tooltip
+  - [ ] 10.6 On click: open `ReportScoreModal` with current job context
+
+- [ ] Task 11: Register commands and wire up (AC: all)
+  - [ ] 11.1 Register `submit_scoring_feedback` command in `lib.rs`
+  - [ ] 11.2 Register `check_can_report_score` command in `lib.rs`
+  - [ ] 11.3 Add `mod scoring_feedback;` to `commands/mod.rs`
+  - [ ] 11.4 Run `tauri-specta` to generate TypeScript types
+
+- [ ] Task 12: Write tests (AC: all)
+  - [ ] 12.1 Rust unit tests: `submit_scoring_feedback` — valid submission, duplicate rejection, notes length validation
+  - [ ] 12.2 Rust unit tests: `check_can_report_score` — within 24h, outside 24h, no prior reports
+  - [ ] 12.3 Rust unit tests: score snapshot captured correctly at report time
+  - [ ] 12.4 Frontend tests: `ReportScoreModal` — renders checkboxes, submit disabled initially, enabled after selection
+  - [ ] 12.5 Frontend tests: `ReportScoreModal` — character counter updates, max length enforced
+  - [ ] 12.6 Frontend tests: `ReportScoreModal` — success state displays, auto-closes after 2s
+  - [ ] 12.7 Frontend tests: `ReportScoreModal` — error state displays, modal stays open
+  - [ ] 12.8 Frontend tests: Accessibility — focus trap, escape closes, enter submits
+  - [ ] 12.9 Frontend tests: `useCanReportScore` — correct state for can/cannot report
+  - [ ] 12.10 Integration test: full flow from button click to success message
+
+## Dev Notes
+
+### Architecture Compliance
+
+- **Local-only data (NFR-20):** Feedback stored in local SQLite only — NOT sent to any server. This is pure data collection for potential future ML improvements (v1.1+)
+- **Thick Command:** `submit_scoring_feedback` is thick — validates input, checks duplicates, snapshots scores, writes to encrypted DB
+- **Feature-sliced structure:** All components in `src/features/scoring-feedback/` per architecture
+- **TanStack Query:** Mutations for submit, query for duplicate check
+- **No telemetry (NFR-8):** Feedback is local-only. If future version wants to upload aggregated feedback, that's a NEW story with explicit opt-in consent
+
+### Key Technical Decisions
+
+**Score Snapshot at Report Time:**
+
+The feedback record captures the scores AS THEY WERE when the user reported. This is critical because:
+1. Scores may be recalculated later (e.g., user updates skills profile)
+2. For ML training data (v1.1+), we need to know what the user saw when they complained
+3. Enables "did the score improve after recalculation?" analysis
+
+```rust
+// Snapshot current scores before inserting feedback
+let scores = sqlx::query_as!(
+    ScoreSnapshot,
+    "SELECT overall_score, color_flag, skills_match_percent, client_quality_percent, budget_alignment_pct
+     FROM job_scores WHERE job_post_id = ?",
+    job_post_id
+).fetch_optional(&conn)?;
+```
+
+**24-Hour Duplicate Prevention:**
+
+Prevents spam/frustration clicks. Simple time-based window, not complex logic.
+
+```rust
+pub async fn check_can_report_score(job_post_id: i64) -> Result<CanReportResult, AppError> {
+    let cutoff = Utc::now() - Duration::hours(24);
+    let existing = sqlx::query!(
+        "SELECT reported_at FROM scoring_feedback
+         WHERE job_post_id = ? AND reported_at > ?
+         ORDER BY reported_at DESC LIMIT 1",
+        job_post_id, cutoff.to_rfc3339()
+    ).fetch_optional(&conn)?;
+
+    match existing {
+        Some(row) => Ok(CanReportResult {
+            can_report: false,
+            last_reported_at: Some(row.reported_at),
+        }),
+        None => Ok(CanReportResult {
+            can_report: true,
+            last_reported_at: None,
+        }),
+    }
+}
+```
+
+**Modal Design (Not Inline Form):**
+
+Modal chosen over inline form because:
+1. Report action is infrequent (most users never report)
+2. Modal signals "this is important" — user is providing structured feedback
+3. Keeps ScoringBreakdown component simpler
+4. Follows existing modal pattern in codebase (SafetyWarningModal, EncryptionDetailsModal)
+
+**Checkbox Over Radio:**
+
+Checkboxes allow selecting MULTIPLE issues (e.g., "Skills wrong AND score too low"). Radio would force single choice and lose valuable signal.
+
+### Modal Component Spec
+
+**ReportScoreModal Layout:**
+
+```
+┌─────────────────────────────────────────────────┐
+│ ✕                   Report Incorrect Score       │
+│─────────────────────────────────────────────────│
+│                                                  │
+│  Current Score: 68% Yellow                       │
+│  Skills: 75% | Client: 60% | Budget: 90%         │
+│                                                  │
+│─────────────────────────────────────────────────│
+│                                                  │
+│  What's wrong with this score?                   │
+│                                                  │
+│  ☐ Skills match is wrong                         │
+│  ☐ Client quality assessment is wrong            │
+│  ☐ Budget alignment is wrong                     │
+│  ☐ Overall score is too high                     │
+│  ☐ Overall score is too low                      │
+│  ☐ Other                                         │
+│                                                  │
+│  Tell us more (optional)                         │
+│  ┌───────────────────────────────────────────┐  │
+│  │                                           │  │
+│  │                                           │  │
+│  └───────────────────────────────────────────┘  │
+│                                       0/500      │
+│                                                  │
+│              [ Submit Report ]                   │
+│                                                  │
+└─────────────────────────────────────────────────┘
+```
+
+**Success State:**
+
+```
+┌─────────────────────────────────────────────────┐
+│                                                  │
+│                      ✓                           │
+│                                                  │
+│        Thanks! We'll use this to                 │
+│           improve scoring.                       │
+│                                                  │
+│                                                  │
+└─────────────────────────────────────────────────┘
+```
+
+### CSS Patterns
+
+**Follow existing modal patterns:**
+
+```css
+.report-score-modal {
+  background: #1a1a1a;
+  border: 1px solid #555;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 480px;
+  width: 90vw;
+}
+
+.report-score-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #333;
+}
+
+.report-score-modal__score-summary {
+  background: #262626;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.report-score-modal__checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.report-score-modal__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background 150ms ease;
+}
+
+.report-score-modal__checkbox-label:hover {
+  background: #2a2a2a;
+}
+
+.report-score-modal__textarea {
+  width: 100%;
+  min-height: 80px;
+  background: #262626;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #e5e5e5;
+  padding: 12px;
+  resize: vertical;
+}
+
+.report-score-modal__char-count {
+  text-align: right;
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.report-score-modal__submit {
+  width: 100%;
+  padding: 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.report-score-modal__submit:disabled {
+  background: #374151;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.report-score-modal__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.report-score-modal__success-icon {
+  width: 64px;
+  height: 64px;
+  background: #22c55e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+```
+
+### Potential Gotchas
+
+1. **Modal focus trap** — Must implement custom focus trap. Use existing pattern from `EncryptionDetailsModal` or add `focus-trap-react` library
+2. **Auto-close timing** — 2 seconds may feel abrupt. Use `setTimeout` with cleanup on unmount to prevent memory leaks
+3. **Score snapshot race condition** — User opens modal, score recalculates in background, snapshot captures new score. Mitigation: snapshot on modal open, not on submit
+4. **Empty notes validation** — Optional field, but if provided, must be <= 500 chars. Trim whitespace before length check
+5. **Duplicate check timing** — Check on modal open AND on submit (in case user left modal open for hours)
+6. **Button placement** — "Report" button should be subtle, not competing with main "Generate Proposal" CTA
+7. **Success state click-anywhere** — Entire modal becomes clickable to dismiss, not just close button
+8. **App version capture** — Use Tauri's `app.getVersion()` for `app_version` field
+
+### Dependencies on Earlier Stories
+
+**Hard Dependencies (MUST exist before implementing):**
+- **4b-6 (Scoring Breakdown UI):** The "Report Incorrect Score" button lives in the ScoringBreakdown component
+- **4b-5 (Weighted Job Scoring):** Provides `job_scores` table with scores to snapshot
+- **4b-2, 4b-3, 4b-4:** Component scores to display in modal summary
+
+**Soft Dependencies:**
+- **4b-9 (Job Queue View):** Report button may also appear in queue item detail view
+- None blocking this story
+
+**If 4b-6 doesn't exist yet:** Create a standalone "Report Score" button that can be placed anywhere, with props for job_id and current scores. Wire into ScoringBreakdown when that story completes.
+
+### Future Considerations (v1.1+)
+
+**NOT in scope for this story, but designed to support:**
+
+1. **Aggregated feedback upload (with consent):**
+   - Future story adds "Help improve scoring for everyone" opt-in
+   - Uploads anonymized feedback (no job text, just score + issue flags)
+   - New table column: `uploaded_at TEXT` to track sync status
+
+2. **ML training data extraction:**
+   - Query: all feedback where issue = "score_too_high" + original scores + job characteristics
+   - Used to retrain scoring model weights
+
+3. **Adaptive thresholds:**
+   - If user consistently reports "score_too_low" for green jobs, could auto-adjust their thresholds
+   - Story 3.7 (Adaptive Safety Threshold) established this pattern
+
+4. **Feedback analytics dashboard:**
+   - Show user their feedback history: "You've reported 3 scores, helping improve the system"
+
+### Previous Story Intelligence
+
+**Established patterns from Epic 4b:**
+- Modal pattern from `SafetyWarningModal`
+- Focus trap pattern from `EncryptionDetailsModal`
+- Checkbox styling from `UserProfileSkillsConfiguration`
+- Tauri command pattern with `AppError` variants
+
+**Established patterns from architecture:**
+- Feature-sliced folders (`features/{name}/`)
+- TanStack Query for mutations
+- `tauri-specta` for type generation
+- `#[serde(rename_all = "camelCase")]` on structs
+
+### Project Structure Notes
+
+**New files to create:**
+
+```
+src/features/scoring-feedback/
+  ├── components/
+  │   ├── ReportScoreModal.tsx
+  │   ├── ReportScoreModal.css
+  │   └── ReportScoreModal.test.tsx
+  ├── hooks/
+  │   ├── useSubmitScoringFeedback.ts
+  │   └── useCanReportScore.ts
+  ├── types.ts
+  └── index.ts
+
+src-tauri/
+  ├── src/commands/scoring_feedback.rs
+  ├── src/feedback/types.rs (or add to existing types module)
+  └── migrations/V{next}__add_scoring_feedback_table.sql
+```
+
+**Files to modify:**
+
+- `src-tauri/src/commands/mod.rs` — Add `mod scoring_feedback;`
+- `src-tauri/src/lib.rs` — Register commands
+- `src/components/ScoringBreakdown.tsx` — Add "Report Incorrect Score" button
+- `src/components/ScoringBreakdown.css` — Style for report button
+
+### References
+
+- [Source: epics-stories.md#4b.10] — Original story definition
+- [Source: epics.md#Round 4 Red Team] — "Report bad scoring" feedback loop requirement
+- [Source: epics.md#Epic 4b Contingencies] — Listed as contingency story
+- [Source: epics.md#Transparency Requirements Marcus] — "Report bad scoring: Feedback loop for users to flag incorrect scores"
+- [Source: prd.md#NFR-20] — Local-first data, no PII to cloud
+- [Source: prd.md#NFR-8] — Zero telemetry by default
+- [Source: ux-design-specification.md#Feedback Loops] — Effortless feedback design
+- [Source: 4b-6-scoring-breakdown-ui.story.md] — Component where report button lives
+- [Source: 4b-5-weighted-job-scoring-algorithm.story.md] — Score data to snapshot
+- [Source: architecture.md#Feature-sliced structure] — Folder organization
+
+## Dev Agent Record
+
+### Agent Model Used
+
+### Debug Log References
+
+### Completion Notes List
+
+### File List

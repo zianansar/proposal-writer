@@ -1,0 +1,238 @@
+/* Threshold Adjustment Notification (Story 3.7, AC4) - Dark mode */
+
+.threshold-notification {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900; /* Below modals (1000), above main content */
+  max-width: 560px;
+  width: calc(100% - 32px);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.threshold-notification__content {
+  background: linear-gradient(135deg, #1e293b 0%, #1a1a2e 100%);
+  border: 1px solid #3b82f6;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.threshold-notification__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.threshold-notification__icon {
+  font-size: 24px;
+}
+
+.threshold-notification__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #e0e0e0;
+}
+
+.threshold-notification__message {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #d1d5db;
+  margin: 0 0 16px 0;
+}
+
+.threshold-notification__message strong {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.threshold-notification__thresholds {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 16px 0;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 8px;
+}
+
+.threshold-notification__threshold {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+}
+
+.threshold-notification__threshold-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+}
+
+.threshold-notification__threshold-value {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.threshold-notification__threshold--current .threshold-notification__threshold-value {
+  color: #9ca3af;
+}
+
+.threshold-notification__threshold--suggested .threshold-notification__threshold-value {
+  color: #3b82f6;
+}
+
+.threshold-notification__threshold--max {
+  padding: 8px 24px;
+}
+
+.threshold-notification__threshold--max .threshold-notification__threshold-value {
+  color: #fbbf24;
+}
+
+.threshold-notification__arrow {
+  font-size: 24px;
+  color: #6b7280;
+}
+
+.threshold-notification__explanation {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.threshold-notification__warning {
+  font-size: 13px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.threshold-notification__error {
+  font-size: 13px;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.threshold-notification__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.threshold-notification__button {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.threshold-notification__button:hover {
+  transform: translateY(-1px);
+}
+
+.threshold-notification__button:active {
+  transform: translateY(0);
+}
+
+.threshold-notification__button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.threshold-notification__button:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 3px;
+}
+
+.threshold-notification__button--primary {
+  background: #22c55e;
+  color: #ffffff;
+  flex: 1;
+  min-width: 140px;
+}
+
+.threshold-notification__button--primary:hover {
+  background: #16a34a;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.threshold-notification__button--secondary {
+  background: #374151;
+  color: #e0e0e0;
+  flex: 1;
+  min-width: 120px;
+}
+
+.threshold-notification__button--secondary:hover {
+  background: #4b5563;
+}
+
+.threshold-notification__button--tertiary {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #374151;
+}
+
+.threshold-notification__button--tertiary:hover {
+  background: rgba(55, 65, 81, 0.5);
+  color: #d1d5db;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .threshold-notification {
+    top: 8px;
+    width: calc(100% - 16px);
+  }
+
+  .threshold-notification__content {
+    padding: 16px;
+  }
+
+  .threshold-notification__actions {
+    flex-direction: column;
+  }
+
+  .threshold-notification__button {
+    width: 100%;
+  }
+
+  .threshold-notification__thresholds {
+    gap: 12px;
+  }
+
+  .threshold-notification__threshold-value {
+    font-size: 24px;
+  }
+}

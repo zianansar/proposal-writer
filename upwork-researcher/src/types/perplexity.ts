@@ -11,3 +11,10 @@ export interface PerplexityAnalysis {
   threshold: number;
   flaggedSentences: FlaggedSentence[];
 }
+
+/**
+ * Default perplexity threshold for AI detection (FR-11)
+ * Scores >= this value trigger safety warning modal
+ * Story 3.5 makes this configurable (140-220 range)
+ */
+export const DEFAULT_PERPLEXITY_THRESHOLD = 180;
