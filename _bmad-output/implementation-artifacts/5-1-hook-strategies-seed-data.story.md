@@ -1,11 +1,17 @@
 ---
-status: ready-for-dev
-assignedTo: ""
-tasksCompleted: 0
+status: done
+assignedTo: "Dev Agent (Amelia)"
+tasksCompleted: 4
 totalTasks: 4
-testsWritten: false
-codeReviewCompleted: false
-fileList: []
+testsWritten: true
+codeReviewCompleted: true
+fileList:
+  - upwork-researcher/src-tauri/migrations/V19__add_hook_strategies_table.sql
+  - upwork-researcher/src-tauri/src/db/queries/hook_strategies.rs
+  - upwork-researcher/src-tauri/src/db/queries/mod.rs
+  - upwork-researcher/src-tauri/src/db/mod.rs
+  - upwork-researcher/src-tauri/src/analysis.rs (code review fix)
+  - upwork-researcher/src-tauri/src/commands/job_queue.rs (code review fix)
 ---
 
 # Story 5.1: Hook Strategies Seed Data
@@ -39,31 +45,31 @@ So that users have options immediately without configuration.
 
 ## Tasks/Subtasks
 
-- [ ] Task 1: Create migration for hook_strategies table (AC-1, AC-4)
-  - [ ] Subtask 1.1: Create V{next}__add_hook_strategies_table.sql in migrations/ directory
-  - [ ] Subtask 1.2: Define hook_strategies table schema with all required columns
-  - [ ] Subtask 1.3: Use CREATE TABLE IF NOT EXISTS for idempotency
+- [x] Task 1: Create migration for hook_strategies table (AC-1, AC-4)
+  - [x] Subtask 1.1: Create V19__add_hook_strategies_table.sql in migrations/ directory
+  - [x] Subtask 1.2: Define hook_strategies table schema with all required columns
+  - [x] Subtask 1.3: Use CREATE TABLE IF NOT EXISTS for idempotency
 
-- [ ] Task 2: Seed default hook strategies (AC-2, AC-3)
-  - [ ] Subtask 2.1: Insert Social Proof strategy with 3 examples from hook library
-  - [ ] Subtask 2.2: Insert Contrarian strategy with 2-3 examples
-  - [ ] Subtask 2.3: Insert Immediate Value strategy with 2-3 examples from hook library
-  - [ ] Subtask 2.4: Insert Problem-Aware strategy with 2-3 examples from hook library
-  - [ ] Subtask 2.5: Insert Question-Based strategy with 2-3 examples from hook library
-  - [ ] Subtask 2.6: Use INSERT OR IGNORE for idempotency (AC-4)
+- [x] Task 2: Seed default hook strategies (AC-2, AC-3)
+  - [x] Subtask 2.1: Insert Social Proof strategy with 3 examples from hook library
+  - [x] Subtask 2.2: Insert Contrarian strategy with 2-3 examples
+  - [x] Subtask 2.3: Insert Immediate Value strategy with 2-3 examples from hook library
+  - [x] Subtask 2.4: Insert Problem-Aware strategy with 2-3 examples from hook library
+  - [x] Subtask 2.5: Insert Question-Based strategy with 2-3 examples from hook library
+  - [x] Subtask 2.6: Use INSERT OR IGNORE for idempotency (AC-4)
 
-- [ ] Task 3: Add Rust query module for hook_strategies (AC-1)
-  - [ ] Subtask 3.1: Create db/queries/hook_strategies.rs module
-  - [ ] Subtask 3.2: Implement get_all_hook_strategies() function
-  - [ ] Subtask 3.3: Implement get_hook_strategy_by_id() function
-  - [ ] Subtask 3.4: Add HookStrategy struct with serde derives
+- [x] Task 3: Add Rust query module for hook_strategies (AC-1)
+  - [x] Subtask 3.1: Create db/queries/hook_strategies.rs module
+  - [x] Subtask 3.2: Implement get_all_hook_strategies() function
+  - [x] Subtask 3.3: Implement get_hook_strategy_by_id() function
+  - [x] Subtask 3.4: Add HookStrategy struct with serde derives
 
-- [ ] Task 4: Add tests for hook_strategies (AC-1, AC-2, AC-3, AC-4)
-  - [ ] Subtask 4.1: Test that hook_strategies table is created after migrations run
-  - [ ] Subtask 4.2: Test that hook_strategies table has all required columns
-  - [ ] Subtask 4.3: Test that 5 default strategies are seeded
-  - [ ] Subtask 4.4: Test that each strategy has valid JSON examples
-  - [ ] Subtask 4.5: Verify migration is idempotent (run twice, no errors)
+- [x] Task 4: Add tests for hook_strategies (AC-1, AC-2, AC-3, AC-4)
+  - [x] Subtask 4.1: Test that hook_strategies table is created after migrations run
+  - [x] Subtask 4.2: Test that hook_strategies table has all required columns
+  - [x] Subtask 4.3: Test that 5 default strategies are seeded
+  - [x] Subtask 4.4: Test that each strategy has valid JSON examples
+  - [x] Subtask 4.5: Verify migration is idempotent (run twice, no errors)
 
 ## Dev Notes
 
@@ -97,6 +103,12 @@ CREATE TABLE IF NOT EXISTS hook_strategies (
 - `description`: 1-2 sentence explanation of when to use this strategy
 - `examples_json`: JSON array of 2-3 template opening lines, parsed for display
 - `best_for`: Short phrase describing ideal use case (shown on selection cards)
+
+**Placeholder Syntax in examples_json:**
+Examples contain bracketed placeholders like `[specific outcome]`, `[metric]`, `[their problem]` that should be:
+1. Displayed as-is in UI selection cards (Story 5-2) to show template structure
+2. Replaced with context-specific values during proposal generation (Epic 5 stories)
+3. Not treated as literal text — UI should render them distinctly (italics/highlight)
 
 ### Seed Data (from upwork-proposal-hook-library.md)
 
@@ -216,6 +228,7 @@ upwork-researcher/
 - Tests for table, schema, seed data, JSON validity
 
 **Out of Scope (Future Stories):**
+- Tauri commands for hook_strategies (get_all, get_by_id) — **added in Story 5-2**
 - Hook strategy selection UI (Story 5-2)
 - Custom hook strategies (Post-MVP)
 - Hook strategy editing (Post-MVP)
@@ -236,3 +249,86 @@ upwork-researcher/
 - [Source: architecture.md — "Seed data: Initial migration bundles default hook strategies"]
 - [Source: upwork-proposal-hook-library.md — Hook formulas and examples]
 - [Source: prd.md#FR-5: Hook strategy selection]
+
+---
+
+## Review Follow-ups (AI)
+
+- [x] [AI-Review][HIGH] Fix dead code warnings: analysis.rs:132 unused budget fields, job_queue.rs:188 unused insert_test_job — FIXED: removed vestigial budget fields from AnalysisResponse, added #[allow(dead_code)] to test helper
+- [x] [AI-Review][MEDIUM] Update Dev Agent Record to specify test file locations (db/mod.rs vs migration/tests.rs) — FIXED: updated below
+- [x] [AI-Review][MEDIUM] Clarify test count breakdown in Completion Notes — FIXED: updated below
+- [x] [AI-Review][LOW] Add dependency note about Tauri commands in Story 5-2 — FIXED: added to Scope Boundaries
+- [x] [AI-Review][LOW] Document placeholder syntax handling for UI in Dev Notes — FIXED: added to Schema Design
+
+## Dev Agent Record
+
+### Implementation Plan
+
+**Approach:** Red-Green-Refactor TDD cycle
+1. **RED**: Write failing tests for hook_strategies table, columns, seed data, JSON validation
+2. **GREEN**: Create migration V19 with table schema + 5 seeded strategies
+3. **REFACTOR**: Add Rust query module with get_all/get_by_id functions
+
+**Architecture Compliance:**
+- Followed AR-18 migration patterns (CREATE TABLE IF NOT EXISTS, INSERT OR IGNORE)
+- Used refinery 0.8 embedded migrations
+- Seed data bundled in migration (not optional per architecture.md)
+
+### Completion Notes
+
+**✅ All 4 Tasks Complete (2026-02-09)**
+
+**Task 1-2: Migration V19 created**
+- Table schema: id, name, description, examples_json, best_for, created_at
+- 5 strategies seeded: Social Proof, Contrarian, Immediate Value, Problem-Aware, Question-Based
+- Each strategy has 2-3 JSON examples matching upwork-proposal-hook-library.md patterns
+- Idempotent: CREATE TABLE IF NOT EXISTS + INSERT OR IGNORE
+
+**Task 3: Query module created**
+- db/queries/hook_strategies.rs: HookStrategy struct + get_all/get_by_id functions
+- Added to db/queries/mod.rs exports
+- Follows existing query module patterns (settings.rs, user_skills.rs)
+
+**Task 4: Comprehensive tests (10 tests total)**
+- Migration tests in `db/mod.rs:1086-1224` (4 tests):
+  - test_hook_strategies_table_created
+  - test_hook_strategies_table_has_correct_columns
+  - test_hook_strategies_seeded_with_defaults
+  - test_hook_strategies_have_valid_json_examples
+- Query module tests in `db/queries/hook_strategies.rs:87-200` (6 tests):
+  - test_get_all_hook_strategies_returns_five
+  - test_get_all_hook_strategies_names
+  - test_get_hook_strategy_by_id_exists
+  - test_get_hook_strategy_by_id_not_found
+  - test_hook_strategy_has_valid_examples_json
+  - test_hook_strategy_has_all_fields
+- All 10 tests passing ✅
+
+**Test Results:**
+- ✅ 461/463 library tests passing
+- ✅ All 10 hook_strategies tests passing
+- ⚠️ 2 pre-existing performance test failures (unrelated to Story 5.1)
+
+**Acceptance Criteria Validation:**
+- ✅ AC-1: hook_strategies table created with all required columns
+- ✅ AC-2: 5 default strategies seeded (Social Proof, Contrarian, Immediate Value, Problem-Aware, Question-Based)
+- ✅ AC-3: Each strategy has 2-3 JSON examples
+- ✅ AC-4: Migration is idempotent (covered by existing test_migrations_are_idempotent + CREATE IF NOT EXISTS)
+
+---
+
+## Change Log
+
+**2026-02-09: Code Review Complete**
+- Fixed dead code warnings: removed vestigial budget fields from AnalysisResponse (analysis.rs:129-137)
+- Fixed dead code warnings: added #[allow(dead_code)] to unused test helper (job_queue.rs:188)
+- Updated Dev Agent Record with precise test file locations
+- Added placeholder syntax documentation to Schema Design section
+- Added Tauri commands dependency note to Scope Boundaries
+- All 13 hook_strategies tests passing (10 original + 3 command tests added later)
+
+**2026-02-09: Story 5.1 Implementation Complete**
+- Created migration V19__add_hook_strategies_table.sql with table schema and seed data
+- Added db/queries/hook_strategies.rs query module (HookStrategy struct, get_all, get_by_id)
+- Added 10 comprehensive tests (4 migration tests + 6 query module tests)
+- All acceptance criteria satisfied, ready for code review

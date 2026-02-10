@@ -1576,6 +1576,63 @@ To support the zero-telemetry claim, document every outbound network call:
 
 No other outbound calls. No analytics, no crash reporting, no telemetry. Verifiable by network inspection. This list is maintained in the architecture doc and updated when new network calls are added.
 
+**Network Allowlist Enforcement (Story 8.13, AR-14, NFR-9):**
+
+Dual-layer security prevents unauthorized network access:
+
+1. **Layer 1 - Frontend (CSP):** Content Security Policy in `tauri.conf.json` blocks XHR/fetch to non-allowlisted domains:
+   ```json
+   "csp": "default-src 'self'; connect-src 'self' https://api.anthropic.com; style-src 'self' 'unsafe-inline'"
+   ```
+
+2. **Layer 2 - Rust Backend:** `src-tauri/src/network.rs` validates all outbound URLs before HTTP client execution:
+   - `validate_url()` extracts domain and checks against `ALLOWED_DOMAINS: &[&str] = &["api.anthropic.com"]`
+   - Blocks spoofing attacks (e.g., `api.anthropic.com.evil.com`)
+   - Logs blocked requests with `tracing::warn!` for debugging
+   - Records blocked attempts in `BlockedRequestsState` (in-memory, not persisted)
+   - Emits `network:blocked` event to frontend for optional notification
+
+Enforcement points: `claude.rs` calls `network::validate_url()` before every `client.post()` in:
+- `generate_proposal_with_key()` (line ~232)
+- `generate_proposal_streaming_with_key()` (line ~420)
+- `analyze_perplexity_with_sentences()` (line ~933)
+
+Blocked requests return error before network call, preventing data exfiltration by malicious code or dependencies.
+
+**Telemetry & Analytics Policy (Story 8.14, implemented):**
+
+The application enforces a **zero telemetry default** per NFR-8:
+
+1. **Framework verification:** Tauri 2.x has no built-in telemetry or analytics features (unlike Electron which bundles Chromium telemetry). Tauri's core philosophy is minimal runtime overhead with zero tracking.
+
+2. **Dependency audit:** No telemetry/analytics crates are included in `Cargo.toml`:
+   - ✅ No `sentry` or crash reporting crates
+   - ✅ No `posthog`, `amplitude`, `mixpanel`, or similar analytics SDKs
+   - ✅ Tauri features list is empty `[]` — no telemetry features enabled
+
+3. **Logging isolation:** All application logging uses `tracing` with local file appenders only:
+   - Logs written to app data directory with 7-day rotation (Story 1.16)
+   - No external HTTP appenders or remote sinks configured
+   - No PII logged (proposal text, API keys excluded from logs)
+
+4. **Opt-in crash reporting:** A toggle for crash reporting exists in Settings but defaults to OFF. Actual crash reporting integration (e.g., Sentry) is not implemented in MVP — the toggle is a placeholder for future opt-in functionality.
+
+5. **User transparency:** Settings > Privacy displays: "✓ Zero Telemetry: No data sent without your permission" with visual confirmation that no background tracking occurs.
+
+**Network Allowlist Enforcement (Story 8.13, implemented):**
+
+Dual-layer security ensures no unauthorized domains are contacted:
+
+1. **Frontend Layer (CSP):** Tauri `security.csp` configuration includes `connect-src 'self' https://api.anthropic.com` directive. Browser enforces this — any XHR/fetch to other domains fails immediately with CSP violation.
+
+2. **Backend Layer (Rust):** All HTTP requests pass through `network::validate_url()` before execution. Validates domain against `ALLOWED_DOMAINS` constant. Blocked requests logged with `tracing::warn!` and return descriptive error to frontend.
+
+**Dual enforcement rationale:** CSP prevents malicious frontend code from bypassing checks. Rust validation prevents accidental misconfigurations or future code changes from weakening security boundary.
+
+**Observability:** `get_blocked_requests()` Tauri command returns in-memory list of blocked attempts for debugging. Not persisted — resets on app restart.
+
+**Testing:** 7 unit tests verify allowlist logic, including subdomain spoofing attacks. CSP verification is manual (dev tools inspection).
+
 #### Data Retention Policy
 
 - Default: Keep all data forever (local storage, user owns their data)

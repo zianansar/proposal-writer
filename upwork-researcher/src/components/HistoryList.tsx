@@ -1,11 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useArrowKeyNavigation } from "../hooks/useArrowKeyNavigation";
 import HistoryItem, { type ProposalSummary } from "./HistoryItem";
 
 function HistoryList() {
   const [proposals, setProposals] = useState<ProposalSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Story 8.2 AC8: Arrow key navigation
+  const { handleKeyDown } = useArrowKeyNavigation({
+    itemCount: proposals.length,
+    currentIndex: focusedIndex,
+    onIndexChange: (newIndex) => {
+      setFocusedIndex(newIndex);
+      // Focus the element when index changes
+      itemRefs.current[newIndex]?.focus();
+    },
+  });
 
   useEffect(() => {
     const fetchProposals = async () => {
@@ -50,9 +64,21 @@ function HistoryList() {
   }
 
   return (
-    <div className="history-list">
-      {proposals.map((proposal) => (
-        <HistoryItem key={proposal.id} proposal={proposal} />
+    <div
+      className="history-list"
+      role="listbox"
+      aria-label="Proposal history"
+      onKeyDown={handleKeyDown}
+    >
+      {proposals.map((proposal, index) => (
+        <HistoryItem
+          key={proposal.id}
+          proposal={proposal}
+          ref={(el) => (itemRefs.current[index] = el)}
+          tabIndex={index === focusedIndex ? 0 : -1}
+          role="option"
+          aria-selected={index === focusedIndex}
+        />
       ))}
     </div>
   );

@@ -1,0 +1,87 @@
+/* Job Queue Controls Styles - Story 4b.9 Task 8 */
+
+.job-queue-controls {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.control-group label,
+.filter-label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #a0a0a0);
+  font-weight: 500;
+}
+
+.sort-select {
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface, #222);
+  color: var(--color-text, #e0e0e0);
+  border: 1px solid var(--color-border, #333);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.sort-select:hover {
+  border-color: var(--color-primary, #3b82f6);
+}
+
+.sort-select:focus {
+  outline: 2px solid var(--color-primary, #3b82f6);
+  outline-offset: 2px;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filter-chip {
+  padding: 0.375rem 0.75rem;
+  background: var(--color-surface, #222);
+  color: var(--color-text-secondary, #a0a0a0);
+  border: 1px solid var(--color-border, #333);
+  border-radius: 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-chip:hover {
+  border-color: var(--color-primary, #3b82f6);
+  background: var(--color-surface-hover, #2a2a2a);
+}
+
+.filter-chip.active {
+  background: var(--color-primary, #3b82f6);
+  color: white;
+  border-color: var(--color-primary, #3b82f6);
+}
+
+.filter-chip:focus-visible {
+  outline: 2px solid var(--color-primary, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .job-queue-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .filter-chips {
+    flex-wrap: wrap;
+  }
+}

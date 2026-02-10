@@ -1,14 +1,21 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useGenerationStore } from "../stores/useGenerationStore";
 import "./DraftRecoveryModal.css";
 
 interface DraftRecoveryModalProps {
   onContinue: (jobContent: string, generatedText: string) => void;
+  /** Story 8.2: Element that triggered the modal (for focus return) */
+  triggerRef?: React.RefObject<HTMLElement>;
 }
 
-function DraftRecoveryModal({ onContinue }: DraftRecoveryModalProps) {
+function DraftRecoveryModal({ onContinue, triggerRef }: DraftRecoveryModalProps) {
   const { draftRecovery, clearDraftRecovery } = useGenerationStore();
+
+  // Story 8.2: Focus trap for keyboard navigation
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, { triggerRef });
 
   if (!draftRecovery) {
     return null;
@@ -57,8 +64,14 @@ function DraftRecoveryModal({ onContinue }: DraftRecoveryModalProps) {
 
   return (
     <div className="draft-recovery-modal__backdrop">
-      <div className="draft-recovery-modal">
-        <h2>Draft Recovered</h2>
+      <div
+        ref={modalRef}
+        className="draft-recovery-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="draft-recovery-title"
+      >
+        <h2 id="draft-recovery-title">Draft Recovered</h2>
         <p className="draft-recovery-modal__message">
           We found an incomplete proposal from your last session. Would you like to continue working on it?
         </p>
@@ -74,7 +87,6 @@ function DraftRecoveryModal({ onContinue }: DraftRecoveryModalProps) {
           <button
             className="button button--primary"
             onClick={handleContinue}
-            autoFocus
           >
             Continue Draft
           </button>

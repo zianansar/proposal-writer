@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useGenerationStore, getStreamedText } from "./useGenerationStore";
+import { useGenerationStore, getStreamedText, getStages } from "./useGenerationStore";
 
 describe("useGenerationStore", () => {
   beforeEach(() => {
@@ -239,6 +239,100 @@ describe("useGenerationStore", () => {
 
       expect(useGenerationStore.getState().cooldownEnd).toBeNull();
       expect(useGenerationStore.getState().cooldownRemaining).toBe(0);
+    });
+  });
+
+  // Story 8.4: Stage tracking tests
+  describe("stage tracking", () => {
+    it("initial state has no current stage", () => {
+      expect(useGenerationStore.getState().currentStage).toBeNull();
+    });
+
+    it("initial state has empty stage history", () => {
+      expect(useGenerationStore.getState().stageHistory).toEqual([]);
+    });
+
+    it("setStage creates new record for new stage", () => {
+      useGenerationStore.getState().setStage("preparing", "active");
+
+      const state = useGenerationStore.getState();
+      expect(state.currentStage).toBe("preparing");
+      expect(state.stageHistory).toHaveLength(1);
+      expect(state.stageHistory[0].id).toBe("preparing");
+      expect(state.stageHistory[0].status).toBe("active");
+      expect(state.stageHistory[0].startedAt).toBeGreaterThan(0);
+    });
+
+    it("setStage completes previous active stage when new stage starts", () => {
+      useGenerationStore.getState().setStage("preparing", "active");
+
+      // Small delay to ensure different timestamps
+      const prepareStartTime = useGenerationStore.getState().stageHistory[0].startedAt;
+
+      // Start next stage
+      useGenerationStore.getState().setStage("generating", "active");
+
+      const state = useGenerationStore.getState();
+      expect(state.currentStage).toBe("generating");
+      expect(state.stageHistory).toHaveLength(2);
+
+      // Previous stage should be marked complete
+      expect(state.stageHistory[0].status).toBe("complete");
+      expect(state.stageHistory[0].completedAt).toBeGreaterThanOrEqual(prepareStartTime);
+      expect(state.stageHistory[0].durationMs).toBeGreaterThanOrEqual(0);
+
+      // New stage should be active
+      expect(state.stageHistory[1].id).toBe("generating");
+      expect(state.stageHistory[1].status).toBe("active");
+    });
+
+    it("setStage calculates duration when stage completes", () => {
+      useGenerationStore.getState().setStage("preparing", "active");
+      const startTime = useGenerationStore.getState().stageHistory[0].startedAt;
+
+      // Complete the stage
+      useGenerationStore.getState().setStage("preparing", "complete");
+
+      const state = useGenerationStore.getState();
+      expect(state.currentStage).toBeNull();
+      expect(state.stageHistory[0].status).toBe("complete");
+      expect(state.stageHistory[0].durationMs).toBeGreaterThanOrEqual(0);
+      expect(state.stageHistory[0].completedAt).toBeGreaterThanOrEqual(startTime);
+    });
+
+    it("setStage handles error status with message", () => {
+      useGenerationStore.getState().setStage("generating", "active");
+      useGenerationStore.getState().setStage("generating", "error", "API timeout");
+
+      const state = useGenerationStore.getState();
+      expect(state.currentStage).toBeNull();
+      expect(state.stageHistory[0].status).toBe("error");
+      expect(state.stageHistory[0].error).toBe("API timeout");
+    });
+
+    it("reset clears stage state", () => {
+      useGenerationStore.getState().setStage("preparing", "active");
+      useGenerationStore.getState().setStage("generating", "active");
+      useGenerationStore.getState().reset();
+
+      const state = useGenerationStore.getState();
+      expect(state.currentStage).toBeNull();
+      expect(state.stageHistory).toEqual([]);
+    });
+
+    it("getStages returns pipeline stages with status", () => {
+      useGenerationStore.getState().setStage("preparing", "active");
+      useGenerationStore.getState().setStage("generating", "active");
+
+      const state = useGenerationStore.getState();
+      const stages = getStages(state);
+
+      expect(stages).toHaveLength(2);
+      expect(stages[0].id).toBe("preparing");
+      expect(stages[0].status).toBe("complete");
+      expect(stages[0].durationMs).toBeGreaterThanOrEqual(0);
+      expect(stages[1].id).toBe("generating");
+      expect(stages[1].status).toBe("active");
     });
   });
 });

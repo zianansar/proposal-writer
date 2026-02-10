@@ -1,0 +1,93 @@
+/* Story 8.6: Voice Learning Timeline styles */
+
+.voice-learning-timeline {
+  background-color: var(--color-surface, #1e1e1e);
+  border: 1px solid var(--color-border, #333);
+  border-radius: 8px;
+  padding: 0;
+  margin-bottom: 24px;
+}
+
+.voice-learning-timeline .card-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--color-border, #333);
+}
+
+.voice-learning-timeline .card-title {
+  color: var(--color-text, #fafafa);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.voice-learning-timeline .card-content {
+  padding: 24px;
+}
+
+.timeline-milestones {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.timeline-milestone {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.milestone-icon {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+}
+
+.milestone-content {
+  flex: 1;
+}
+
+.milestone-title {
+  color: var(--color-text, #fafafa);
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.milestone-description {
+  color: var(--color-text-muted, #a3a3a3);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.timeline-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background-color: var(--color-surface-elevated, #252525);
+  border: 1px solid var(--color-border, #333);
+  border-radius: 6px;
+  margin-top: 24px;
+}
+
+.summary-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.summary-text {
+  color: var(--color-text, #fafafa);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Accessibility: Ensure minimum 4.5:1 contrast (WCAG AA) */
+/* Default colors already meet this requirement:
+   - #fafafa on #1e1e1e: 16.1:1
+   - #a3a3a3 on #1e1e1e: 6.2:1
+*/

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useCallback } from "react";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { useGenerationStore } from "../stores/useGenerationStore";
+import type { StageStatus } from "../types/pipeline";
 
 /** Event name constants - must match Rust events.rs */
 const EVENTS = {
   GENERATION_TOKEN: "generation:token",
   GENERATION_COMPLETE: "generation:complete",
   GENERATION_ERROR: "generation:error",
+  GENERATION_STAGE: "generation:stage",
 } as const;
 
 /** Payload for token batch events */
@@ -27,6 +29,14 @@ interface ErrorPayload {
   message: string;
 }
 
+/** Payload for stage events (Story 8.4) */
+interface StagePayload {
+  stageId: string;
+  status: StageStatus;
+  durationMs?: number;
+  error?: string;
+}
+
 /**
  * Hook that listens to Tauri events for streaming generation.
  * Automatically subscribes on mount and cleans up on unmount.
@@ -35,7 +45,7 @@ interface ErrorPayload {
  * Returns a function to ensure listeners are ready before invoking commands.
  */
 export function useGenerationStream(): { ensureListenersReady: () => Promise<void> } {
-  const { appendTokens, setComplete, setError } = useGenerationStore();
+  const { appendTokens, setComplete, setError, setStage } = useGenerationStore();
 
   // Track whether listeners have been registered
   const listenersReadyRef = useRef<Promise<void> | null>(null);
@@ -58,6 +68,11 @@ export function useGenerationStream(): { ensureListenersReady: () => Promise<voi
         listen<ErrorPayload>(EVENTS.GENERATION_ERROR, (event) => {
           setError(event.payload.message);
         }),
+        // Story 8.4 Subtask 4.1-4.4: Listen for stage transitions
+        listen<StagePayload>(EVENTS.GENERATION_STAGE, (event) => {
+          const { stageId, status, error } = event.payload;
+          setStage(stageId, status, error);
+        }),
       ]);
       unlistenersRef.current = unlisteners;
     })();
@@ -68,7 +83,7 @@ export function useGenerationStream(): { ensureListenersReady: () => Promise<voi
       unlistenersRef.current = [];
       listenersReadyRef.current = null;
     };
-  }, [appendTokens, setComplete, setError]);
+  }, [appendTokens, setComplete, setError, setStage]);
 
   // Callback to wait for listeners to be ready
   const ensureListenersReady = useCallback(async () => {

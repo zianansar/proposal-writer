@@ -814,4 +814,412 @@ mod tests {
             .unwrap();
         assert_eq!(skill_name_index_exists, 1);
     }
+
+    // ====================
+    // Story 4b.2 Tests: Job Scores Migration (V12)
+    // ====================
+
+    #[test]
+    fn test_job_scores_table_created() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let table_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='job_scores'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(table_exists, 1);
+    }
+
+    #[test]
+    fn test_job_scores_table_has_correct_columns() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let mut stmt = conn.prepare("PRAGMA table_info(job_scores)").unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        assert!(columns.contains(&"id".to_string()));
+        assert!(columns.contains(&"job_post_id".to_string()));
+        assert!(columns.contains(&"skills_match_percentage".to_string()));
+        assert!(columns.contains(&"client_quality_score".to_string()));
+        assert!(columns.contains(&"budget_alignment_score".to_string()));
+        assert!(columns.contains(&"overall_score".to_string()));
+        assert!(columns.contains(&"calculated_at".to_string()));
+    }
+
+    #[test]
+    fn test_job_scores_indexes_created() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let job_post_id_index: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_scores_job_post_id'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(job_post_id_index, 1);
+
+        let overall_index: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_scores_overall'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(overall_index, 1);
+    }
+
+    #[test]
+    fn test_job_scores_foreign_key_constraint() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let fk_enabled: i32 = conn
+            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(fk_enabled, 1);
+
+        let result = conn.execute(
+            "INSERT INTO job_scores (job_post_id, skills_match_percentage) VALUES (?, ?)",
+            rusqlite::params![999999, 75.0],
+        );
+
+        assert!(result.is_err(), "Insert should fail with invalid foreign key");
+    }
+
+    #[test]
+    fn test_job_scores_unique_job_post_id() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Insert a job post first
+        conn.execute(
+            "INSERT INTO job_posts (raw_content) VALUES (?)",
+            rusqlite::params!["Test job"],
+        )
+        .unwrap();
+        let job_id: i64 = conn.last_insert_rowid();
+
+        // First insert should succeed
+        conn.execute(
+            "INSERT INTO job_scores (job_post_id, skills_match_percentage) VALUES (?, ?)",
+            rusqlite::params![job_id, 75.0],
+        )
+        .unwrap();
+
+        // Second insert with same job_post_id should fail (UNIQUE constraint)
+        let result = conn.execute(
+            "INSERT INTO job_scores (job_post_id, skills_match_percentage) VALUES (?, ?)",
+            rusqlite::params![job_id, 80.0],
+        );
+        assert!(result.is_err(), "Should fail with UNIQUE constraint violation");
+    }
+
+    // ====================
+    // Story 4b.9 Tests: Job Queue Indexes (V17)
+    // ====================
+
+    #[test]
+    fn test_job_queue_overall_score_index_exists() {
+        // Task 1.2: Verify overall_score index exists
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let index_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_posts_overall_score'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(index_exists, 1, "overall_score index should exist");
+    }
+
+    #[test]
+    fn test_job_queue_created_at_index_exists() {
+        // Task 1.3: Verify created_at index exists
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Note: This index already existed from V3 migration, V17 adds it with IF NOT EXISTS
+        let index_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_posts_created_at'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(index_exists, 1, "created_at index should exist");
+    }
+
+    #[test]
+    fn test_job_queue_client_name_index_exists() {
+        // Task 1.4: Verify client_name index exists
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let index_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_job_posts_client_name'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(index_exists, 1, "client_name index should exist");
+    }
+
+    #[test]
+    fn test_job_queue_indexes_used_in_queries() {
+        // Task 1.5: Verify EXPLAIN QUERY PLAN shows indexes are used
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Insert test job posts with scores
+        conn.execute(
+            "INSERT INTO job_posts (raw_content, client_name, overall_score) VALUES (?, ?, ?)",
+            rusqlite::params!["Job 1", "Client A", 85.5],
+        )
+        .unwrap();
+
+        conn.execute(
+            "INSERT INTO job_posts (raw_content, client_name, overall_score) VALUES (?, ?, ?)",
+            rusqlite::params!["Job 2", "Client B", 92.0],
+        )
+        .unwrap();
+
+        // Test 1: Overall score sort uses index
+        let mut stmt = conn
+            .prepare("EXPLAIN QUERY PLAN SELECT id, overall_score FROM job_posts ORDER BY overall_score DESC")
+            .unwrap();
+        let plan: String = stmt
+            .query_map([], |row| row.get::<_, String>(3))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        assert!(
+            plan.to_lowercase().contains("idx_job_posts_overall_score") || plan.to_lowercase().contains("index"),
+            "Query plan should use overall_score index: {}",
+            plan
+        );
+
+        // Test 2: Created_at sort uses index
+        let mut stmt = conn
+            .prepare("EXPLAIN QUERY PLAN SELECT id, created_at FROM job_posts ORDER BY created_at DESC")
+            .unwrap();
+        let plan: String = stmt
+            .query_map([], |row| row.get::<_, String>(3))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        assert!(
+            plan.to_lowercase().contains("idx_job_posts_created_at") || plan.to_lowercase().contains("index"),
+            "Query plan should use created_at index: {}",
+            plan
+        );
+
+        // Test 3: Client name sort uses index
+        let mut stmt = conn
+            .prepare("EXPLAIN QUERY PLAN SELECT id, client_name FROM job_posts ORDER BY client_name ASC")
+            .unwrap();
+        let plan: String = stmt
+            .query_map([], |row| row.get::<_, String>(3))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        assert!(
+            plan.to_lowercase().contains("idx_job_posts_client_name") || plan.to_lowercase().contains("index"),
+            "Query plan should use client_name index: {}",
+            plan
+        );
+    }
+
+    // Story 5.1: Hook Strategies Seed Data Tests
+
+    #[test]
+    fn test_hook_strategies_table_created() {
+        // AC-1: Verify hook_strategies table is created after migrations run
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let table_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='hook_strategies'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(table_exists, 1, "hook_strategies table should exist");
+    }
+
+    #[test]
+    fn test_hook_strategies_table_has_correct_columns() {
+        // AC-1: Verify hook_strategies table has all required columns
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Get column info using PRAGMA table_info
+        let mut stmt = conn.prepare("PRAGMA table_info(hook_strategies)").unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        // AC-1: Verify required columns exist
+        assert!(columns.contains(&"id".to_string()), "id column should exist");
+        assert!(columns.contains(&"name".to_string()), "name column should exist");
+        assert!(columns.contains(&"description".to_string()), "description column should exist");
+        assert!(columns.contains(&"examples_json".to_string()), "examples_json column should exist");
+        assert!(columns.contains(&"best_for".to_string()), "best_for column should exist");
+        assert!(columns.contains(&"created_at".to_string()), "created_at column should exist");
+    }
+
+    #[test]
+    fn test_hook_strategies_seeded_with_defaults() {
+        // AC-2: Verify 5 default hook strategies are seeded
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Count total strategies
+        let strategies_count: i32 = conn
+            .query_row("SELECT COUNT(*) FROM hook_strategies", [], |row| row.get(0))
+            .unwrap();
+
+        assert_eq!(strategies_count, 5, "Should have exactly 5 default hook strategies");
+
+        // AC-2: Verify each expected strategy exists
+        let expected_strategies = vec![
+            "Social Proof",
+            "Contrarian",
+            "Immediate Value",
+            "Problem-Aware",
+            "Question-Based"
+        ];
+
+        for strategy_name in expected_strategies {
+            let exists: i32 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM hook_strategies WHERE name = ?",
+                    [strategy_name],
+                    |row| row.get(0),
+                )
+                .unwrap();
+
+            assert_eq!(exists, 1, "Strategy '{}' should exist", strategy_name);
+        }
+    }
+
+    #[test]
+    fn test_hook_strategies_have_valid_json_examples() {
+        // AC-3: Verify each strategy has valid JSON examples with 2-3 elements
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Get all strategies
+        let mut stmt = conn
+            .prepare("SELECT name, examples_json FROM hook_strategies")
+            .unwrap();
+
+        let strategies: Vec<(String, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        assert_eq!(strategies.len(), 5, "Should have 5 strategies");
+
+        // Verify each strategy has valid JSON with 2-3 examples
+        for (name, examples_json) in strategies {
+            // Parse JSON
+            let examples: serde_json::Value = serde_json::from_str(&examples_json)
+                .unwrap_or_else(|_| panic!("Strategy '{}' should have valid JSON", name));
+
+            // Verify it's an array
+            assert!(
+                examples.is_array(),
+                "Strategy '{}' examples should be a JSON array",
+                name
+            );
+
+            let examples_array = examples.as_array().unwrap();
+
+            // AC-3: Verify 2-3 examples per strategy
+            assert!(
+                examples_array.len() >= 2 && examples_array.len() <= 3,
+                "Strategy '{}' should have 2-3 examples, got {}",
+                name,
+                examples_array.len()
+            );
+
+            // Verify each example is a non-empty string
+            for (idx, example) in examples_array.iter().enumerate() {
+                assert!(
+                    example.is_string() && !example.as_str().unwrap().is_empty(),
+                    "Strategy '{}' example {} should be a non-empty string",
+                    name,
+                    idx
+                );
+            }
+        }
+    }
 }

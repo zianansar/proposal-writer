@@ -1,0 +1,241 @@
+/* src/components/RevisionHistoryPanel.css */
+/* Revision history UI styles (Story 6.3) */
+
+.revision-history-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100vh;
+  background: var(--bg-secondary, #f9fafb);
+  border-left: 1px solid var(--border-color, #e5e7eb);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.revision-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.revision-history-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.revision-history-header .close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary, #6b7280);
+  /* L3: WCAG touch target minimum 44x44px */
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.revision-history-header .close-button:hover {
+  color: var(--text-primary, #111827);
+}
+
+.revision-warning {
+  background: var(--warning-bg, #fef3c7);
+  color: var(--warning-text, #92400e);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.revision-history-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.revision-list {
+  flex: 1;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.revision-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.revision-item:hover {
+  background: var(--bg-hover, #f3f4f6);
+}
+
+.revision-item.selected {
+  background: var(--bg-active, #e5e7eb);
+}
+
+.revision-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.revision-type {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0.25rem 0;
+}
+
+.revision-preview {
+  font-size: 0.75rem;
+  color: var(--text-muted, #9ca3af);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.revision-preview-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary, #f3f4f6);
+  font-size: 0.875rem;
+}
+
+.restore-button {
+  background: var(--primary-color, #3b82f6);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.restore-button:hover {
+  background: var(--primary-hover, #2563eb);
+}
+
+.preview-content {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  background: var(--bg-readonly, #fafafa);
+  font-family: inherit;
+  /* M4 fix: Content is HTML, not plain text - don't use pre-wrap */
+  line-height: 1.6;
+}
+
+/* Style HTML content in preview */
+.preview-content p {
+  margin: 0 0 1em 0;
+}
+
+.preview-content p:last-child {
+  margin-bottom: 0;
+}
+
+.preview-content ul,
+.preview-content ol {
+  margin: 0 0 1em 0;
+  padding-left: 1.5em;
+}
+
+/* M1: Empty state styling */
+.revision-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.875rem;
+}
+
+.loading,
+.error {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.error {
+  color: var(--error-text, #dc2626);
+}
+
+/* ============================================================================ */
+/* Archived Revisions Styles (Story 6-7: Archive Old Revisions) */
+/* ============================================================================ */
+
+.archived-section {
+  border-top: 2px solid var(--border-color, #e5e7eb);
+  margin-top: 0.5rem;
+}
+
+.archived-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary, #f3f4f6);
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  transition: background 0.15s;
+}
+
+.archived-header:hover {
+  background: var(--bg-hover, #e5e7eb);
+}
+
+.archive-icon {
+  font-size: 1rem;
+}
+
+.expand-icon {
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+
+.archived-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.revision-item.archived {
+  opacity: 0.8;
+  background: var(--bg-muted, #f9fafb);
+}
+
+.revision-item.archived:hover {
+  opacity: 1;
+}
+
+.archived-preview {
+  background: var(--bg-archived, #fef3c7);
+  border-left: 3px solid var(--color-archived, #f59e0b);
+}

@@ -1,27 +1,41 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import ProposalOutput from "./ProposalOutput";
+import { LiveAnnouncerProvider } from "./LiveAnnouncer";
 
 // Mock Tauri invoke for delete tests
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
+  invoke: vi.fn().mockImplementation((command: string) => {
+    // Story 8.6: Mock proposals edited counter
+    if (command === "increment_proposals_edited") {
+      return Promise.resolve(1);
+    }
+    return Promise.resolve(null);
+  }),
 }));
+
+// Test helper to wrap components with LiveAnnouncerProvider
+const renderWithLiveAnnouncer = (ui: React.ReactElement) => {
+  return render(<LiveAnnouncerProvider>{ui}</LiveAnnouncerProvider>);
+};
 
 describe("ProposalOutput", () => {
   it("renders nothing when no proposal, not loading, no error", () => {
-    const { container } = render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal={null} loading={false} error={null} />
     );
-    expect(container.firstChild).toBeNull();
+    // Should not render any content (LiveAnnouncer's status region is always present)
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
+    expect(screen.queryByText(/proposal/i)).not.toBeInTheDocument();
   });
 
   it("shows loading message when loading", () => {
-    render(<ProposalOutput proposal={null} loading={true} error={null} />);
+    renderWithLiveAnnouncer(<ProposalOutput proposal={null} loading={true} error={null} />);
     expect(screen.getByText(/generating your proposal/i)).toBeInTheDocument();
   });
 
   it("shows error message when error is present", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal={null} loading={false} error="API error occurred" />
     );
     expect(screen.getByText(/api error occurred/i)).toBeInTheDocument();
@@ -29,21 +43,21 @@ describe("ProposalOutput", () => {
 
   it("shows proposal text when proposal is present", () => {
     const proposalText = "This is a great proposal...";
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal={proposalText} loading={false} error={null} />
     );
     expect(screen.getByText(proposalText)).toBeInTheDocument();
   });
 
   it("shows label when proposal is present", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Some proposal" loading={false} error={null} />
     );
     expect(screen.getByText(/generated proposal/i)).toBeInTheDocument();
   });
 
   it("prioritizes loading state over error", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal={null} loading={true} error="Some error" />
     );
     expect(screen.getByText(/generating your proposal/i)).toBeInTheDocument();
@@ -51,7 +65,7 @@ describe("ProposalOutput", () => {
   });
 
   it("shows error with partial result preserved", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Some partial proposal" loading={false} error="Error!" />
     );
     // Both error and partial content should be visible
@@ -61,7 +75,7 @@ describe("ProposalOutput", () => {
   });
 
   it("shows streaming indicator when loading with content", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Streaming content" loading={true} error={null} />
     );
     expect(screen.getByText(/streaming content/i)).toBeInTheDocument();
@@ -70,35 +84,35 @@ describe("ProposalOutput", () => {
 
   // CopyButton integration tests
   it("shows copy button when proposal is complete", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Complete proposal" loading={false} error={null} />
     );
     expect(screen.getByRole("button", { name: /copy to clipboard/i })).toBeInTheDocument();
   });
 
   it("does not show copy button when loading without content", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal={null} loading={true} error={null} />
     );
     expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
   });
 
   it("does not show copy button while streaming", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Streaming content" loading={true} error={null} />
     );
     expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
   });
 
   it("shows copy button with partial result on error", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Partial content" loading={false} error="Error occurred" />
     );
     expect(screen.getByRole("button", { name: /copy to clipboard/i })).toBeInTheDocument();
   });
 
   it("does not show copy button when error with no partial result", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal={null} loading={false} error="Error occurred" />
     );
     expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
@@ -106,21 +120,21 @@ describe("ProposalOutput", () => {
 
   // Saved indicator tests
   it("shows saved indicator when isSaved is true", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Complete proposal" loading={false} error={null} isSaved={true} />
     );
     expect(screen.getByText("Saved")).toBeInTheDocument();
   });
 
   it("does not show saved indicator when isSaved is false", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Complete proposal" loading={false} error={null} isSaved={false} />
     );
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
   });
 
   it("does not show saved indicator by default", () => {
-    render(
+    renderWithLiveAnnouncer(
       <ProposalOutput proposal="Complete proposal" loading={false} error={null} />
     );
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
@@ -129,7 +143,7 @@ describe("ProposalOutput", () => {
   // Story 6.8: Delete button tests
   describe("Delete functionality", () => {
     it("shows delete button for saved proposals with proposalId", () => {
-      render(
+      renderWithLiveAnnouncer(
         <ProposalOutput
           proposal="Complete proposal"
           loading={false}
@@ -142,7 +156,7 @@ describe("ProposalOutput", () => {
     });
 
     it("does not show delete button when not saved", () => {
-      render(
+      renderWithLiveAnnouncer(
         <ProposalOutput
           proposal="Complete proposal"
           loading={false}
@@ -155,7 +169,7 @@ describe("ProposalOutput", () => {
     });
 
     it("does not show delete button without proposalId", () => {
-      render(
+      renderWithLiveAnnouncer(
         <ProposalOutput
           proposal="Complete proposal"
           loading={false}
@@ -167,7 +181,7 @@ describe("ProposalOutput", () => {
     });
 
     it("opens confirmation dialog when delete button clicked", () => {
-      render(
+      renderWithLiveAnnouncer(
         <ProposalOutput
           proposal="Complete proposal"
           loading={false}
@@ -185,7 +199,7 @@ describe("ProposalOutput", () => {
     });
 
     it("closes confirmation dialog when cancel clicked", () => {
-      render(
+      renderWithLiveAnnouncer(
         <ProposalOutput
           proposal="Complete proposal"
           loading={false}

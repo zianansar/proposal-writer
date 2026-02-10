@@ -114,7 +114,7 @@ impl ConfigState {
         Ok(config.api_key.clone())
     }
 
-    /// Set the API key (stores in keychain and removes from config).
+    /// Set the API key (stores in keychain, with config.json fallback for unsigned binaries).
     pub fn set_api_key(&self, api_key: String) -> Result<(), String> {
         // Validate format first (Story 2.6 code review fix)
         validate_api_key_format(&api_key)?;
@@ -123,14 +123,31 @@ impl ConfigState {
         keychain::store_api_key(&api_key)
             .map_err(|e| format!("Failed to store API key in keychain: {}", e))?;
 
-        // Remove from config.json (migration cleanup)
-        {
-            let mut config = self.config.lock().map_err(|e| format!("Config lock error: {}", e))?;
-            config.api_key = None;
-        }
-        self.save()?;
+        // Verify keychain retrieval works (may fail on unsigned Windows binaries)
+        let keychain_works = keychain::retrieve_api_key().is_ok();
 
-        tracing::info!("API key stored in keychain and removed from config.json");
+        if keychain_works {
+            // Keychain works - remove from config.json for security
+            {
+                let mut config = self.config.lock().map_err(|e| format!("Config lock error: {}", e))?;
+                config.api_key = None;
+            }
+            self.save()?;
+            tracing::info!("API key stored in keychain and removed from config.json");
+        } else {
+            // Keychain retrieval fails (unsigned binary) - keep in config.json as fallback
+            tracing::warn!(
+                "Keychain retrieval failed (unsigned binary limitation). \
+                Storing API key in config.json as fallback for development."
+            );
+            {
+                let mut config = self.config.lock().map_err(|e| format!("Config lock error: {}", e))?;
+                config.api_key = Some(api_key);
+            }
+            self.save()?;
+            tracing::info!("API key stored in config.json (dev fallback)");
+        }
+
         Ok(())
     }
 

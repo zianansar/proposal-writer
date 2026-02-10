@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { PreMigrationBackup } from './PreMigrationBackup';
 
 // Mock Tauri invoke
@@ -15,6 +16,15 @@ describe('PreMigrationBackup', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // H4 fix: Reset mock implementation to prevent state leakage between tests
+    mockInvoke.mockReset();
+  });
+
+  afterEach(async () => {
+    // H4 fix: Ensure cleanup between tests to avoid "multiple elements with same text" errors
+    cleanup();
+    // Allow any pending promises to settle
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
   it('renders loading state initially', () => {
@@ -63,10 +73,13 @@ describe('PreMigrationBackup', () => {
       />
     );
 
+    // H4 fix: Wait for loading to finish first, then check for success
     await waitFor(() => {
-      expect(screen.getByText(/Backup Created/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Creating backup/i)).not.toBeInTheDocument();
     });
 
+    // H4 fix: Use more specific selector - look for heading element
+    expect(screen.getByRole('heading', { name: /Backup Created/i })).toBeInTheDocument();
     expect(screen.getByText(/47 proposals saved to backup file/i)).toBeInTheDocument();
     expect(screen.getByText('47')).toBeInTheDocument(); // Proposal count
     expect(screen.getByText('12')).toBeInTheDocument(); // Settings count
@@ -93,9 +106,13 @@ describe('PreMigrationBackup', () => {
       />
     );
 
+    // H4 fix: Wait for loading to finish first
     await waitFor(() => {
-      expect(screen.getByText(/Backup Created/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Creating backup/i)).not.toBeInTheDocument();
     });
+
+    // H4 fix: Use more specific selector
+    expect(screen.getByRole('heading', { name: /Backup Created/i })).toBeInTheDocument();
 
     // File path should be truncated to ...backups/filename
     expect(screen.getByText(/...backups\/pre-encryption-backup-2026-02-05-14-30-00.json/i)).toBeInTheDocument();
@@ -123,6 +140,7 @@ describe('PreMigrationBackup', () => {
   });
 
   it('handles retry button click', async () => {
+    const user = userEvent.setup();
     mockInvoke
       .mockRejectedValueOnce(new Error('First attempt failed'))
       .mockResolvedValueOnce({
@@ -141,24 +159,26 @@ describe('PreMigrationBackup', () => {
       />
     );
 
-    // Wait for error state
+    // H4 fix: Wait for loading to finish, then check for error heading
     await waitFor(() => {
-      expect(screen.getByText(/Backup Failed/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Creating backup/i)).not.toBeInTheDocument();
     });
+    expect(screen.getByRole('heading', { name: /Backup Failed/i })).toBeInTheDocument();
 
-    // Click retry
-    const retryButton = screen.getByText(/Retry Backup/i);
-    retryButton.click();
+    // H4 fix: Use userEvent instead of direct .click() for proper async handling
+    const retryButton = screen.getByRole('button', { name: /Retry Backup/i });
+    await user.click(retryButton);
 
-    // Wait for success
+    // Wait for success - use heading selector
     await waitFor(() => {
-      expect(screen.getByText(/Backup Created/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Backup Created/i })).toBeInTheDocument();
     });
 
     expect(mockInvoke).toHaveBeenCalledTimes(2);
   });
 
   it('uses custom onRetry callback when provided', async () => {
+    const user = userEvent.setup();
     mockInvoke.mockRejectedValue(new Error('Backup failed'));
 
     render(
@@ -169,17 +189,21 @@ describe('PreMigrationBackup', () => {
       />
     );
 
+    // H4 fix: Wait for loading to finish, then check for error heading
     await waitFor(() => {
-      expect(screen.getByText(/Backup Failed/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Creating backup/i)).not.toBeInTheDocument();
     });
+    expect(screen.getByRole('heading', { name: /Backup Failed/i })).toBeInTheDocument();
 
-    const retryButton = screen.getByText(/Retry Backup/i);
-    retryButton.click();
+    // H4 fix: Use userEvent instead of direct .click()
+    const retryButton = screen.getByRole('button', { name: /Retry Backup/i });
+    await user.click(retryButton);
 
     expect(mockOnRetry).toHaveBeenCalledTimes(1);
   });
 
   it('handles cancel migration button', async () => {
+    const user = userEvent.setup();
     const errorMessage = 'Backup failed';
     mockInvoke.mockRejectedValue(new Error(errorMessage));
 
@@ -190,12 +214,15 @@ describe('PreMigrationBackup', () => {
       />
     );
 
+    // H4 fix: Wait for loading to finish, then check for error heading
     await waitFor(() => {
-      expect(screen.getByText(/Backup Failed/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Creating backup/i)).not.toBeInTheDocument();
     });
+    expect(screen.getByRole('heading', { name: /Backup Failed/i })).toBeInTheDocument();
 
-    const cancelButton = screen.getByText(/Cancel Migration/i);
-    cancelButton.click();
+    // H4 fix: Use userEvent instead of direct .click()
+    const cancelButton = screen.getByRole('button', { name: /Cancel Migration/i });
+    await user.click(cancelButton);
 
     // Cancel calls onBackupFailed with the error
     expect(mockOnBackupFailed).toHaveBeenCalledWith(errorMessage);
@@ -218,9 +245,11 @@ describe('PreMigrationBackup', () => {
       />
     );
 
+    // H4 fix: Wait for loading to finish, then check for error heading
     await waitFor(() => {
-      expect(screen.getByText(/Backup Failed/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Creating backup/i)).not.toBeInTheDocument();
     });
+    expect(screen.getByRole('heading', { name: /Backup Failed/i })).toBeInTheDocument();
 
     expect(screen.getByText(/Backup failed: Unknown error/i)).toBeInTheDocument();
     expect(mockOnBackupFailed).toHaveBeenCalledWith('Backup failed: Unknown error');

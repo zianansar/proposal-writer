@@ -1,0 +1,150 @@
+/* Scoring Breakdown Component Styles (Story 4b.6) */
+
+.scoring-breakdown {
+  background: #1e1e1e;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 8px;
+  animation: slideDown 200ms ease-in-out;
+}
+
+.scoring-breakdown__title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #e5e7eb;
+}
+
+.scoring-breakdown__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.scoring-breakdown__metric:last-of-type {
+  border-bottom: none;
+  margin-bottom: 12px;
+}
+
+.scoring-breakdown__metric-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.scoring-breakdown__icon {
+  font-size: 18px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.scoring-breakdown__metric-name {
+  color: #e5e7eb;
+  font-size: 14px;
+}
+
+.scoring-breakdown__label {
+  font-size: 13px;
+  font-weight: 400;
+  margin-left: auto;
+}
+
+.scoring-breakdown__label--green {
+  color: #22c55e;
+}
+
+.scoring-breakdown__label--yellow {
+  color: #f59e0b;
+}
+
+.scoring-breakdown__label--red {
+  color: #ef4444;
+}
+
+.scoring-breakdown__label--gray {
+  color: #6b7280;
+}
+
+.scoring-breakdown__metric-detail {
+  color: #9ca3af;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  padding-left: 28px;
+}
+
+.scoring-breakdown__skills-list {
+  margin: 4px 0 0 0;
+}
+
+.scoring-breakdown__skills-list strong {
+  color: #d1d5db;
+}
+
+.scoring-breakdown__recommendation {
+  padding-top: 12px;
+  border-top: 1px solid #374151;
+  color: #a3a3a3;
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.scoring-breakdown__recommendation-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Report Button (Story 4b.10) */
+.scoring-breakdown__report {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #2a2a2a;
+  display: flex;
+  justify-content: center;
+}
+
+.scoring-breakdown__report-button {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 150ms ease;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.scoring-breakdown__report-button:hover:not(:disabled) {
+  color: #aaa;
+}
+
+.scoring-breakdown__report-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scoring-breakdown__reported {
+  color: #888;
+  font-size: 13px;
+  font-style: italic;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

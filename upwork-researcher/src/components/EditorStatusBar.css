@@ -1,0 +1,68 @@
+/* ===========================================
+   EditorStatusBar Styles - Story 6.4
+   Character and word count status bar
+   =========================================== */
+
+:root {
+  --status-bar-bg: #2a2a2a;
+  --status-bar-border: #555;
+  --status-bar-text: #888;
+  --status-bar-count: #ccc;
+  --status-bar-separator: #555;
+  --status-bar-warning: #f59e0b;
+}
+
+.editor-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: var(--status-bar-bg);
+  border: 1px solid var(--status-bar-border);
+  border-top: 1px solid var(--status-bar-border);
+  border-radius: 0 0 6px 6px;
+  font-size: 0.875rem;
+  color: var(--status-bar-text);
+  min-height: 36px;
+}
+
+.status-counts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.count-item {
+  color: var(--status-bar-count);
+}
+
+.count-separator {
+  color: var(--status-bar-separator);
+}
+
+.status-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--status-bar-warning);
+  font-weight: 500;
+}
+
+.warning-icon {
+  font-size: 1rem;
+}
+
+/* ===========================================
+   Light Mode Overrides
+   =========================================== */
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --status-bar-bg: #f0f0f0;
+    --status-bar-border: #ccc;
+    --status-bar-text: #666;
+    --status-bar-count: #555;
+    --status-bar-separator: #ccc;
+    --status-bar-warning: #d97706;
+  }
+}

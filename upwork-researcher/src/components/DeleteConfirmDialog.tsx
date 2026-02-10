@@ -1,9 +1,12 @@
 import { useEffect, useRef } from "react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import "./DeleteConfirmDialog.css";
 
 interface DeleteConfirmDialogProps {
   onCancel: () => void;
   onConfirm: () => void;
+  /** Story 8.2: Element that triggered the modal (for focus return) */
+  triggerRef?: React.RefObject<HTMLElement>;
 }
 
 /**
@@ -22,8 +25,11 @@ interface DeleteConfirmDialogProps {
 function DeleteConfirmDialog({
   onCancel,
   onConfirm,
+  triggerRef,
 }: DeleteConfirmDialogProps) {
-  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  // Story 8.2: Focus trap for keyboard navigation
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, { triggerRef });
 
   // Keyboard accessibility: Escape to cancel
   useEffect(() => {
@@ -36,11 +42,6 @@ function DeleteConfirmDialog({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onCancel]);
-
-  // Focus cancel button on mount (safety)
-  useEffect(() => {
-    cancelButtonRef.current?.focus();
-  }, []);
 
   // Prevent body scroll while dialog is open
   useEffect(() => {
@@ -59,7 +60,7 @@ function DeleteConfirmDialog({
       aria-labelledby="delete-confirm-title"
       aria-describedby="delete-confirm-desc"
     >
-      <div className="delete-confirm">
+      <div ref={modalRef} className="delete-confirm">
         <h2 id="delete-confirm-title" className="delete-confirm__title">
           Delete Proposal
         </h2>
@@ -71,10 +72,8 @@ function DeleteConfirmDialog({
         </p>
         <div className="delete-confirm__actions">
           <button
-            ref={cancelButtonRef}
             className="delete-confirm__button button--secondary"
             onClick={onCancel}
-            autoFocus
           >
             Cancel
           </button>

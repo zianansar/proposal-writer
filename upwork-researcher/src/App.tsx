@@ -5,6 +5,7 @@ import AnalyzeButton from "./components/AnalyzeButton";
 import AnalysisProgress from "./components/AnalysisProgress"; // Story 4a.6
 import type { AnalysisStage } from "./components/AnalysisProgress"; // Story 4a.6
 import JobAnalysisPanel from "./components/JobAnalysisPanel"; // Story 4a.7
+import HookStrategySelector from "./components/HookStrategySelector"; // Story 5.2
 import GenerateButton from "./components/GenerateButton";
 import ProposalOutput from "./components/ProposalOutput";
 import Navigation from "./components/Navigation";
@@ -15,6 +16,8 @@ import DraftRecoveryModal from "./components/DraftRecoveryModal";
 import OnboardingWizard from "./components/OnboardingWizard";
 import SettingsPanel from "./components/SettingsPanel";
 import PassphraseEntry from "./components/PassphraseEntry";
+import SkipLink from "./components/SkipLink"; // Story 8.2
+import { LiveAnnouncerProvider, useAnnounce } from "./components/LiveAnnouncer"; // Story 8.3
 import { PreMigrationBackup } from "./components/PreMigrationBackup";
 import { DatabaseMigration } from "./components/DatabaseMigration";
 import { MigrationVerification } from "./components/MigrationVerification";
@@ -34,14 +37,19 @@ import { useGenerationStream } from "./hooks/useGenerationStream";
 import { useRehumanization } from "./hooks/useRehumanization";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSafeCopy } from "./hooks/useSafeCopy";
+import { useNetworkBlockedNotification } from "./hooks/useNetworkBlockedNotification"; // Story 8.13 Task 4.3
 import type { PerplexityAnalysis } from "./types/perplexity";
 import { DEFAULT_PERPLEXITY_THRESHOLD } from "./types/perplexity";
+import "./styles/tokens.css";
 import "./App.css";
 
 type View = "generate" | "history" | "settings";
 type MigrationPhase = "idle" | "recovery-options" | "backup" | "migration" | "verification" | "complete" | "failed";
 
-function App() {
+function AppContent() {
+  // Story 8.3 AC3: Live region announcements for status updates
+  const announce = useAnnounce();
+
   const [activeView, setActiveView] = useState<View>("generate");
   const [jobContent, setJobContent] = useState("");
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
@@ -75,6 +83,12 @@ function App() {
   // M3 fix (Review 3): Track when analysis failed so user knows safety check was skipped
   const [analysisSkipped, setAnalysisSkipped] = useState(false);
 
+  // Story 6.6 CR fix: Ref to get plain text from editor for keyboard shortcuts
+  const getPlainTextRef = useRef<(() => string) | null>(null);
+
+  // Story 8.13 Task 4.3: Network blocked notification
+  const networkBlockedToast = useNetworkBlockedNotification();
+
   // Streaming state from Zustand store
   const {
     isStreaming,
@@ -100,14 +114,25 @@ function App() {
   // Local error for input validation
   const [inputError, setInputError] = useState<string | null>(null);
 
-  // Job analysis state (Story 4a.2 + 4a.3 + 4a.4 + 4a.6 + 4a.9)
+  // Job analysis state (Story 4a.2 + 4a.3 + 4a.4 + 4a.6 + 4a.9 + 4b.6)
   const [analysisStage, setAnalysisStage] = useState<AnalysisStage>("idle"); // Story 4a.6
+  const [jobPostId, setJobPostId] = useState<number | null>(null); // Story 4b.6: For scoring breakdown
   const [clientName, setClientName] = useState<string | null>(null);
   const [keySkills, setKeySkills] = useState<string[]>([]); // Story 4a.3
   const [hiddenNeeds, setHiddenNeeds] = useState<Array<{ need: string; evidence: string }>>([]); // Story 4a.4
   const [hasAnalyzed, setHasAnalyzed] = useState(false); // Story 4a.3: AC-5 - track if analysis ran
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [wasTruncated, setWasTruncated] = useState(false); // Story 4a.9: AC-3 - input truncation warning
+
+  // Story 4b.2: Skills match percentage state
+  const [skillsMatchPercentage, setSkillsMatchPercentage] = useState<number | null>(null);
+  const [skillsMatchReason, setSkillsMatchReason] = useState<'no-user-skills' | 'no-job-skills' | null>(null);
+
+  // Story 4b.3: Client quality score state
+  const [clientQualityScore, setClientQualityScore] = useState<number | null>(null);
+
+  // Story 5.2: Hook strategy selection state (AC-4)
+  const [selectedStrategyId, setSelectedStrategyId] = useState<number | null>(null);
 
   // Story 4a.6: Timer refs for analysis progress stages
   const extractingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -143,6 +168,7 @@ function App() {
       setAnalysisError(null);
       setAnalysisStage("idle");
       setWasTruncated(false); // Story 4a.9: Clear truncation warning on new input
+      setClientQualityScore(null); // Story 4b.3: Clear client quality score on new input
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobContent]); // Only depend on jobContent, not analysis state vars
@@ -479,8 +505,29 @@ function App() {
       if (state.retryCount > 0) {
         state.reset();
       }
+
+      // Story 8.3 AC3: Announce successful generation
+      if (!isStreaming) {
+        announce('Proposal generated successfully');
+      }
     }
-  }, [fullText, streamError]);
+  }, [fullText, streamError, isStreaming, announce]);
+
+  // Story 8.3 AC3: Announce errors assertively
+  useEffect(() => {
+    if (streamError) {
+      announce(`Error: ${streamError}`, 'assertive');
+    }
+  }, [streamError, announce]);
+
+  // Story 8.3 AC7: Announce job analysis status updates
+  useEffect(() => {
+    if (analysisStage === 'complete') {
+      announce('Job analysis complete');
+    } else if (analysisStage === 'error' && analysisError) {
+      announce(`Analysis error: ${analysisError}`, 'assertive');
+    }
+  }, [analysisStage, analysisError, announce]);
 
   // Run perplexity analysis after generation completes (Stories 3.1 + 3.2 integration)
   useEffect(() => {
@@ -504,6 +551,7 @@ function App() {
       try {
         const analysis = await invoke<PerplexityAnalysis>("analyze_perplexity", {
           text: fullText,
+          threshold: DEFAULT_PERPLEXITY_THRESHOLD,
         });
 
         // Mark this text as analyzed so we don't re-run after modal dismissal
@@ -592,13 +640,16 @@ function App() {
       );
 
       const jobPostId = saveResult.id;
+      setJobPostId(jobPostId); // Story 4b.6: Store for scoring breakdown
 
       // Story 4a.8: Analyze with job_post_id for atomic save
+      // Story 4b.3: Extended to include clientQualityScore
       const result = await invoke<{
         clientName: string | null;
         keySkills: string[];
         hiddenNeeds: Array<{ need: string; evidence: string }>;
         wasTruncated: boolean; // Story 4a.9: AC-3 - truncation flag
+        clientQualityScore: number | null; // Story 4b.3: Client quality score
       }>(
         "analyze_job_post",
         {
@@ -618,6 +669,33 @@ function App() {
       setHiddenNeeds(result.hiddenNeeds || []); // Story 4a.4: Set extracted hidden needs
       setHasAnalyzed(true); // Story 4a.3: AC-5 - mark analysis complete for "No skills detected" display
       setWasTruncated(result.wasTruncated || false); // Story 4a.9: AC-3 - Set truncation flag
+      setClientQualityScore(result.clientQualityScore ?? null); // Story 4b.3: Set client quality score
+
+      // Story 4b.2: Calculate skills match after analysis completes
+      try {
+        const matchResult = await invoke<number | null>(
+          "calculate_and_store_skills_match",
+          { jobPostId: jobPostId }
+        );
+        setSkillsMatchPercentage(matchResult);
+        // Determine reason for null: check if user has skills configured
+        if (matchResult === null) {
+          const userSkills = await invoke<Array<{ id: number; skill: string }>>("get_user_skills");
+          if (userSkills.length === 0) {
+            setSkillsMatchReason('no-user-skills');
+          } else if ((result.keySkills || []).length === 0) {
+            setSkillsMatchReason('no-job-skills');
+          } else {
+            setSkillsMatchReason(null);
+          }
+        } else {
+          setSkillsMatchReason(null);
+        }
+      } catch {
+        // Skills match is non-critical; don't block analysis display
+        setSkillsMatchPercentage(null);
+        setSkillsMatchReason(null);
+      }
 
       // Story 4a.6 AC-2: Stage 3 - "Complete ✓"
       setAnalysisStage("complete");
@@ -668,13 +746,18 @@ function App() {
     setAnalysisSkipped(false);
     resetAttempts();
 
+    // Story 8.3 AC3: Announce generation start
+    announce('Generating proposal...');
+
     try {
       // Ensure event listeners are registered before invoking
       await ensureListenersReady();
 
       // Use streaming command - tokens will arrive via events
+      // Story 5.2: Pass selected strategy ID to backend (AC-4, Subtask 5.5)
       await invoke<string>("generate_proposal_streaming", {
         jobContent: jobContent,
+        strategyId: selectedStrategyId,
       });
     } catch (err) {
       // Error will be set via event, but catch invoke errors too
@@ -760,8 +843,10 @@ function App() {
   useKeyboardShortcuts({
     onGenerate: handleGenerate,
     onCopy: () => {
-      if (fullText) {
-        safeCopyActions.triggerCopy(fullText);
+      // Story 6.6 CR fix: Use plain text from editor ref if available, otherwise use fullText
+      const contentToCopy = getPlainTextRef.current ? getPlainTextRef.current() : fullText;
+      if (contentToCopy) {
+        safeCopyActions.triggerCopy(contentToCopy);
       }
     },
     canGenerate,
@@ -775,7 +860,7 @@ function App() {
   const displayText = isStreaming ? streamedText : (fullText || streamedText);
 
   // Story 4a.7: Derived state for panel visibility
-  const hasAnalysisResults = clientName !== null || keySkills.length > 0 || hiddenNeeds.length > 0;
+  const hasAnalysisResults = clientName !== null || keySkills.length > 0 || hiddenNeeds.length > 0 || clientQualityScore !== null;
 
   // Show loading while checking API key
   if (checkingApiKey) {
@@ -864,24 +949,69 @@ function App() {
   }
 
   return (
-    <main className="container">
-      <div className="app-header">
-        <h1>Upwork Research Agent</h1>
-        {encryptionStatus && encryptionStatus.databaseEncrypted && (
-          <EncryptionStatusIndicator
-            status={encryptionStatus}
-            onOpenDetails={handleOpenEncryptionDetails}
-          />
-        )}
-      </div>
-      <Navigation activeView={activeView} onViewChange={setActiveView} />
+    <>
+      {/* Story 8.2: Skip link for keyboard navigation */}
+      <SkipLink />
+      {/* Story 8.13 Task 4.3: Network blocked notification toast */}
+      {networkBlockedToast && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            zIndex: 9999,
+            maxWidth: '400px',
+            fontSize: '14px',
+            lineHeight: '1.5',
+          }}
+        >
+          <strong>⚠️ Blocked Network Request</strong>
+          <div style={{ marginTop: '8px' }}>
+            Unauthorized domain: <code style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '4px' }}>{networkBlockedToast.domain}</code>
+          </div>
+          <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.9 }}>
+            Only requests to api.anthropic.com are allowed for security.
+          </div>
+        </div>
+      )}
+      <div className="container">
+        {/* Story 8.3: Semantic header landmark (AC5) */}
+        <header role="banner">
+          <h1>Upwork Research Agent</h1>
+          {encryptionStatus && encryptionStatus.databaseEncrypted && (
+            <EncryptionStatusIndicator
+              status={encryptionStatus}
+              onOpenDetails={handleOpenEncryptionDetails}
+            />
+          )}
+        </header>
+        <Navigation activeView={activeView} onViewChange={setActiveView} />
 
-      {activeView === "generate" && (
+        {/* Story 8.3: Semantic main landmark (AC5) */}
+        <main role="main" id="main-content">
+
+      {/* Story 8.3: Tabpanel for generate view */}
+      <div
+        id="generate-panel"
+        role="tabpanel"
+        aria-labelledby="generate-tab"
+        hidden={activeView !== "generate"}
+      >
+        {activeView === "generate" && (
         <>
+          <h2 className="sr-only">Generate Proposal</h2>
           <JobInput
             onJobContentChange={setJobContent}
             onInputTypeChange={handleInputTypeChange}
             value={jobContent}
+            error={inputError}
           />
           <AnalyzeButton
             onClick={handleAnalyze}
@@ -913,13 +1043,23 @@ function App() {
           )}
           {/* Story 4a.7: Unified job analysis panel */}
           <JobAnalysisPanel
+            jobPostId={jobPostId}
             clientName={clientName}
             keySkills={keySkills}
             hiddenNeeds={hiddenNeeds}
             onGenerateClick={handleGenerate}
             visible={hasAnalysisResults}
             isGenerating={isStreaming}
+            skillsMatchPercentage={skillsMatchPercentage}
+            skillsMatchReason={skillsMatchReason}
+            clientQualityScore={clientQualityScore}
           />
+          {/* Story 5.2: Hook Strategy Selection UI (AC-1, AC-4) */}
+          {hasAnalysisResults && (
+            <HookStrategySelector
+              onSelectionChange={setSelectedStrategyId}
+            />
+          )}
           <GenerateButton
             onClick={handleGenerate}
             disabled={!jobContent.trim()}
@@ -934,6 +1074,7 @@ function App() {
             proposalId={savedId}
             onRetry={handleRetry}
             onSaveForLater={handleSaveForLater}
+            getPlainTextRef={getPlainTextRef}
             retryCount={retryCount}
             enableEditor={true}
           />
@@ -963,11 +1104,28 @@ function App() {
             </div>
           )}
         </>
-      )}
+        )}
+      </div>
 
-      {activeView === "history" && <HistoryList />}
+      {/* Story 8.3: Tabpanel for history view */}
+      <div
+        id="history-panel"
+        role="tabpanel"
+        aria-labelledby="history-tab"
+        hidden={activeView !== "history"}
+      >
+        <h2 className="sr-only">Proposal History</h2>
+        {activeView === "history" && <HistoryList />}
+      </div>
 
-      {activeView === "settings" && (
+      {/* Story 8.3: Tabpanel for settings view */}
+      <div
+        id="settings-panel"
+        role="tabpanel"
+        aria-labelledby="settings-tab"
+        hidden={activeView !== "settings"}
+      >
+        {activeView === "settings" && (
         <>
           <SettingsPanel />
           <ApiKeySetup
@@ -982,7 +1140,8 @@ function App() {
             <ExportButton />
           </div>
         </>
-      )}
+        )}
+      </div>
 
       {/* Draft Recovery Modal (Story 1.14) */}
       {draftRecovery && <DraftRecoveryModal onContinue={handleContinueDraft} />}
@@ -1066,7 +1225,18 @@ function App() {
           }}
         />
       )}
-    </main>
+        </main>
+      </div>
+    </>
+  );
+}
+
+// Main App wrapper with LiveAnnouncerProvider
+function App() {
+  return (
+    <LiveAnnouncerProvider>
+      <AppContent />
+    </LiveAnnouncerProvider>
   );
 }
 

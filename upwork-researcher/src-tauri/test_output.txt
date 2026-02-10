@@ -1,0 +1,10 @@
+    Blocking waiting for file lock on build directory
+   Compiling upwork-research-agent v0.1.0 (E:\AntiGravity Projects\Upwork Researcher\upwork-researcher\src-tauri)
+error[E0425]: cannot find function `default_budget_type` in this scope
+  --> src\analysis.rs:51:23
+   |
+51 |     #[serde(default = "default_budget_type")]
+   |                       ^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `upwork-research-agent` (lib test) due to 1 previous error

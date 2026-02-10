@@ -16,22 +16,25 @@ describe("useGenerationStream", () => {
   it("sets up event listeners on mount", () => {
     renderHook(() => useGenerationStream());
 
-    // Should listen to all three events
-    expect(mockListen).toHaveBeenCalledTimes(3);
+    // Should listen to all four events (Story 8.4: added generation:stage)
+    expect(mockListen).toHaveBeenCalledTimes(4);
     expect(mockListen).toHaveBeenCalledWith("generation:token", expect.any(Function));
     expect(mockListen).toHaveBeenCalledWith("generation:complete", expect.any(Function));
     expect(mockListen).toHaveBeenCalledWith("generation:error", expect.any(Function));
+    expect(mockListen).toHaveBeenCalledWith("generation:stage", expect.any(Function));
   });
 
   it("calls unlisten functions on unmount", async () => {
     const mockUnlisten1 = vi.fn();
     const mockUnlisten2 = vi.fn();
     const mockUnlisten3 = vi.fn();
+    const mockUnlisten4 = vi.fn();
 
     mockListen
       .mockResolvedValueOnce(mockUnlisten1)
       .mockResolvedValueOnce(mockUnlisten2)
-      .mockResolvedValueOnce(mockUnlisten3);
+      .mockResolvedValueOnce(mockUnlisten3)
+      .mockResolvedValueOnce(mockUnlisten4);
 
     const { unmount } = renderHook(() => useGenerationStream());
 
@@ -45,6 +48,7 @@ describe("useGenerationStream", () => {
     expect(mockUnlisten1).toHaveBeenCalled();
     expect(mockUnlisten2).toHaveBeenCalled();
     expect(mockUnlisten3).toHaveBeenCalled();
+    expect(mockUnlisten4).toHaveBeenCalled();
   });
 
   it("appends tokens when token event is received", async () => {
@@ -129,5 +133,111 @@ describe("useGenerationStream", () => {
     await act(async () => {
       await result.current.ensureListenersReady();
     });
+  });
+
+  // Story 8.4: Stage event listener tests
+  it("updates stage when stage event is received", async () => {
+    let stageCallback: (event: {
+      payload: { stageId: string; status: string; error?: string };
+    }) => void;
+
+    mockListen.mockImplementation((eventName, callback) => {
+      if (eventName === "generation:stage") {
+        stageCallback = callback as typeof stageCallback;
+      }
+      return Promise.resolve(() => {});
+    });
+
+    renderHook(() => useGenerationStream());
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Simulate receiving stage event
+    act(() => {
+      stageCallback({
+        payload: { stageId: "preparing", status: "active" },
+      });
+    });
+
+    const state = useGenerationStore.getState();
+    expect(state.currentStage).toBe("preparing");
+    expect(state.stageHistory).toHaveLength(1);
+    expect(state.stageHistory[0].id).toBe("preparing");
+    expect(state.stageHistory[0].status).toBe("active");
+  });
+
+  it("handles stage error status", async () => {
+    let stageCallback: (event: {
+      payload: { stageId: string; status: string; error?: string };
+    }) => void;
+
+    mockListen.mockImplementation((eventName, callback) => {
+      if (eventName === "generation:stage") {
+        stageCallback = callback as typeof stageCallback;
+      }
+      return Promise.resolve(() => {});
+    });
+
+    renderHook(() => useGenerationStream());
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Simulate receiving stage error event
+    act(() => {
+      stageCallback({
+        payload: {
+          stageId: "generating",
+          status: "error",
+          error: "API timeout",
+        },
+      });
+    });
+
+    const state = useGenerationStore.getState();
+    expect(state.currentStage).toBeNull();
+    expect(state.stageHistory[0].status).toBe("error");
+    expect(state.stageHistory[0].error).toBe("API timeout");
+  });
+
+  it("tracks multiple stage transitions", async () => {
+    let stageCallback: (event: {
+      payload: { stageId: string; status: string; error?: string };
+    }) => void;
+
+    mockListen.mockImplementation((eventName, callback) => {
+      if (eventName === "generation:stage") {
+        stageCallback = callback as typeof stageCallback;
+      }
+      return Promise.resolve(() => {});
+    });
+
+    renderHook(() => useGenerationStream());
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Simulate stage progression
+    act(() => {
+      stageCallback({
+        payload: { stageId: "preparing", status: "active" },
+      });
+    });
+
+    act(() => {
+      stageCallback({
+        payload: { stageId: "generating", status: "active" },
+      });
+    });
+
+    const state = useGenerationStore.getState();
+    expect(state.currentStage).toBe("generating");
+    expect(state.stageHistory).toHaveLength(2);
+    expect(state.stageHistory[0].status).toBe("complete");
+    expect(state.stageHistory[1].status).toBe("active");
   });
 });

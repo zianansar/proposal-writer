@@ -1,0 +1,14 @@
+We are seeking a highly skilled software engineer to develop a cutting-edge AI application.
+
+Required Skills:
+- Python, TensorFlow, PyTorch
+- Natural language processing
+- Machine learning model deployment
+- Cloud infrastructure (AWS/GCP)
+
+This is an exciting opportunity to work on innovative technology that will revolutionize the industry. We need someone who can hit the ground running and deliver exceptional results.
+
+Budget: $80-120/hr
+Timeline: 3-6 months
+
+If you are passionate about AI and have a proven track record of delivering high-quality solutions, we want to hear from you!

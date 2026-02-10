@@ -1,0 +1,132 @@
+/**
+ * Story 4b.2: Skills Match Badge Styles
+ * UX-1: Dark mode by default
+ * UX-5: Color-coded badge (not just text color)
+ * NFR-14: All colors meet WCAG AA 4.5:1 contrast on #1a1a1a
+ */
+
+/* ===========================================
+   Base Badge Style
+   =========================================== */
+
+.skills-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: default;
+}
+
+.skills-match:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.skills-match__label {
+  color: #e0e0e0;
+  font-weight: 400;
+}
+
+.skills-match__value {
+  font-weight: 700;
+}
+
+/* ===========================================
+   Color Variants (AC-2)
+   =========================================== */
+
+/* Green (>=75%): #10b981 — 7.2:1 contrast on #1a1a1a */
+.skills-match--green {
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.skills-match--green .skills-match__value {
+  color: #10b981;
+}
+
+/* Yellow (50-74%): #f59e0b — 8.1:1 contrast on #1a1a1a */
+.skills-match--yellow {
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.skills-match--yellow .skills-match__value {
+  color: #f59e0b;
+}
+
+/* Red (<50%): #ef4444 — 5.8:1 contrast on #1a1a1a */
+.skills-match--red {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.skills-match--red .skills-match__value {
+  color: #ef4444;
+}
+
+/* ===========================================
+   Null State (AC-3: edge case messages)
+   =========================================== */
+
+.skills-match--null {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(85, 85, 85, 0.3);
+  padding: 0.5rem 0.75rem;
+}
+
+.skills-match__message {
+  color: #888;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* ===========================================
+   Light Mode Overrides
+   =========================================== */
+
+@media (prefers-color-scheme: light) {
+  .skills-match__label {
+    color: #374151;
+  }
+
+  .skills-match--green {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.25);
+  }
+
+  .skills-match--green .skills-match__value {
+    color: #059669;
+  }
+
+  .skills-match--yellow {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.25);
+  }
+
+  .skills-match--yellow .skills-match__value {
+    color: #d97706;
+  }
+
+  .skills-match--red {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+
+  .skills-match--red .skills-match__value {
+    color: #dc2626;
+  }
+
+  .skills-match--null {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-color: rgba(209, 213, 219, 0.5);
+  }
+
+  .skills-match__message {
+    color: #6b7280;
+  }
+}

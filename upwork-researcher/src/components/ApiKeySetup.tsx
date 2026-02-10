@@ -106,17 +106,20 @@ function ApiKeySetup({ onComplete, existingKey }: ApiKeySetupProps) {
             autoComplete="off"
             spellCheck={false}
             disabled={saving}
+            aria-required="true"
+            aria-invalid={!!validationError}
+            aria-describedby={validationError ? "api-key-error api-key-hint" : "api-key-hint"}
           />
           {validationError && (
-            <span className="api-key-setup__validation-error">
+            <span id="api-key-error" className="api-key-setup__validation-error" role="alert">
               {validationError}
             </span>
           )}
         </div>
 
-        {error && <p className="api-key-setup__error">{error}</p>}
+        {error && <p className="api-key-setup__error" role="alert">{error}</p>}
 
-        <div className="api-key-setup__warning">
+        <div id="api-key-hint" className="api-key-setup__warning">
           <strong>Note:</strong> Your API key will be stored locally on your
           computer. Encrypted storage will be added in a future update.
         </div>

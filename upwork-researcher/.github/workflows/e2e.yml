@@ -1,0 +1,117 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'upwork-researcher/package-lock.json'
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || 'x86_64-pc-windows-msvc' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './upwork-researcher/src-tauri -> target'
+
+      - name: Install Tauri dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install pkg-config
+
+      - name: Install Tauri dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Windows WebView2 is pre-installed on windows-latest runners
+          echo "WebView2 dependencies should be available"
+
+      - name: Install Node dependencies
+        working-directory: ./upwork-researcher
+        run: npm ci
+
+      - name: Build Tauri app (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: ./upwork-researcher
+        run: npm run tauri build
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: Build Tauri app (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: ./upwork-researcher
+        run: npm run tauri build
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: Install Playwright browsers
+        working-directory: ./upwork-researcher
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        working-directory: ./upwork-researcher
+        run: npm run test:e2e
+        env:
+          TEST_API_KEY: ${{ secrets.TEST_API_KEY }}
+          CI: true
+        timeout-minutes: 30
+
+      - name: Upload test results (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results-${{ matrix.os }}
+          path: |
+            upwork-researcher/playwright-report/
+            upwork-researcher/test-results/
+          retention-days: 7
+
+      - name: Upload screenshots (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots-${{ matrix.os }}
+          path: upwork-researcher/tests/e2e/screenshots/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload videos (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-videos-${{ matrix.os }}
+          path: upwork-researcher/tests/e2e/videos/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload trace files (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-traces-${{ matrix.os }}
+          path: upwork-researcher/test-results/**/trace.zip
+          retention-days: 7
+          if-no-files-found: ignore

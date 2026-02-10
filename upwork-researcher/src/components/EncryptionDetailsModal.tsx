@@ -1,23 +1,28 @@
 import { useEffect, useRef, useCallback } from "react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import type { EncryptionStatus } from "./EncryptionStatusIndicator";
 import "./EncryptionDetailsModal.css";
 
 interface EncryptionDetailsModalProps {
   status: EncryptionStatus;
   onClose: () => void;
+  /** Story 8.2: Element that triggered the modal (for focus return) */
+  triggerRef?: React.RefObject<HTMLElement>;
 }
 
 function EncryptionDetailsModal({
   status,
   onClose,
+  triggerRef,
 }: EncryptionDetailsModalProps) {
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Focus close button on mount + body scroll lock
+  // Story 8.2: Focus trap for keyboard navigation
+  useFocusTrap(modalRef, { triggerRef });
+
+  // Body scroll lock
   useEffect(() => {
-    closeButtonRef.current?.focus();
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -25,30 +30,11 @@ function EncryptionDetailsModal({
     };
   }, []);
 
-  // ESC to close + focus trap (Tab/Shift+Tab cycling)
+  // ESC to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
-        return;
-      }
-
-      if (e.key === "Tab" && modalRef.current) {
-        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
       }
     };
 
@@ -111,7 +97,6 @@ function EncryptionDetailsModal({
 
         <div className="encryption-modal__actions">
           <button
-            ref={closeButtonRef}
             className="encryption-modal__close"
             onClick={onClose}
             aria-label="Close encryption details"

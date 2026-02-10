@@ -94,13 +94,16 @@ describe("OverrideConfirmDialog", () => {
   });
 
   // Story 3.6, Task 5.6: Cancel button has focus on mount (safety)
-  it("has Cancel button focused on mount (safety default)", () => {
+  it("has Cancel button focused on mount (safety default)", async () => {
     render(
       <OverrideConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
     );
 
     const cancelButton = screen.getByRole("button", { name: /Cancel/i });
-    // React's autoFocus prop causes the button to receive focus on mount
+
+    // Story 8.2: useFocusTrap uses requestAnimationFrame for focus
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+
     expect(cancelButton).toHaveFocus();
   });
 

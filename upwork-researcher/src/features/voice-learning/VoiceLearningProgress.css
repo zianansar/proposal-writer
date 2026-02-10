@@ -1,0 +1,83 @@
+/* Story 8.6: Voice Learning Progress styles */
+
+.voice-learning-progress {
+  margin-top: 24px;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.progress-header {
+  margin-bottom: 12px;
+}
+
+.progress-label {
+  color: var(--color-text, #fafafa);
+  font-size: 14px;
+  font-weight: 500;
+  display: block;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background-color: var(--color-surface-elevated, #252525);
+  border: 1px solid var(--color-border, #333);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar .progress-indicator {
+  height: 100%;
+  background-color: var(--color-accent, #f97316);
+  transition: width 0.3s ease-in-out;
+  border-radius: 6px 0 0 6px;
+}
+
+.progress-bar .progress-indicator:has(~ *) {
+  border-radius: 6px;
+}
+
+.progress-markers {
+  position: relative;
+  height: 24px;
+  margin-top: 8px;
+}
+
+.progress-marker {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.progress-marker::before {
+  content: '';
+  width: 2px;
+  height: 8px;
+  background-color: var(--color-border, #333);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.progress-marker--reached::before {
+  background-color: var(--color-accent, #f97316);
+}
+
+.marker-label {
+  color: var(--color-text-muted, #a3a3a3);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.progress-marker--reached .marker-label {
+  color: var(--color-accent, #f97316);
+  font-weight: 600;
+}
+
+/* Accessibility: Ensure screen readers can announce progress updates */
+[aria-live="polite"] {
+  /* Ensure proper announcement of progress changes */
+}

@@ -1,0 +1,17 @@
+Hello,
+
+Your dashboard project looks interesting. Here's why I'd be a good fit:
+
+Technical Background:
+- 6 years React/TypeScript
+- Built 12+ dashboards with real-time data
+- Experience with D3, Recharts, Victory
+
+Recent example: I delivered a financial analytics dashboard for a crypto exchange that handles 50k+ data points with sub-100ms render times.
+
+I prefer a test-driven approach and can provide architectural documentation as we build. Rate is $65/hr, negotiable for long-term engagement.
+
+Available to start Monday. Let me know if you'd like to see my portfolio or discuss the technical stack.
+
+Thanks,
+Jordan

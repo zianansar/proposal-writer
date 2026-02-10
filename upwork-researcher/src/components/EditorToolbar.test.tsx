@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import EditorToolbar from "./EditorToolbar";
 
@@ -188,6 +188,164 @@ describe("EditorToolbar", () => {
     // Dividers should be hidden from screen readers
     dividers.forEach((divider) => {
       expect(divider).toHaveAttribute("aria-hidden", "true");
+    });
+  });
+
+  // Story 6.5: Platform-aware keyboard shortcuts in tooltips
+  describe("keyboard shortcut tooltips", () => {
+    it("shows Bold tooltip with Mac shortcut on macOS", async () => {
+      vi.stubGlobal("navigator", {
+        platform: "MacIntel",
+      });
+
+      const { editor } = createMockEditor();
+      // @ts-expect-error - simplified mock
+      render(<EditorToolbar editor={editor} />);
+
+      const boldButton = screen.getByLabelText("Bold");
+      const wrapper = boldButton.parentElement!;
+      fireEvent.mouseEnter(wrapper);
+
+      await waitFor(
+        () => {
+          expect(screen.getByRole("tooltip")).toHaveTextContent("Bold (⌘B)");
+        },
+        { timeout: 500 }
+      );
+    });
+
+    it("shows Bold tooltip with Windows shortcut on Windows", async () => {
+      vi.stubGlobal("navigator", {
+        platform: "Win32",
+      });
+
+      const { editor } = createMockEditor();
+      // @ts-expect-error - simplified mock
+      render(<EditorToolbar editor={editor} />);
+
+      const boldButton = screen.getByLabelText("Bold");
+      const wrapper = boldButton.parentElement!;
+      fireEvent.mouseEnter(wrapper);
+
+      await waitFor(
+        () => {
+          expect(screen.getByRole("tooltip")).toHaveTextContent(
+            "Bold (Ctrl+B)"
+          );
+        },
+        { timeout: 500 }
+      );
+    });
+
+    it("shows Italic tooltip with platform-aware shortcut", async () => {
+      vi.stubGlobal("navigator", {
+        platform: "MacIntel",
+      });
+
+      const { editor } = createMockEditor();
+      // @ts-expect-error - simplified mock
+      render(<EditorToolbar editor={editor} />);
+
+      const italicButton = screen.getByLabelText("Italic");
+      const wrapper = italicButton.parentElement!;
+      fireEvent.mouseEnter(wrapper);
+
+      await waitFor(
+        () => {
+          expect(screen.getByRole("tooltip")).toHaveTextContent("Italic (⌘I)");
+        },
+        { timeout: 500 }
+      );
+    });
+
+    it("shows Undo tooltip with platform-aware shortcut", async () => {
+      vi.stubGlobal("navigator", {
+        platform: "Win32",
+      });
+
+      const { editor } = createMockEditor();
+      // @ts-expect-error - simplified mock
+      render(<EditorToolbar editor={editor} />);
+
+      const undoButton = screen.getByLabelText("Undo");
+      const wrapper = undoButton.parentElement!;
+      fireEvent.mouseEnter(wrapper);
+
+      await waitFor(
+        () => {
+          expect(screen.getByRole("tooltip")).toHaveTextContent(
+            "Undo (Ctrl+Z)"
+          );
+        },
+        { timeout: 500 }
+      );
+    });
+
+    it("shows Redo tooltip with shift modifier on Mac", async () => {
+      vi.stubGlobal("navigator", {
+        platform: "MacIntel",
+      });
+
+      const { editor } = createMockEditor();
+      // @ts-expect-error - simplified mock
+      render(<EditorToolbar editor={editor} />);
+
+      const redoButton = screen.getByLabelText("Redo");
+      const wrapper = redoButton.parentElement!;
+      fireEvent.mouseEnter(wrapper);
+
+      await waitFor(
+        () => {
+          expect(screen.getByRole("tooltip")).toHaveTextContent("Redo (⇧⌘Z)");
+        },
+        { timeout: 500 }
+      );
+    });
+
+    it("shows Redo tooltip with shift modifier on Windows", async () => {
+      vi.stubGlobal("navigator", {
+        platform: "Win32",
+      });
+
+      const { editor } = createMockEditor();
+      // @ts-expect-error - simplified mock
+      render(<EditorToolbar editor={editor} />);
+
+      const redoButton = screen.getByLabelText("Redo");
+      const wrapper = redoButton.parentElement!;
+      fireEvent.mouseEnter(wrapper);
+
+      await waitFor(
+        () => {
+          expect(screen.getByRole("tooltip")).toHaveTextContent(
+            "Redo (Ctrl+Shift+Z)"
+          );
+        },
+        { timeout: 500 }
+      );
+    });
+
+    it("tooltips are accessible via keyboard focus", async () => {
+      vi.stubGlobal("navigator", {
+        platform: "MacIntel",
+      });
+
+      const { editor } = createMockEditor();
+      // @ts-expect-error - simplified mock
+      render(<EditorToolbar editor={editor} />);
+
+      const boldButton = screen.getByLabelText("Bold");
+      const wrapper = boldButton.parentElement!;
+
+      // Focus should trigger tooltip
+      fireEvent.focus(wrapper);
+
+      await waitFor(
+        () => {
+          expect(screen.getByRole("tooltip")).toBeInTheDocument();
+        },
+        { timeout: 500 }
+      );
     });
   });
 });

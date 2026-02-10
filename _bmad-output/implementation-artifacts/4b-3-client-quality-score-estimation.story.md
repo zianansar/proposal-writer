@@ -1,8 +1,8 @@
 ---
-status: ready-for-dev
-assignedTo: null
-tasksCompleted: 0/5
-testsWritten: 0
+status: done
+assignedTo: dev
+tasksCompleted: 5/5
+testsWritten: 41
 dependencies:
   - 4a-2-client-name-extraction  # Extends the same analysis pipeline
   - 4b-2-skills-match-percentage-calculation  # Uses job_scores table
@@ -44,58 +44,66 @@ So that I can avoid problematic clients.
 
 ### Backend Implementation (Rust + Prompt Engineering)
 
-- [ ] Task 1: Extend job analysis to include client quality estimation (AC: #1)
-  - [ ] Subtask 1.1: Decide integration approach:
+- [x] Task 1: Extend job analysis to include client quality estimation (AC: #1)
+  - [x] Subtask 1.1: Decide integration approach:
     - Option A: Extend existing `analyze_job_post` in `analysis.rs` to include client_quality_score in response (RECOMMENDED — single API call, lower latency/cost)
     - Option B: Create separate `estimate_client_quality(job_post_text: String)` function (separate call, more flexible)
-  - [ ] Subtask 1.2: If Option A, extend JobAnalysis struct: `pub struct JobAnalysis { client_name: Option<String>, key_skills: Vec<String>, client_quality_score: Option<i32> }`
-  - [ ] Subtask 1.3: Design prompt to include client quality scoring instructions (see Dev Notes for prompt template)
-  - [ ] Subtask 1.4: Update system prompt with few-shot examples for client quality inference
-  - [ ] Subtask 1.5: Parse client_quality_score from JSON response: `{ "client_name": "...", "key_skills": [...], "client_quality_score": 85 }`
-  - [ ] Subtask 1.6: Apply hard rule: if "0 hires" detected in job post, override score to 45
-  - [ ] Subtask 1.7: Apply default: if LLM returns null or no score, default to 65
+  - [x] Subtask 1.2: If Option A, extend JobAnalysis struct: `pub struct JobAnalysis { client_name: Option<String>, key_skills: Vec<String>, client_quality_score: Option<i32> }`
+  - [x] Subtask 1.3: Design prompt to include client quality scoring instructions (see Dev Notes for prompt template)
+  - [x] Subtask 1.4: Update system prompt with few-shot examples for client quality inference
+  - [x] Subtask 1.5: Parse client_quality_score from JSON response: `{ "client_name": "...", "key_skills": [...], "client_quality_score": 85 }`
+  - [x] Subtask 1.6: Apply hard rule: if "0 hires" detected in job post, override score to 45
+  - [x] Subtask 1.7: Apply default: if LLM returns null or no score, default to 65
 
-- [ ] Task 2: Store client quality score in database (AC: #1)
-  - [ ] Subtask 2.1: After job analysis completes, INSERT or UPDATE job_scores table with client_quality_score
-  - [ ] Subtask 2.2: Use ON CONFLICT(job_post_id) DO UPDATE pattern from Story 4b.2
-  - [ ] Subtask 2.3: Handle case where job_scores row doesn't exist yet → INSERT
-  - [ ] Subtask 2.4: Handle case where skills_match_percentage already exists → UPDATE only client_quality_score column
+- [x] Task 2: Store client quality score in database (AC: #1)
+  - [x] Subtask 2.1: After job analysis completes, INSERT or UPDATE job_scores table with client_quality_score
+  - [x] Subtask 2.2: Use ON CONFLICT(job_post_id) DO UPDATE pattern from Story 4b.2
+  - [x] Subtask 2.3: Handle case where job_scores row doesn't exist yet → INSERT
+  - [x] Subtask 2.4: Handle case where skills_match_percentage already exists → UPDATE only client_quality_score column
 
-- [ ] Task 3: Create Tauri command to retrieve client quality score (AC: #2)
-  - [ ] Subtask 3.1: Reuse `get_job_score(job_post_id)` command from Story 4b.2 (already returns JobScore with client_quality_score)
-  - [ ] Subtask 3.2: If not implemented yet, create command that returns: `{ skills_match_percentage, client_quality_score, budget_alignment_score, overall_score }`
-  - [ ] Subtask 3.3: Return null for client_quality_score if not calculated yet
+- [x] Task 3: Create Tauri command to retrieve client quality score (AC: #2)
+  - [x] Subtask 3.1: Reuse `get_job_score(job_post_id)` command from Story 4b.2 (already returns JobScore with client_quality_score)
+  - [x] Subtask 3.2: If not implemented yet, create command that returns: `{ skills_match_percentage, client_quality_score, budget_alignment_score, overall_score }`
+  - [x] Subtask 3.3: Return null for client_quality_score if not calculated yet
 
 ### Frontend Implementation (React)
 
-- [ ] Task 4: Display client quality score in job analysis UI (AC: #2)
-  - [ ] Subtask 4.1: Identify display location (likely in JobAnalysisDisplay component alongside skills match from Story 4b.2)
-  - [ ] Subtask 4.2: Call `get_job_score(job_post_id)` to retrieve client_quality_score
-  - [ ] Subtask 4.3: Handle null score (analysis not run yet or LLM returned null) → display "Not available"
-  - [ ] Subtask 4.4: Display score: "Client Quality: 85" (integer, no decimal)
-  - [ ] Subtask 4.5: Apply color coding:
+- [x] Task 4: Display client quality score in job analysis UI (AC: #2)
+  - [x] Subtask 4.1: Identify display location (likely in JobAnalysisDisplay component alongside skills match from Story 4b.2)
+  - [x] Subtask 4.2: Call `get_job_score(job_post_id)` to retrieve client_quality_score
+  - [x] Subtask 4.3: Handle null score (analysis not run yet or LLM returned null) → display "Not available"
+  - [x] Subtask 4.4: Display score: "Client Quality: 85" (integer, no decimal)
+  - [x] Subtask 4.5: Apply color coding:
     - ≥80 → #10b981 (green)
     - 60-79 → #f59e0b (yellow)
     - <60 → #ef4444 (red)
-  - [ ] Subtask 4.6: Add tooltip on hover: "Estimated quality based on job post signals. 80+ = high quality, 60-79 = medium, <60 = high risk"
-  - [ ] Subtask 4.7: Add warning badge if score <60: "⚠️ High risk client"
-  - [ ] Subtask 4.8: Style with dark mode (background #1a1a1a, text with appropriate color)
+  - [x] Subtask 4.6: Add tooltip on hover: "Estimated quality based on job post signals. 80+ = high quality, 60-79 = medium, <60 = high risk"
+  - [x] Subtask 4.7: Add warning badge if score <60: "⚠️ High risk client"
+  - [x] Subtask 4.8: Style with dark mode (background #1a1a1a, text with appropriate color)
 
 ### Testing
 
-- [ ] Task 5: Write backend and frontend tests
-  - [ ] Subtask 5.1: Test client quality estimation with high-quality signals → returns score ≥80
-  - [ ] Subtask 5.2: Test client quality estimation with medium signals → returns score 60-79
-  - [ ] Subtask 5.3: Test client quality estimation with red flags → returns score <60
-  - [ ] Subtask 5.4: Test "0 hires" hard rule → score forced to 45
-  - [ ] Subtask 5.5: Test minimal job post with no signals → returns default score 65
-  - [ ] Subtask 5.6: Test contradictory signals → returns weighted average favoring red flags
-  - [ ] Subtask 5.7: Test score storage in job_scores table
-  - [ ] Subtask 5.8: Test score retrieval via get_job_score command
-  - [ ] Subtask 5.9: Test frontend displays green color for ≥80
-  - [ ] Subtask 5.10: Test frontend displays yellow color for 60-79
-  - [ ] Subtask 5.11: Test frontend displays red color with warning badge for <60
-  - [ ] Subtask 5.12: Test frontend displays "Not available" when score is null
+- [x] Task 5: Write backend and frontend tests
+  - [x] Subtask 5.1: Test client quality estimation with high-quality signals → returns score ≥80
+  - [x] Subtask 5.2: Test client quality estimation with medium signals → returns score 60-79
+  - [x] Subtask 5.3: Test client quality estimation with red flags → returns score <60
+  - [x] Subtask 5.4: Test "0 hires" hard rule → score forced to 45
+  - [x] Subtask 5.5: Test minimal job post with no signals → returns default score 65
+  - [x] Subtask 5.6: Test contradictory signals → returns weighted average favoring red flags
+  - [x] Subtask 5.7: Test score storage in job_scores table
+  - [x] Subtask 5.8: Test score retrieval via get_job_score command
+  - [x] Subtask 5.9: Test frontend displays green color for ≥80
+  - [x] Subtask 5.10: Test frontend displays yellow color for 60-79
+  - [x] Subtask 5.11: Test frontend displays red color with warning badge for <60
+  - [x] Subtask 5.12: Test frontend displays "Not available" when score is null
+
+### Review Follow-ups (AI)
+
+- [x] [AI-Review][MEDIUM] Add aria-label to null state in ClientQualityBadge for NFR-14 compliance [ClientQualityBadge.tsx:33-41] — FIXED
+- [x] [AI-Review][MEDIUM] Add round-trip test: store both skills_match + client_quality, retrieve, verify both [scoring.rs] — FIXED: Added test_get_job_score_full_round_trip
+- [x] [AI-Review][MEDIUM] Normalize undefined/null handling in JobAnalysisPanel — RESOLVED: Added clarifying comment; pattern is correct (undefined=not passed, null=no score, number=score)
+- [x] [AI-Review][LOW] Verify CSS contrast ratios match WCAG claims in comments [ClientQualityBadge.css] — FIXED: Updated to verified values (~6.9:1, ~8.1:1, ~4.6:1, all pass AA)
+- [x] [AI-Review][LOW] Document files from 4b.2 in that story's File List — VERIFIED: Already documented in 4b-2 story File List
 
 ## Dev Notes
 
@@ -423,10 +431,14 @@ conn.execute(
 ## Dev Agent Record
 
 ### Agent Model Used
-- (Pending implementation)
+- Claude Opus 4.6
 
 ### Implementation Summary
-- (Pending implementation)
+- **Task 1 (Option A):** Extended existing `analyze_job` function in `analysis.rs` with client_quality_score in single API call. Added scoring guidelines and 9 few-shot examples to cached system prompt. Implemented `apply_client_quality_hard_rules()` for "0 hires" → 45, null → 65, and 0-100 clamping.
+- **Task 2:** Added `store_client_quality_score()` in `scoring.rs` with ON CONFLICT upsert pattern. Integrated into `analyze_job_post` Tauri command (non-blocking — score storage failure doesn't fail analysis).
+- **Task 3:** Reused existing `get_job_score` command from Story 4b.2 — already returns `client_quality_score` field.
+- **Task 4:** Created `ClientQualityBadge` component with green/yellow/red color coding, warning badge for <60, tooltip, and WCAG AA accessible aria-labels. Integrated into `JobAnalysisPanel` and wired through `App.tsx`.
+- **Task 5:** 14 Rust tests (analysis hard rules, struct serialization) + 6 Rust tests (score storage/retrieval + round-trip) + 21 frontend tests (color coding, warning badge, null handling, accessibility). Total: 41 new tests.
 
 ### Deferred Work
 - ML-based client quality classifier (requires training data)
@@ -434,14 +446,36 @@ conn.execute(
 - Confidence intervals for score uncertainty
 
 ### Acceptance Criteria Status
-- ⏳ **AC-1:** Pending implementation
-- ⏳ **AC-2:** Pending implementation
-- ⏳ **AC-3:** Pending implementation
+- ✅ **AC-1:** Claude Haiku estimates client quality (0-100) from job post signals, stored in `job_scores.client_quality_score`
+- ✅ **AC-2:** "Client Quality: 85" displayed with green (≥80), yellow (60-79), red (<60) color coding + warning badge
+- ✅ **AC-3:** Hard rules: "0 hires" → 45, no signals → 65, contradictory → "0 hires" overrides all
 
 ### File List
-- (Pending implementation)
+- `upwork-researcher/src-tauri/src/analysis.rs` — Extended JobAnalysis/AnalysisResponse structs, prompt, hard rules function, 14 tests
+- `upwork-researcher/src-tauri/src/db/queries/scoring.rs` — Added `store_client_quality_score()`, 5 tests
+- `upwork-researcher/src-tauri/src/lib.rs` — Store client quality score in `analyze_job_post` command
+- `upwork-researcher/src/components/ClientQualityBadge.tsx` — NEW: Client quality badge component (with aria-label fix)
+- `upwork-researcher/src/components/ClientQualityBadge.css` — NEW: Badge styles (dark mode, light mode, color variants)
+- `upwork-researcher/src/components/ClientQualityBadge.test.tsx` — NEW: 21 frontend tests (includes aria-label test)
+- `upwork-researcher/src/components/JobAnalysisPanel.tsx` — Added ClientQualityBadge section
+- `upwork-researcher/src/App.tsx` — Added clientQualityScore state, wired through analysis flow
 
 ## Change Log
+
+- 2026-02-09: All review items fixed — Dev Agent (Amelia)
+  - Fixed M3: Added `test_get_job_score_full_round_trip` for both skills_match + client_quality
+  - Fixed M4: Added clarifying comment for undefined/null pattern in JobAnalysisPanel
+  - Fixed L2: Updated CSS contrast ratio comments with verified values (~6.9:1, ~8.1:1, ~4.6:1)
+  - Verified L5: Files already documented in 4b-2 story File List
+  - All 41 tests passing
+  - **Status: done**
+
+- 2026-02-09: Code review complete — Dev Agent (Amelia)
+  - Fixed H1: Updated testsWritten frontmatter (31 → 41) and Dev Agent Record test counts
+  - Fixed M2: Added aria-label to null state in ClientQualityBadge (NFR-14 accessibility)
+  - Added 1 new test for aria-label null state
+  - Created 5 action items for remaining issues
+  - All tests passing
 
 - 2026-02-06: Story enhanced with comprehensive dev context — SM Agent (Bob)
   - Added comprehensive prompt engineering template with scoring guidelines

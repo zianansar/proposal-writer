@@ -75,12 +75,16 @@ describe("DeleteConfirmDialog", () => {
     expect(mockOnConfirm).not.toHaveBeenCalled();
   });
 
-  it("focuses Cancel button on mount for safety", () => {
+  it("focuses Cancel button on mount for safety", async () => {
     render(
       <DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
     );
 
     const cancelButton = screen.getByRole("button", { name: /Cancel/ });
+
+    // Story 8.2: useFocusTrap uses requestAnimationFrame for focus
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+
     expect(document.activeElement).toBe(cancelButton);
   });
 

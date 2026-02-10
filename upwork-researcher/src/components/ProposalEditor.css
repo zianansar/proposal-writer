@@ -70,10 +70,11 @@
   background-color: #555;
 }
 
-/* Editor wrapper */
+/* Editor wrapper - Story 6.4: Remove bottom border (status bar now below) */
 .proposal-editor-wrapper {
   border: 1px solid #555;
-  border-radius: 0 0 6px 6px;
+  border-bottom: none;
+  border-radius: 0;
   background-color: #1a1a1a;
   min-height: 200px;
 }

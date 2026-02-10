@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 
 /// Insert a new job post into the database
 /// Returns the ID of the newly inserted job post
@@ -13,6 +13,83 @@ pub fn insert_job_post(
         params![url, raw_content, client_name],
     )?;
     Ok(conn.last_insert_rowid())
+}
+
+/// Insert a job post from RSS feed with import tracking fields
+/// Story 4b.7: RSS feed import
+///
+/// Returns the ID of the newly inserted job post, or None if duplicate URL detected
+pub fn insert_job_post_from_rss(
+    conn: &Connection,
+    url: &str,
+    raw_content: &str,
+    batch_id: &str,
+) -> Result<Option<i64>> {
+    // Check for duplicate by URL
+    let existing: Option<i64> = conn
+        .query_row(
+            "SELECT id FROM job_posts WHERE url = ?1",
+            params![url],
+            |row| row.get(0),
+        )
+        .optional()?;
+
+    if existing.is_some() {
+        // Duplicate detected, skip
+        return Ok(None);
+    }
+
+    // Insert new job with RSS-specific fields
+    conn.execute(
+        "INSERT INTO job_posts (url, raw_content, source, analysis_status, import_batch_id)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![url, raw_content, "rss", "pending_analysis", batch_id],
+    )?;
+
+    Ok(Some(conn.last_insert_rowid()))
+}
+
+// ==========================================
+// RSS Import Background Worker Functions (Story 4b.7)
+// ==========================================
+
+/// Job info needed for background analysis
+#[derive(Debug, Clone)]
+pub struct PendingJob {
+    pub id: i64,
+    pub raw_content: String,
+    pub url: Option<String>,
+}
+
+/// Get all jobs with pending_analysis status for a specific batch
+/// Story 4b.7: Task 6.2 - Query pending jobs for batch_id
+pub fn get_pending_jobs_by_batch(conn: &Connection, batch_id: &str) -> Result<Vec<PendingJob>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, raw_content, url FROM job_posts
+         WHERE import_batch_id = ?1 AND analysis_status = 'pending_analysis'
+         ORDER BY id"
+    )?;
+
+    let jobs = stmt.query_map(params![batch_id], |row| {
+        Ok(PendingJob {
+            id: row.get(0)?,
+            raw_content: row.get(1)?,
+            url: row.get(2)?,
+        })
+    })?;
+
+    jobs.collect()
+}
+
+/// Update analysis status for a job post
+/// Story 4b.7: Task 6.3, 6.6 - Track analysis progress
+/// Valid statuses: 'pending_analysis', 'analyzing', 'analyzed', 'error'
+pub fn update_job_analysis_status(conn: &Connection, job_id: i64, status: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE job_posts SET analysis_status = ?1 WHERE id = ?2",
+        params![status, job_id],
+    )?;
+    Ok(())
 }
 
 /// Update the client_name field for an existing job post
@@ -146,6 +223,37 @@ pub fn get_job_post_hidden_needs(
         }
         None => Ok(vec![]), // NULL column -> no analysis run yet
     }
+}
+
+// ==========================================
+// Budget Fields Functions (Story 4b.4)
+// ==========================================
+
+/// Update budget fields for an existing job post
+/// Story 4b.4: AC-5 - Save budget data to database
+///
+/// # Arguments
+/// * `conn` - Database connection
+/// * `id` - Job post ID
+/// * `budget_min` - Minimum budget (hourly rate or project minimum)
+/// * `budget_max` - Maximum budget (for ranges, else same as min)
+/// * `budget_type` - "hourly", "fixed", or "unknown"
+/// * `alignment_pct` - Budget alignment percentage (0-100+ or null)
+/// * `alignment_status` - "green", "yellow", "red", "gray", or "mismatch"
+pub fn update_job_post_budget(
+    conn: &Connection,
+    id: i64,
+    budget_min: Option<f64>,
+    budget_max: Option<f64>,
+    budget_type: &str,
+    alignment_pct: Option<i32>,
+    alignment_status: &str,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE job_posts SET budget_min = ?1, budget_max = ?2, budget_type = ?3, budget_alignment_pct = ?4, budget_alignment_status = ?5 WHERE id = ?6",
+        params![budget_min, budget_max, budget_type, alignment_pct, alignment_status, id],
+    )?;
+    Ok(())
 }
 
 // ==========================================
@@ -841,5 +949,109 @@ mod tests {
             |row| row.get(0),
         ).unwrap();
         assert!(client.is_none());
+    }
+
+    // ====================
+    // Story 4b.7 Tests: RSS Import Functions
+    // ====================
+
+    #[test]
+    fn test_insert_job_post_from_rss_new_job() {
+        // Story 4b.7 Task 12.4: Test RSS import creates new job
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let result = insert_job_post_from_rss(
+            &conn,
+            "https://www.upwork.com/jobs/~01ABC123",
+            "Looking for React developer...",
+            "rss_20260209_120000",
+        ).unwrap();
+
+        assert!(result.is_some());
+        let id = result.unwrap();
+        assert!(id > 0);
+
+        // Verify RSS-specific fields were set
+        let (source, status, batch_id): (String, String, String) = conn
+            .query_row(
+                "SELECT source, analysis_status, import_batch_id FROM job_posts WHERE id = ?1",
+                params![id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+
+        assert_eq!(source, "rss");
+        assert_eq!(status, "pending_analysis");
+        assert_eq!(batch_id, "rss_20260209_120000");
+    }
+
+    #[test]
+    fn test_insert_job_post_from_rss_duplicate_detection() {
+        // Story 4b.7 Task 12.4: Test duplicate URL returns None
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let url = "https://www.upwork.com/jobs/~01DUPLICATE";
+
+        // First insert should succeed
+        let first = insert_job_post_from_rss(
+            &conn,
+            url,
+            "First job content",
+            "rss_batch_1",
+        ).unwrap();
+        assert!(first.is_some());
+
+        // Second insert with same URL should return None (duplicate)
+        let second = insert_job_post_from_rss(
+            &conn,
+            url,
+            "Different content but same URL",
+            "rss_batch_2",
+        ).unwrap();
+        assert!(second.is_none());
+
+        // Verify only one job exists with this URL
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM job_posts WHERE url = ?1",
+                params![url],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_insert_job_post_from_rss_different_urls_both_succeed() {
+        // Story 4b.7 Task 12.4: Test different URLs are not treated as duplicates
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let result1 = insert_job_post_from_rss(
+            &conn,
+            "https://www.upwork.com/jobs/~01JOB_A",
+            "Job A content",
+            "rss_batch",
+        ).unwrap();
+        assert!(result1.is_some());
+
+        let result2 = insert_job_post_from_rss(
+            &conn,
+            "https://www.upwork.com/jobs/~01JOB_B",
+            "Job B content",
+            "rss_batch",
+        ).unwrap();
+        assert!(result2.is_some());
+
+        // Both IDs should be different
+        assert_ne!(result1.unwrap(), result2.unwrap());
     }
 }

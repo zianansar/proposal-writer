@@ -25,14 +25,14 @@
 }
 
 .override-confirm {
-  background: #1a1a1a;
+  background: var(--color-bg-primary);
   color: #e0e0e0;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 28px;
   max-width: 420px;
   width: 90%;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  animation: overrideSlideIn 0.3s ease-out;
+  box-shadow: var(--shadow-lg);
+  animation: overrideSlideIn var(--transition-slow) ease-out;
   text-align: center;
 }
 
@@ -48,43 +48,43 @@
 }
 
 .override-confirm__warning {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--spacing-sm) 0;
   color: #fbbf24; /* Warning yellow */
 }
 
 .override-confirm__consequence {
   font-size: 15px;
-  margin: 0 0 16px 0;
-  color: #ef4444; /* Red danger text */
-  font-weight: 500;
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-error); /* Red danger text */
+  font-weight: var(--font-weight-medium);
 }
 
 .override-confirm__question {
-  font-size: 16px;
-  margin: 0 0 24px 0;
+  font-size: var(--font-size-base);
+  margin: 0 0 var(--spacing-lg) 0;
   color: #e0e0e0;
 }
 
 .override-confirm__question strong {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .override-confirm__actions {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-sm);
   justify-content: center;
 }
 
 .override-confirm__button {
-  padding: 10px 24px;
+  padding: 10px var(--spacing-lg);
   font-size: 15px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-base);
   min-width: 120px;
 }
 
@@ -98,33 +98,33 @@
 }
 
 .override-confirm__button:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .override-confirm__button:focus-visible {
-  outline: 3px solid #3b82f6;
+  outline: 3px solid var(--color-primary);
   outline-offset: 3px;
 }
 
 /* Cancel button: neutral secondary style (AI-Review M3 fix) */
 /* Changed from green primary to neutral - Cancel should not look like positive action */
 .override-confirm__button.button--secondary {
-  background: #404040; /* Neutral dark gray */
+  background: var(--color-bg-hover); /* Neutral dark gray */
   color: #e0e0e0;
   border: 1px solid #606060;
 }
 
 .override-confirm__button.button--secondary:hover {
   background: #505050;
-  border-color: #707070;
+  border-color: var(--color-border-hover);
 }
 
 .override-confirm__button.button--danger {
-  background: #ef4444; /* Red danger */
+  background: var(--color-error); /* Red danger */
   color: #ffffff;
 }
 
 .override-confirm__button.button--danger:hover {
-  background: #dc2626;
+  background: var(--color-error-hover);
 }

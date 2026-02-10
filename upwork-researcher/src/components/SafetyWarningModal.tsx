@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { FlaggedSentence } from "../types/perplexity";
 import type { HumanizationIntensity } from "../stores/useSettingsStore";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import "./SafetyWarningModal.css";
 
 const INTENSITY_LABELS: Record<HumanizationIntensity, string> = {
@@ -28,6 +29,8 @@ interface SafetyWarningModalProps {
   previousScore?: number;
   /** Story 3.4: Loading state during regeneration */
   isRegenerating?: boolean;
+  /** Story 8.2: Element that triggered the modal (for focus return) */
+  triggerRef?: React.RefObject<HTMLElement>;
 }
 
 /**
@@ -52,11 +55,17 @@ function SafetyWarningModal({
   attemptCount = 0,
   previousScore,
   isRegenerating = false,
+  triggerRef,
 }: SafetyWarningModalProps) {
   const MAX_ATTEMPTS = 3;
   const isAtMaxIntensity = humanizationIntensity === "heavy";
   const isAtMaxAttempts = attemptCount >= MAX_ATTEMPTS;
   const canShowRegenerateButton = !isAtMaxIntensity && !isAtMaxAttempts;
+
+  // Story 8.2: Focus trap for keyboard navigation
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, { triggerRef });
+
   // Keyboard accessibility: Escape to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -76,7 +85,7 @@ function SafetyWarningModal({
       aria-modal="true"
       aria-labelledby="safety-warning-title"
     >
-      <div className="safety-warning-modal">
+      <div ref={modalRef} className="safety-warning-modal">
         <h2 id="safety-warning-title" className="safety-warning-modal__title">
           <span className="safety-warning-modal__icon" aria-hidden="true">
             ⚠️
@@ -186,7 +195,6 @@ function SafetyWarningModal({
           <button
             className="safety-warning-modal__button button--primary button--edit"
             onClick={onEdit}
-            autoFocus
           >
             Edit Proposal
           </button>

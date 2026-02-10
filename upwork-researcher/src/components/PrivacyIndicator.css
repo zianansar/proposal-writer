@@ -1,0 +1,156 @@
+/* src/components/PrivacyIndicator.css */
+
+.privacy-indicator {
+  background: var(--privacy-bg, #242424);
+  border: 1px solid var(--privacy-accent, #22c55e);
+  border-left: 4px solid var(--privacy-accent, #22c55e);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.privacy-indicator__header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.privacy-indicator__icon {
+  font-size: 24px;
+  line-height: 1;
+  color: var(--privacy-accent, #22c55e);
+}
+
+.privacy-indicator__content {
+  flex: 1;
+}
+
+.privacy-indicator__headline {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--privacy-text-primary, #fafafa);
+  margin: 0 0 4px 0;
+}
+
+.privacy-indicator__description {
+  font-size: 14px;
+  color: var(--privacy-text-secondary, #a3a3a3);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.privacy-indicator__toggle {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--privacy-border, #3a3a3a);
+  border-radius: 4px;
+  color: var(--privacy-text-secondary, #a3a3a3);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.privacy-indicator__toggle:hover {
+  background: var(--privacy-bg-hover, #2a2a2a);
+  color: var(--privacy-text-primary, #fafafa);
+}
+
+.privacy-indicator__toggle:focus-visible {
+  outline: 2px solid var(--privacy-accent, #22c55e);
+  outline-offset: 2px;
+}
+
+.privacy-indicator__details {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--privacy-border, #3a3a3a);
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 2000px; }
+}
+
+.privacy-indicator__section {
+  margin-bottom: 16px;
+}
+
+.privacy-indicator__section:last-child {
+  margin-bottom: 0;
+}
+
+.privacy-indicator__section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--privacy-text-primary, #fafafa);
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.privacy-indicator__section ul {
+  margin: 0;
+  padding-left: 24px;
+  color: var(--privacy-text-secondary, #a3a3a3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.privacy-indicator__section li {
+  margin-bottom: 4px;
+}
+
+/* Compact variant */
+.privacy-indicator--compact {
+  padding: 12px;
+  border-left-width: 3px;
+}
+
+.privacy-indicator--compact .privacy-indicator__icon {
+  font-size: 18px;
+}
+
+.privacy-indicator--compact .privacy-indicator__headline {
+  font-size: 14px;
+}
+
+.privacy-indicator--compact .privacy-indicator__description {
+  font-size: 12px;
+}
+
+/* Settings variant */
+.privacy-indicator--settings .privacy-indicator__description {
+  font-size: 14px;
+}
+
+/* Delete link for settings variant (H2 fix) */
+.privacy-indicator__delete-link {
+  background: none;
+  border: none;
+  color: var(--privacy-accent, #22c55e);
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.privacy-indicator__delete-link:hover {
+  color: var(--privacy-accent-hover, #16a34a);
+}
+
+.privacy-indicator__delete-link:focus-visible {
+  outline: 2px solid var(--privacy-accent, #22c55e);
+  outline-offset: 2px;
+}

@@ -1,0 +1,16 @@
+Looking for an experienced React developer to build a dashboard application.
+
+Requirements:
+- 3+ years React experience
+- TypeScript proficiency
+- Experience with data visualization (charts, graphs)
+- REST API integration
+- Tailwind CSS or similar utility framework
+
+Budget: $50-75/hr
+Duration: 2-3 months
+Start Date: Immediate
+
+The project involves building a real-time analytics dashboard for a SaaS platform. You'll be working with our backend team to integrate various data sources and create interactive visualizations.
+
+We value clean code, test coverage, and strong communication skills.

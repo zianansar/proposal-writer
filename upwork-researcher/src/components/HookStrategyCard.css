@@ -1,0 +1,136 @@
+/**
+ * Story 5.2: Hook Strategy Card Styles
+ *
+ * AC-7: Dark theme design system
+ * - Card background: #1e1e1e (dark gray)
+ * - Card border: #2a2a2a default, #f97316 (orange) when selected
+ * - Text color: #fafafa (white) for titles, #a3a3a3 (muted) for descriptions
+ * - Spacing: 16px gap between cards, 16px padding inside cards
+ * - Typography: Inter for all text
+ * - All text has minimum 4.5:1 contrast ratio (WCAG AA compliant)
+ *
+ * AC-3: Hover and selected states with visual feedback
+ * AC-5: Visible focus indicator (2px orange outline)
+ */
+
+/* ===========================================
+   Base Card Style
+   =========================================== */
+
+.hook-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem; /* 16px */
+  background-color: #1e1e1e; /* AC-7: Dark gray */
+  border: 2px solid #2a2a2a; /* AC-7: Default border */
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  min-height: 180px; /* Ensure consistent card heights */
+}
+
+/* AC-3: Hover state - lifted shadow, visible feedback */
+.hook-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: #3a3a3a;
+}
+
+/* AC-3: Selected state - orange border, checkmark visible */
+.hook-card--selected {
+  border-color: #f97316; /* AC-7: Orange accent */
+  background-color: rgba(249, 115, 22, 0.05); /* Subtle orange tint */
+}
+
+/* AC-5: Focus indicator - 2px orange outline */
+.hook-card:focus-visible {
+  outline: 2px solid #f97316; /* AC-7: Orange */
+  outline-offset: 2px;
+}
+
+/* ===========================================
+   Card Header (Name + Checkmark)
+   =========================================== */
+
+.hook-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* AC-1: Strategy name - bold, 18px */
+.hook-card__name {
+  margin: 0;
+  font-size: 1.125rem; /* 18px */
+  font-weight: 700;
+  color: #fafafa; /* AC-7: White text, ~16.8:1 contrast on #1e1e1e */
+  line-height: 1.4;
+}
+
+/* AC-3: Checkmark icon in top-right when selected */
+.hook-card__checkmark {
+  font-size: 1.25rem;
+  color: #f97316; /* AC-7: Orange */
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ===========================================
+   Card Content
+   =========================================== */
+
+/* AC-1: Description - 14px, muted gray, 2-3 lines */
+.hook-card__description {
+  margin: 0;
+  font-size: 0.875rem; /* 14px */
+  color: #a3a3a3; /* AC-7: Muted gray, ~8.1:1 contrast on #1e1e1e (WCAG AA ✓) */
+  line-height: 1.5;
+  /* Clamp to 3 lines max */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* AC-1: Example opening line - 14px, italic, first from examples_json */
+.hook-card__example {
+  margin: 0;
+  font-size: 0.875rem; /* 14px */
+  color: #c0c0c0; /* Lighter muted gray, ~11.3:1 contrast */
+  line-height: 1.5;
+  font-style: italic;
+  /* Clamp to 2 lines max */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hook-card__example em {
+  font-style: normal;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+/* ===========================================
+   Card Footer (Best For Tag)
+   =========================================== */
+
+/* AC-1: "Best for" tag at bottom */
+.hook-card__best-for {
+  margin-top: auto; /* Push to bottom */
+}
+
+.hook-card__tag {
+  display: inline-block;
+  font-size: 0.75rem; /* 12px */
+  color: #f97316; /* AC-7: Orange text */
+  background-color: rgba(249, 115, 22, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Light mode overrides removed per UX-1: App is dark theme only */

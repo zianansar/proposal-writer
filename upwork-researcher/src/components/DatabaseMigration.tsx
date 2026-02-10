@@ -113,7 +113,7 @@ export function DatabaseMigration({
       {state === "success" && result && (
         <div className="database-migration__success">
           {/* Subtask 9.4: Display success message with counts */}
-          <div className="database-migration__success-icon">✓</div>
+          <div className="database-migration__success-icon" aria-hidden="true">✓</div>
           <h2>Migration Complete</h2>
           <p className="database-migration__success-message">{result.message}</p>
 
@@ -156,7 +156,7 @@ export function DatabaseMigration({
 
           {/* Story 2.5: Recovery status indicator */}
           <div className="database-migration__recovery-status">
-            <div className="database-migration__recovery-status-icon">✓</div>
+            <div className="database-migration__recovery-status-icon" aria-hidden="true">✓</div>
             <p className="database-migration__recovery-status-text">
               <strong>Your data is safe.</strong> The migration was rolled back
               automatically and your unencrypted database remains intact.

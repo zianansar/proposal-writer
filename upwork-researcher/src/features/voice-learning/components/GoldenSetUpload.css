@@ -1,0 +1,265 @@
+/* Story 5.3: Golden Set Upload UI Styles */
+
+.golden-set-upload {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.golden-set-upload h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary, #333);
+}
+
+.instructions {
+  font-size: 1rem;
+  color: var(--text-secondary, #666);
+  margin-bottom: 0.5rem;
+}
+
+.error-message {
+  background: var(--bg-error, #ffebee);
+  color: var(--color-error, #c62828);
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border-left: 3px solid var(--color-error, #c62828);
+}
+
+/* Upload section */
+.upload-options {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.upload-button {
+  background: var(--color-primary, #1976d2);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.upload-button:hover:not(:disabled) {
+  background: var(--color-primary-dark, #1565c0);
+}
+
+.upload-button:disabled {
+  background: var(--bg-disabled, #ccc);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.or-divider {
+  color: var(--text-secondary, #666);
+  font-style: italic;
+}
+
+/* Paste section */
+.paste-section {
+  margin-bottom: 2rem;
+}
+
+.paste-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 0.75rem;
+  border: 2px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  margin-bottom: 0.5rem;
+}
+
+.paste-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary, #1976d2);
+}
+
+.paste-textarea:disabled {
+  background: var(--bg-disabled, #f5f5f5);
+  cursor: not-allowed;
+}
+
+.word-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #666);
+  margin-bottom: 0.75rem;
+}
+
+.word-count-error {
+  color: var(--color-error, #c62828);
+  font-weight: 500;
+}
+
+.add-button {
+  background: var(--color-secondary, #388e3c);
+  color: white;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.add-button:hover:not(:disabled) {
+  background: var(--color-secondary-dark, #2e7d32);
+}
+
+.add-button:disabled {
+  background: var(--bg-disabled, #ccc);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Progress section */
+.progress-section {
+  margin-bottom: 2rem;
+}
+
+.progress-counter {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+  margin-bottom: 1rem;
+}
+
+.progress-note {
+  color: var(--text-secondary, #666);
+  font-weight: normal;
+  font-size: 0.9rem;
+}
+
+/* Proposal list */
+.proposal-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.proposal-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  background: var(--bg-secondary, #fafafa);
+}
+
+.proposal-preview {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.preview-text {
+  flex: 1;
+  min-width: 200px;
+  color: var(--text-primary, #333);
+  font-size: 0.875rem;
+}
+
+.word-count-badge,
+.filename-badge {
+  background: var(--bg-badge, #e0e0e0);
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #666);
+  white-space: nowrap;
+}
+
+.filename-badge {
+  background: var(--bg-info, #e3f2fd);
+  color: var(--color-info, #1976d2);
+}
+
+.delete-button {
+  background: transparent;
+  border: none;
+  color: var(--color-error, #c62828);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+.delete-button:hover {
+  background: var(--bg-error-hover, #ffcdd2);
+}
+
+.delete-button:focus {
+  outline: 2px solid var(--color-error, #c62828);
+  outline-offset: 2px;
+}
+
+/* Continue section */
+.continue-section {
+  text-align: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #ddd);
+}
+
+.continue-button {
+  background: var(--color-primary, #1976d2);
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.continue-button:hover:not(:disabled) {
+  background: var(--color-primary-dark, #1565c0);
+}
+
+.continue-button:disabled {
+  background: var(--bg-disabled, #ccc);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.continue-note {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #666);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .golden-set-upload {
+    padding: 1rem;
+  }
+
+  .upload-options {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .proposal-preview {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .preview-text {
+    min-width: auto;
+  }
+}

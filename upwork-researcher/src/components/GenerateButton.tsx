@@ -32,6 +32,8 @@ function GenerateButton({
       disabled={disabled || loading || isCoolingDown}
       type="button"
       title={`Generate proposal (${shortcutHint})`}
+      aria-busy={loading}
+      aria-disabled={isCoolingDown || undefined}
     >
       {buttonText}
     </button>

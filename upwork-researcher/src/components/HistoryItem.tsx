@@ -1,3 +1,5 @@
+import { forwardRef } from 'react';
+
 interface ProposalSummary {
   id: number;
   jobContent: string;
@@ -6,6 +8,9 @@ interface ProposalSummary {
 
 interface HistoryItemProps {
   proposal: ProposalSummary;
+  tabIndex?: number;
+  role?: string;
+  'aria-selected'?: boolean;
 }
 
 /**
@@ -34,17 +39,27 @@ function formatDate(isoString: string): string {
   }
 }
 
-function HistoryItem({ proposal }: HistoryItemProps) {
-  const jobExcerpt = truncate(proposal.jobContent, 100);
-  const formattedDate = formatDate(proposal.createdAt);
+const HistoryItem = forwardRef<HTMLDivElement, HistoryItemProps>(
+  ({ proposal, tabIndex, role, 'aria-selected': ariaSelected }, ref) => {
+    const jobExcerpt = truncate(proposal.jobContent, 100);
+    const formattedDate = formatDate(proposal.createdAt);
 
-  return (
-    <div className="history-item">
-      <div className="history-item__job">{jobExcerpt}</div>
-      <div className="history-item__date">{formattedDate}</div>
-    </div>
-  );
-}
+    return (
+      <div
+        ref={ref}
+        className="history-item"
+        tabIndex={tabIndex}
+        role={role}
+        aria-selected={ariaSelected}
+      >
+        <div className="history-item__job">{jobExcerpt}</div>
+        <div className="history-item__date">{formattedDate}</div>
+      </div>
+    );
+  }
+);
+
+HistoryItem.displayName = 'HistoryItem';
 
 export default HistoryItem;
 export type { ProposalSummary };

@@ -118,6 +118,19 @@ export function useProposalEditor({
         proposalId: currentProposalId,
         content: htmlContent,
       });
+
+      // Create revision for version history (Story 6.3)
+      // Don't block save on revision failure - just log it
+      try {
+        await invoke("create_revision", {
+          proposalId: currentProposalId,
+          content: htmlContent,
+          revisionType: "edit",
+        });
+      } catch (revErr) {
+        console.error("Failed to create revision (non-blocking):", revErr);
+      }
+
       lastSavedContentRef.current = htmlContent;
       setIsDirty(false);
       setSaveStatus("saved");

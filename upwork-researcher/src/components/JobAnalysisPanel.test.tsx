@@ -6,7 +6,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import JobAnalysisPanel from './JobAnalysisPanel';
+
+// Helper to wrap component with QueryClientProvider for tests that trigger ScoringBreakdown
+function renderWithQueryClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  );
+}
 
 describe('JobAnalysisPanel', () => {
   const mockOnGenerateClick = vi.fn();
@@ -188,6 +205,126 @@ describe('JobAnalysisPanel', () => {
     const headers = screen.getAllByRole('heading', { level: 3 });
     headers.forEach((header) => {
       expect(header).toHaveClass('job-analysis-section__header');
+    });
+  });
+
+  // Story 4b.5: Overall Score Section
+  it('renders Overall Score section when colorFlag is provided', () => {
+    render(
+      <JobAnalysisPanel
+        {...defaultProps}
+        overallScore={78.5}
+        colorFlag="yellow"
+      />
+    );
+
+    // Section header exists
+    expect(screen.getByText('Overall Score', { selector: 'h3' })).toBeInTheDocument();
+
+    // JobScoreBadge is rendered (Story 4b.6: now a button with onToggle)
+    const badge = screen.getByRole('button', { name: /Overall job score/i });
+    expect(badge).toHaveTextContent('Overall: 78.5');
+    expect(badge).toHaveTextContent('Yellow');
+  });
+
+  it('hides Overall Score section when colorFlag is undefined', () => {
+    render(
+      <JobAnalysisPanel
+        {...defaultProps}
+        overallScore={78.5}
+        // colorFlag undefined (not provided)
+      />
+    );
+
+    // Section should not exist
+    expect(screen.queryByText('Overall Score', { selector: 'h3' })).not.toBeInTheDocument();
+  });
+
+  it('renders Overall Score with gray flag when score is null', () => {
+    render(
+      <JobAnalysisPanel
+        {...defaultProps}
+        overallScore={null}
+        colorFlag="gray"
+      />
+    );
+
+    expect(screen.getByText('Overall Score', { selector: 'h3' })).toBeInTheDocument();
+    expect(screen.getByText('Configure skills in Settings')).toBeInTheDocument();
+  });
+
+  // Story 4b.6 Review: Scoring Breakdown integration tests
+  describe('Scoring Breakdown (Story 4b.6)', () => {
+    it('toggles breakdown visibility when JobScoreBadge is clicked', async () => {
+      const user = userEvent.setup();
+
+      // Mock the Tauri invoke for get_scoring_breakdown and check_can_report_score
+      vi.mock('@tauri-apps/api/core', () => ({
+        invoke: vi.fn().mockImplementation((cmd: string) => {
+          if (cmd === 'get_scoring_breakdown') {
+            return Promise.resolve({
+              overallScore: 75.0,
+              colorFlag: 'yellow',
+              skillsMatchPct: 75.0,
+              skillsMatchedCount: 3,
+              skillsTotalCount: 4,
+              skillsMatchedList: ['React', 'TypeScript', 'Node.js'],
+              skillsMissingList: ['Docker'],
+              clientQualityScore: 70,
+              clientQualitySignals: 'Limited client history',
+              budgetAlignmentPct: 90,
+              budgetDisplay: '$55/hr vs your $50/hr',
+              budgetType: 'hourly',
+              recommendation: 'Proceed with caution.',
+            });
+          }
+          if (cmd === 'check_can_report_score') {
+            return Promise.resolve({ canReport: true, lastReportedAt: null });
+          }
+          return Promise.resolve(null);
+        }),
+      }));
+
+      // H3 fix: Use QueryClientProvider wrapper since ScoringBreakdown uses useCanReportScore hook
+      renderWithQueryClient(
+        <JobAnalysisPanel
+          {...defaultProps}
+          overallScore={75.0}
+          colorFlag="yellow"
+          jobPostId={123}
+        />
+      );
+
+      const badge = screen.getByRole('button', { name: /Overall job score/i });
+
+      // Initially no breakdown visible
+      expect(screen.queryByRole('region', { name: /scoring-breakdown-title/i })).not.toBeInTheDocument();
+
+      // Click to expand
+      await user.click(badge);
+
+      // Badge should now show aria-expanded="true"
+      expect(badge).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('renders JobScoreBadge as clickable button with chevron when colorFlag is provided', () => {
+      // H3 fix: Use QueryClientProvider wrapper for consistency
+      renderWithQueryClient(
+        <JobAnalysisPanel
+          {...defaultProps}
+          overallScore={78.5}
+          colorFlag="yellow"
+          jobPostId={123}
+        />
+      );
+
+      const badge = screen.getByRole('button', { name: /Overall job score/i });
+      expect(badge).toBeInTheDocument();
+      expect(badge).toHaveAttribute('aria-expanded', 'false');
+      expect(badge).toHaveAttribute('aria-controls', 'scoring-breakdown');
+
+      // Chevron icon should be visible
+      expect(screen.getByText('▼')).toBeInTheDocument();
     });
   });
 });

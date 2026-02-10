@@ -1,8 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import type { Editor } from "@tiptap/react";
 import CopyButton from "./CopyButton";
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
 import ProposalEditor from "./ProposalEditor";
+import PipelineIndicator from "./PipelineIndicator";
+import { getPlainTextFromEditor } from "../utils/editorUtils";
 
 interface ProposalOutputProps {
   proposal: string | null;
@@ -20,6 +23,8 @@ interface ProposalOutputProps {
   retryCount?: number;
   /** Enable TipTap rich text editor (Story 6.1) - only for saved proposals */
   enableEditor?: boolean;
+  /** Ref to expose getPlainTextContent function for keyboard shortcuts (Story 6.6 CR fix) */
+  getPlainTextRef?: React.MutableRefObject<(() => string) | null>;
 }
 
 function ProposalOutput({
@@ -34,11 +39,40 @@ function ProposalOutput({
   onContentChange,
   retryCount = 0,
   enableEditor = false,
+  getPlainTextRef,
 }: ProposalOutputProps) {
   // Story 6.8: Delete confirmation dialog state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Story 6.6: Editor instance for dynamic content extraction
+  const [editor, setEditor] = useState<Editor | null>(null);
+
+  // Story 6.6: Callback when editor is ready
+  const handleEditorReady = useCallback((editorInstance: Editor | null) => {
+    setEditor(editorInstance);
+  }, []);
+
+  // Story 6.6: Get plain text content from editor (for Copy button)
+  const getEditorContent = useCallback(() => {
+    if (editor) {
+      return getPlainTextFromEditor(editor);
+    }
+    return proposal || "";
+  }, [editor, proposal]);
+
+  // Story 6.6 CR fix: Expose getPlainTextContent for keyboard shortcuts
+  useEffect(() => {
+    if (getPlainTextRef) {
+      getPlainTextRef.current = getEditorContent;
+    }
+    return () => {
+      if (getPlainTextRef) {
+        getPlainTextRef.current = null;
+      }
+    };
+  }, [getPlainTextRef, getEditorContent]);
 
   // Story 6.8: Handle delete button click - show confirmation
   const handleDeleteClick = useCallback(() => {
@@ -84,6 +118,8 @@ function ProposalOutput({
     return (
       <div className="proposal-output proposal-output--streaming" aria-live="polite" aria-busy="true">
         <label>Generating Proposal...</label>
+        {/* Story 8.4: Show pipeline stage indicators during generation */}
+        <PipelineIndicator />
         <div className="proposal-text">
           {proposal}
           <span className="streaming-cursor" aria-hidden="true"></span>
@@ -97,6 +133,8 @@ function ProposalOutput({
     return (
       <div className="proposal-output proposal-output--loading" aria-live="polite" aria-busy="true">
         <p>Generating your proposal...</p>
+        {/* Story 8.4: Show pipeline stage indicators during generation */}
+        <PipelineIndicator />
       </div>
     );
   }
@@ -153,13 +191,18 @@ function ProposalOutput({
             content={proposal}
             proposalId={proposalId}
             onContentChange={onContentChange}
+            onEditorReady={handleEditorReady}
           />
         ) : (
           <div className="proposal-text">{proposal}</div>
         )}
 
         <div className="proposal-actions">
-          <CopyButton text={proposal} proposalId={proposalId} />
+          <CopyButton
+            text={proposal}
+            getContent={showEditor ? getEditorContent : undefined}
+            proposalId={proposalId}
+          />
           {/* Story 6.8: Delete button - only show for saved proposals */}
           {isSaved && proposalId && (
             <button

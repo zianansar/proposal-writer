@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: done
 ---
 
 # Story 4a.4: Hidden Needs Detection
@@ -309,7 +309,7 @@ All 6 tasks completed:
 **Acceptance Criteria Validation:**
 - ✅ AC-1: Hidden needs extracted in single API call alongside client name/skills
 - ✅ AC-2: Each displayed with label + supporting evidence
-- ⏳ AC-3: DB infrastructure complete (migration, functions, save code) — integration pending 4a-8 (job_post_id currently null)
+- ✅ AC-3: DB persistence fully integrated via 4a-8 atomic save (save_job_analysis_atomic includes hidden_needs_json, jobPostId passed from frontend)
 - ✅ AC-4: Empty list handling ("No hidden needs detected")
 - ✅ AC-5: 2-3 is guidance, returns whatever found
 - ✅ AC-6: Error surfacing consistent with 4a-2/4a-3

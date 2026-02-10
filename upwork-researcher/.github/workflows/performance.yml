@@ -1,0 +1,184 @@
+# Performance Testing CI Workflow
+# Story 8.10: Performance Validation Tests
+# Runs performance benchmarks on every PR and push to main
+
+name: Performance Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: # Allow manual triggers
+
+jobs:
+  performance:
+    name: Performance Tests - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: upwork-researcher/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: upwork-researcher/src-tauri
+
+      - name: Install frontend dependencies
+        working-directory: upwork-researcher
+        run: npm ci
+
+      - name: Install Tauri dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install gtk+3 webkitgtk
+
+      - name: Install Tauri dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Windows has WebView2 pre-installed on GitHub Actions runners
+          echo "WebView2 available on Windows runners"
+
+      - name: Build Tauri app (release)
+        working-directory: upwork-researcher
+        run: npm run tauri build
+        env:
+          PERF_TEST: 'true'
+
+      - name: Run performance tests
+        working-directory: upwork-researcher
+        run: npm run test:perf
+        env:
+          PERF_TEST: 'true'
+        continue-on-error: false
+
+      - name: Generate performance report
+        if: always()
+        working-directory: upwork-researcher
+        run: npm run test:perf:report
+        continue-on-error: true
+
+      - name: Upload performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-report-${{ matrix.os }}
+          path: upwork-researcher/test-results/perf-report.json
+          retention-days: 30
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results-${{ matrix.os }}
+          path: upwork-researcher/test-results/perf-results.json
+          retention-days: 30
+
+      - name: Comment PR with performance results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'upwork-researcher/test-results/perf-report.json';
+
+            if (!fs.existsSync(reportPath)) {
+              console.log('No performance report found');
+              return;
+            }
+
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
+            const os = '${{ matrix.os }}';
+
+            // Format results as markdown table
+            const summary = report.results?.map(r =>
+              `| ${r.name} | ${r.duration || r.durationMs || 'N/A'}ms | ${r.threshold}ms | ${r.status === 'passed' || r.passed ? '✅' : '❌'} |`
+            ).join('\n') || 'No results available';
+
+            const body = `## Performance Test Results (${os})
+
+| Test | Result | Threshold | Status |
+|------|--------|-----------|--------|
+${summary}
+
+**Summary:**
+- Total: ${report.summary?.total || 0}
+- Passed: ${report.summary?.passed || 0}
+- Failed: ${report.summary?.failed || 0}
+- Duration: ${report.summary?.duration || 0}ms
+
+<details>
+<summary>View full report</summary>
+
+\`\`\`json
+${JSON.stringify(report, null, 2)}
+\`\`\`
+
+</details>
+`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' &&
+              c.body.includes(`Performance Test Results (${os})`)
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+  # Combined summary job that requires all matrix jobs to pass
+  performance-summary:
+    name: Performance Tests Summary
+    runs-on: ubuntu-latest
+    needs: [performance]
+    if: always()
+
+    steps:
+      - name: Check performance test results
+        run: |
+          if [ "${{ needs.performance.result }}" != "success" ]; then
+            echo "❌ Performance tests failed"
+            exit 1
+          else
+            echo "✅ All performance tests passed"
+          fi

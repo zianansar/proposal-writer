@@ -1,0 +1,16 @@
+Hey,
+
+Just read through your requirements for the dashboard project. This is exactly the kind of work I enjoy.
+
+Quick background:
+- React dev for 4 years
+- Strong TypeScript skills
+- Built several data viz projects (most recently a logistics tracking dashboard)
+
+I'm comfortable with both Chart.js and D3 depending on your needs. My strength is making complex data easy to understand visually while keeping the codebase maintainable.
+
+Can commit 30 hours/week, rate is $60/hr. Open to discussing the technical approach—I usually start with a quick spike to validate the architecture before diving into full implementation.
+
+Let me know if you want to chat.
+
+Sam

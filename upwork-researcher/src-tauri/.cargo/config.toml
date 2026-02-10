@@ -1,11 +1,8 @@
-# Cargo configuration for Windows MSVC builds with OpenSSL
-# This configures the build to use vcpkg-installed OpenSSL instead of building from source
+# Cargo configuration for Upwork Research Agent
+# Story 4b.7: vcpkg OpenSSL integration
 
-# Note: These Windows-specific settings are temporarily commented out for macOS development
-# Uncomment when building on Windows
-
-# [env]
-# # Use vcpkg OpenSSL installation (installed at C:/vcpkg)
-# OPENSSL_DIR = "C:/vcpkg/installed/x64-windows"
-# OPENSSL_NO_VENDOR = "1"
-# VCPKG_ROOT = "C:/vcpkg"
+[env]
+# Use vcpkg-installed OpenSSL instead of building from source
+# Resolves Perl configuration errors with bundled-sqlcipher-vendored-openssl
+OPENSSL_DIR = "C:/vcpkg/installed/x64-windows-static-md"
+OPENSSL_NO_VENDOR = "1"

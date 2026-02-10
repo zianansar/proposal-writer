@@ -1,0 +1,334 @@
+{
+  "config": {
+    "configFile": "E:\\AntiGravity Projects\\Upwork Researcher\\upwork-researcher\\playwright.config.ts",
+    "rootDir": "E:/AntiGravity Projects/Upwork Researcher/upwork-researcher/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "E:\\AntiGravity Projects\\Upwork Researcher\\upwork-researcher\\tests\\e2e\\global-setup.ts",
+    "globalTeardown": "E:\\AntiGravity Projects\\Upwork Researcher\\upwork-researcher\\tests\\e2e\\global-teardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "E:/AntiGravity Projects/Upwork Researcher/upwork-researcher/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "tauri-e2e",
+        "name": "tauri-e2e",
+        "testDir": "E:/AntiGravity Projects/Upwork Researcher/upwork-researcher/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.ts$/"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "open": "never",
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "pages\\pageObjects.spec.ts",
+      "file": "pages/pageObjects.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Page Object Model Structure Validation",
+          "file": "pages/pageObjects.spec.ts",
+          "line": 17,
+          "column": 6,
+          "specs": [
+            {
+              "title": "OnboardingPage should be properly structured",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tauri-e2e",
+                  "projectName": "tauri-e2e",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 203,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-10T17:05:08.611Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3dd80f1746d879d2a270-f8efbe1f9ef289f045f1",
+              "file": "pages/pageObjects.spec.ts",
+              "line": 18,
+              "column": 3
+            },
+            {
+              "title": "MainEditorPage should be properly structured",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tauri-e2e",
+                  "projectName": "tauri-e2e",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 153,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-10T17:05:08.906Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3dd80f1746d879d2a270-e68d096c85fe38c47dcb",
+              "file": "pages/pageObjects.spec.ts",
+              "line": 33,
+              "column": 3
+            },
+            {
+              "title": "HistoryPage should be properly structured",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tauri-e2e",
+                  "projectName": "tauri-e2e",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 145,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-10T17:05:09.066Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3dd80f1746d879d2a270-47b96dc396f1c885d54f",
+              "file": "pages/pageObjects.spec.ts",
+              "line": 50,
+              "column": 3
+            },
+            {
+              "title": "SettingsPage should be properly structured",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tauri-e2e",
+                  "projectName": "tauri-e2e",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 140,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-10T17:05:09.218Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3dd80f1746d879d2a270-606b95673071750d93a4",
+              "file": "pages/pageObjects.spec.ts",
+              "line": 64,
+              "column": 3
+            },
+            {
+              "title": "VoiceCalibrationPage should be properly structured",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tauri-e2e",
+                  "projectName": "tauri-e2e",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 138,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-10T17:05:09.364Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3dd80f1746d879d2a270-958d129af2f97604c5a0",
+              "file": "pages/pageObjects.spec.ts",
+              "line": 79,
+              "column": 3
+            },
+            {
+              "title": "SafetyWarningModal should be properly structured",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tauri-e2e",
+                  "projectName": "tauri-e2e",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 130,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-10T17:05:09.511Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3dd80f1746d879d2a270-6bfe153388829cfddb33",
+              "file": "pages/pageObjects.spec.ts",
+              "line": 95,
+              "column": 3
+            },
+            {
+              "title": "PassphraseDialog should be properly structured",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "tauri-e2e",
+                  "projectName": "tauri-e2e",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 141,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-10T17:05:09.647Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3dd80f1746d879d2a270-90413113b2d749bb2c80",
+              "file": "pages/pageObjects.spec.ts",
+              "line": 111,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-02-10T17:05:07.498Z",
+    "duration": 2382.42,
+    "expected": 7,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

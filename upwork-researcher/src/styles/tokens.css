@@ -1,0 +1,190 @@
+/* ================================================
+   Design Token System - Upwork Research Agent
+   Story 8.1: Dark Theme System
+
+   Token Naming Convention:
+   --color-{category}-{variant}
+   --spacing-{size}
+   --font-{property}-{size}
+   --radius-{size}
+   ================================================ */
+
+:root {
+  /* =====================
+     Core Background Colors
+     ===================== */
+  --color-bg-primary: #1a1a1a;      /* Main app background */
+  --color-bg-secondary: #2f2f2f;    /* Card/container background */
+  --color-bg-tertiary: #3a3a3a;     /* Elevated surfaces, hover states */
+  --color-bg-input: #1a1a1a;        /* Form input backgrounds */
+  --color-bg-hover: #404040;        /* Generic hover background */
+  --color-bg-active: #484848;       /* Active/pressed state */
+
+  /* =====================
+     Text Colors
+     ===================== */
+  --color-text-primary: #f6f6f6;    /* Main text - 15.5:1 on bg-primary */
+  --color-text-secondary: #aaa;     /* Secondary text - 6.5:1 on bg-secondary */
+  --color-text-muted: #888;         /* Disabled/placeholder - 4.8:1 on bg-primary */
+  --color-text-inverse: #1a1a1a;    /* Text on light backgrounds */
+
+  /* =====================
+     Border Colors
+     ===================== */
+  --color-border: #555;             /* Default borders */
+  --color-border-hover: #777;       /* Border on hover */
+  --color-border-focus: #24c8db;    /* Focus state border */
+
+  /* =====================
+     Semantic Colors
+     ===================== */
+  /* Primary (Blue) - Main actions */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-active: #1d4ed8;
+  --color-primary-text: #ffffff;
+
+  /* Accent (Cyan) - Highlights, active states */
+  --color-accent: #24c8db;
+  --color-accent-hover: #1eb3c4;
+  --color-accent-muted: rgba(36, 200, 219, 0.2);
+
+  /* Success (Green) - Positive indicators */
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-success-bg: #1a2e26;
+  --color-success-text: #10b981;
+
+  /* Warning (Amber) - Caution states */
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-warning-bg: #2e2a1a;
+  --color-warning-text: #f59e0b;
+
+  /* Error (Red) - Errors, destructive actions */
+  --color-error: #ef4444;
+  --color-error-hover: #dc2626;
+  --color-error-bg: #3a2020;
+  --color-error-text: #f88;
+  --color-error-border: #633;
+
+  /* Highlight (Yellow) - Text highlighting */
+  --color-highlight-bg: rgba(255, 215, 0, 0.2);
+
+  /* Cooldown state */
+  --color-cooldown-bg: #4a4a4a;
+  --color-cooldown-text: #b0b0b0;
+
+  /* Link colors */
+  --color-link: #3b82f6;
+  --color-link-hover: #2563eb;
+
+  /* Indigo (Regenerate actions) */
+  --color-indigo: #6366f1;
+  --color-indigo-hover: #4f46e5;
+  --color-indigo-bg: rgba(99, 102, 241, 0.08);
+  --color-indigo-border: rgba(99, 102, 241, 0.2);
+
+  /* Gray text variants for modals */
+  --color-text-gray: #d1d5db;
+  --color-text-gray-muted: #9ca3af;
+  --color-bg-dark: #262626;
+  --color-border-gray: #374151;
+
+  /* =====================
+     Component State Tokens
+     ===================== */
+  /* Buttons */
+  --color-button-bg: #3b82f6;
+  --color-button-bg-hover: #2563eb;
+  --color-button-bg-active: #1d4ed8;
+  --color-button-bg-disabled: #555;
+  --color-button-text: #ffffff;
+  --color-button-text-disabled: #888;
+
+  /* Inputs */
+  --color-input-bg: #1a1a1a;
+  --color-input-border: #555;
+  --color-input-border-hover: #777;
+  --color-input-border-focus: #24c8db;
+  --color-input-text: #f6f6f6;
+  --color-input-placeholder: #888;
+
+  /* Secondary/Neutral Buttons */
+  --color-button-secondary-bg: #6c757d;
+  --color-button-secondary-bg-hover: #545b62;
+  --color-button-secondary-text: #ffffff;
+
+  /* Copied/Success Button States */
+  --color-button-success-bg: #28a745;
+  --color-button-success-bg-hover: #218838;
+
+  /* Focus Ring (Accessibility) */
+  --color-focus-ring: #24c8db;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* =====================
+     Spacing Scale
+     ===================== */
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 3rem;     /* 48px */
+
+  /* =====================
+     Typography Scale
+     ===================== */
+  --font-family-base: Inter, Avenir, Helvetica, Arial, sans-serif;
+  --font-family-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-base: 1rem;    /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.25rem;   /* 20px */
+  --font-size-2xl: 1.5rem;   /* 24px */
+
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.75;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* =====================
+     Border Radius
+     ===================== */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* =====================
+     Shadows
+     ===================== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+  --shadow-focus: 0 0 0 2px rgba(36, 200, 219, 0.2);
+
+  /* =====================
+     Transitions
+     ===================== */
+  --transition-fast: 0.1s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* =====================
+     Z-Index Scale
+     ===================== */
+  --z-dropdown: 50;
+  --z-modal: 100;
+  --z-tooltip: 150;
+  --z-toast: 200;
+}

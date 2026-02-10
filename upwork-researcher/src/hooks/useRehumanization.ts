@@ -99,6 +99,7 @@ export function useRehumanization(
       // Analyze perplexity of regenerated text
       const analysis = await invoke<PerplexityAnalysis>("analyze_perplexity", {
         text: result.generated_text,
+        threshold: DEFAULT_PERPLEXITY_THRESHOLD,
       });
 
       // Check if passing

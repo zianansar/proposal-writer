@@ -397,12 +397,12 @@ mod tests {
         // Create 3 overrides
         let id1 = record_override(&conn, proposal_id, 185.0, 180.0).unwrap();
         let id2 = record_override(&conn, proposal_id, 190.0, 180.0).unwrap();
-        let id3 = record_override(&conn, proposal_id, 195.0, 180.0).unwrap();
+        let _id3 = record_override(&conn, proposal_id, 195.0, 180.0).unwrap();
 
         // Mark 2 as successful, 1 as pending
         update_override_status(&conn, id1, STATUS_SUCCESSFUL).unwrap();
         update_override_status(&conn, id2, STATUS_SUCCESSFUL).unwrap();
-        // id3 stays pending
+        // _id3 stays pending
 
         let successful = get_successful_overrides_last_30_days(&conn).unwrap();
         assert_eq!(successful.len(), 2);

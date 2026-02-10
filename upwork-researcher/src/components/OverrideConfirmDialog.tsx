@@ -1,9 +1,12 @@
 import { useEffect, useRef } from "react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import "./OverrideConfirmDialog.css";
 
 interface OverrideConfirmDialogProps {
   onCancel: () => void;
   onConfirm: () => void;
+  /** Story 8.2: Element that triggered the modal (for focus return) */
+  triggerRef?: React.RefObject<HTMLElement>;
 }
 
 /**
@@ -20,8 +23,11 @@ interface OverrideConfirmDialogProps {
 function OverrideConfirmDialog({
   onCancel,
   onConfirm,
+  triggerRef,
 }: OverrideConfirmDialogProps) {
-  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  // Story 8.2: Focus trap for keyboard navigation
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, { triggerRef });
 
   // Keyboard accessibility: Escape to cancel
   useEffect(() => {
@@ -35,11 +41,6 @@ function OverrideConfirmDialog({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onCancel]);
 
-  // Focus cancel button on mount (safety)
-  useEffect(() => {
-    cancelButtonRef.current?.focus();
-  }, []);
-
   return (
     <div
       className="override-confirm__backdrop"
@@ -47,7 +48,7 @@ function OverrideConfirmDialog({
       aria-modal="true"
       aria-describedby="override-confirm-desc"
     >
-      <div className="override-confirm">
+      <div ref={modalRef} className="override-confirm">
         <p id="override-confirm-desc" className="override-confirm__warning">
           <span aria-hidden="true">⚠️</span> This proposal may be detected as
           AI-generated.
@@ -60,10 +61,8 @@ function OverrideConfirmDialog({
         </p>
         <div className="override-confirm__actions">
           <button
-            ref={cancelButtonRef}
             className="override-confirm__button button--secondary"
             onClick={onCancel}
-            autoFocus
           >
             Cancel
           </button>

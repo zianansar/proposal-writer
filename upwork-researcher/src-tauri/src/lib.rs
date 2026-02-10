@@ -1,15 +1,21 @@
 pub mod analysis;
+pub mod archive;
 pub mod backup;
 pub mod claude;
+pub mod commands;
 pub mod config;
 pub mod db;
 pub mod events;
 pub mod humanization;
+pub mod job;
 pub mod keychain;
 pub mod logs;
 pub mod migration;
+pub mod network;
 pub mod passphrase;
 pub mod sanitization;
+pub mod scoring;
+pub mod voice;
 
 // Encryption spike module (Story 1.6)
 // Validates Argon2id key derivation and keyring integration for Epic 2
@@ -38,6 +44,138 @@ const COOLDOWN_SECONDS: u64 = 120;
 /// In-memory only — resets on app restart (acceptable: UX protection, not security)
 pub struct CooldownState {
     pub last_generation: Mutex<Option<Instant>>,
+}
+
+// ============================================================================
+// Voice Cache State (Story 5.8: Voice Profile Caching)
+// ============================================================================
+
+/// Voice profile cache for generation optimization (AR-5: Prompt Caching)
+/// In-memory only — resets on app restart or manual invalidation
+/// Story 5.8 Subtask 4.1: Cache to avoid repeated DB queries per generation
+pub struct VoiceCache {
+    pub cached_profile: Mutex<Option<voice::VoiceProfile>>,
+    /// Timestamp of last cache update (for potential TTL support)
+    pub cached_at: Mutex<Option<Instant>>,
+}
+
+impl VoiceCache {
+    pub fn new() -> Self {
+        Self {
+            cached_profile: Mutex::new(None),
+            cached_at: Mutex::new(None),
+        }
+    }
+
+    /// Get cached voice profile (Subtask 4.3)
+    /// Returns None if cache is empty or lock fails
+    pub fn get(&self) -> Option<voice::VoiceProfile> {
+        match self.cached_profile.lock() {
+            Ok(guard) => guard.clone(),
+            Err(poisoned) => {
+                // M1 fix: Log warning instead of silently returning None
+                tracing::warn!("VoiceCache mutex poisoned, recovering: {}", poisoned);
+                poisoned.into_inner().clone()
+            }
+        }
+    }
+
+    /// Set cached voice profile (Subtask 4.2)
+    pub fn set(&self, profile: voice::VoiceProfile) {
+        match self.cached_profile.lock() {
+            Ok(mut guard) => *guard = Some(profile),
+            Err(poisoned) => {
+                tracing::warn!("VoiceCache mutex poisoned during set, recovering");
+                *poisoned.into_inner() = Some(profile);
+            }
+        }
+        // Update cached_at timestamp
+        match self.cached_at.lock() {
+            Ok(mut guard) => *guard = Some(Instant::now()),
+            Err(poisoned) => {
+                *poisoned.into_inner() = Some(Instant::now());
+            }
+        }
+    }
+
+    /// Invalidate cache (Subtask 4.4)
+    /// Called after recalibration (Story 5-4/5-7)
+    pub fn invalidate(&self) {
+        match self.cached_profile.lock() {
+            Ok(mut guard) => *guard = None,
+            Err(poisoned) => {
+                tracing::warn!("VoiceCache mutex poisoned during invalidate, recovering");
+                *poisoned.into_inner() = None;
+            }
+        }
+        // Clear cached_at timestamp
+        match self.cached_at.lock() {
+            Ok(mut guard) => *guard = None,
+            Err(poisoned) => {
+                *poisoned.into_inner() = None;
+            }
+        }
+    }
+
+    /// Get cache age in seconds (for TTL checks)
+    pub fn age_seconds(&self) -> Option<u64> {
+        match self.cached_at.lock() {
+            Ok(guard) => guard.map(|t| t.elapsed().as_secs()),
+            Err(poisoned) => poisoned.into_inner().map(|t| t.elapsed().as_secs()),
+        }
+    }
+}
+
+// ============================================================================
+// Blocked Requests State (Story 8.13: Network Allowlist Enforcement)
+// ============================================================================
+
+/// Blocked network request for debugging and transparency
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BlockedRequest {
+    pub domain: String,
+    pub url: String,
+    pub timestamp: String,
+}
+
+/// In-memory tracking of blocked network requests (Story 8.13 Task 4.4)
+/// Not persisted — debugging aid only
+pub struct BlockedRequestsState {
+    pub requests: Arc<Mutex<Vec<BlockedRequest>>>,
+}
+
+impl BlockedRequestsState {
+    pub fn new() -> Self {
+        Self {
+            requests: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub fn add(&self, domain: String, url: String) {
+        let blocked_request = BlockedRequest {
+            domain,
+            url,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        };
+
+        match self.requests.lock() {
+            Ok(mut guard) => guard.push(blocked_request),
+            Err(poisoned) => {
+                tracing::warn!("BlockedRequestsState mutex poisoned, recovering");
+                poisoned.into_inner().push(blocked_request);
+            }
+        }
+    }
+
+    pub fn get_all(&self) -> Vec<BlockedRequest> {
+        match self.requests.lock() {
+            Ok(guard) => guard.clone(),
+            Err(poisoned) => {
+                tracing::warn!("BlockedRequestsState mutex poisoned during read, recovering");
+                poisoned.into_inner().clone()
+            }
+        }
+    }
 }
 
 impl CooldownState {
@@ -79,9 +217,11 @@ impl Default for CooldownState {
 /// Non-streaming proposal generation (kept for backwards compatibility/testing)
 /// Story 3.3: Reads humanization intensity from settings.
 /// Story 3.8: Enforces cooldown rate limiting (FR-12).
+/// Task 4.2: Added AppHandle for network event emission
 #[tauri::command]
 async fn generate_proposal(
     job_content: String,
+    app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
     database: State<'_, db::Database>,
     cooldown: State<'_, CooldownState>,
@@ -105,7 +245,9 @@ async fn generate_proposal(
             .unwrap_or_else(|| "medium".to_string())
     };
 
-    let result = claude::generate_proposal_with_key(&job_content, api_key.as_deref(), &intensity).await?;
+    // Story 5.8 Subtask 2.1: voice_profile parameter (loaded in Task 3)
+    // Task 4.2: Pass AppHandle for network event emission
+    let result = claude::generate_proposal_with_key(&job_content, api_key.as_deref(), &intensity, Some(&app_handle)).await?;
 
     // Story 3.8: Record successful generation timestamp (after API call succeeds)
     cooldown.record();
@@ -117,14 +259,17 @@ async fn generate_proposal(
 /// Auto-saves draft every 50ms during generation (Story 1.14)
 /// Story 3.3: Reads humanization intensity from settings and injects into prompt.
 /// Story 3.8: Enforces cooldown rate limiting (FR-12).
+/// Story 5.2 Subtask 5.7: Accepts hook strategy ID to customize generation prompt.
 #[tauri::command]
 async fn generate_proposal_streaming(
     job_content: String,
+    strategy_id: Option<i64>,
     app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
     database: State<'_, db::Database>,
     draft_state: State<'_, DraftState>,
     cooldown: State<'_, CooldownState>,
+    voice_cache: State<'_, VoiceCache>, // Story 5.8 Subtask 4.1: Voice cache state
 ) -> Result<String, String> {
     // Story 3.8: Check cooldown FIRST — before any API call (FR-12)
     let remaining = cooldown.remaining_seconds();
@@ -134,17 +279,67 @@ async fn generate_proposal_streaming(
 
     let api_key = config_state.get_api_key()?;
 
-    // Story 3.3: Read humanization intensity from settings
-    let intensity = {
+    // Story 5.8 Subtask 3.3: Optimized parallel loading (AC-2)
+    // Note: SQLite single-connection architecture requires sequential queries within one lock.
+    // This is MORE efficient than the previous double-lock approach and meets <150ms target.
+    let load_start = std::time::Instant::now();
+
+    // Story 5.8 Subtask 4.3: Check voice cache first (AC-6)
+    let cached_profile = voice_cache.get();
+    let use_cache = cached_profile.is_some();
+
+    // Single lock acquisition for both queries (AC-2 optimization)
+    let (voice_profile, intensity) = {
         let conn = database
             .conn
             .lock()
             .map_err(|e| format!("Database lock error: {}", e))?;
-        db::queries::settings::get_setting(&conn, "humanization_intensity")
-            .map_err(|e| format!("Failed to get humanization setting: {}", e))?
-            .unwrap_or_else(|| "medium".to_string())
-    };
 
+        // Query 1: Voice profile (skip if cached)
+        let voice_profile = if use_cache {
+            tracing::debug!("Using cached voice profile");
+            cached_profile
+        } else {
+            tracing::debug!("Voice cache miss, loading from database");
+            let voice_profile_row = db::queries::voice_profile::get_voice_profile(&conn, "default")
+                .map_err(|e| format!("Failed to get voice profile: {}", e))?;
+
+            // Subtask 3.4: Convert VoiceProfileRow to VoiceProfile if exists
+            let profile_opt = voice_profile_row.as_ref().map(|row| row.to_voice_profile());
+
+            // Subtask 4.2: Populate cache on first load
+            if let Some(ref profile) = profile_opt {
+                voice_cache.set(profile.clone());
+                tracing::debug!("Voice profile cached");
+            }
+
+            profile_opt
+        };
+
+        // Query 2: Humanization intensity (always load fresh for settings changes)
+        let intensity = db::queries::settings::get_setting(&conn, "humanization_intensity")
+            .map_err(|e| format!("Failed to get humanization setting: {}", e))?
+            .unwrap_or_else(|| "medium".to_string());
+
+        (voice_profile, intensity)
+    }; // Lock released here
+
+    // AC-2: Log parallel loading performance (<150ms target)
+    let load_elapsed = load_start.elapsed();
+    tracing::debug!(elapsed_ms = load_elapsed.as_millis(), "Context loading complete");
+
+    // Subtask 3.5: Log voice profile usage (AR-16: log metadata only, not content)
+    if let Some(ref profile) = voice_profile {
+        tracing::info!(
+            calibration_source = ?profile.calibration_source,
+            sample_count = profile.sample_count,
+            "Generating with calibrated voice profile"
+        );
+    } else {
+        tracing::info!("Generating with default voice (no calibration)");
+    }
+
+    // Story 5.8 Subtask 3.4: Pass loaded voice_profile to generation
     let result = claude::generate_proposal_streaming_with_key(
         &job_content,
         app_handle,
@@ -204,6 +399,18 @@ async fn regenerate_with_humanization(
 
     // Generate with escalated intensity (does NOT persist — user's preferred setting unchanged)
     let api_key = config_state.get_api_key()?;
+
+    // Story 5.8 Subtask 3.3: Load voice profile for regeneration
+    let voice_profile_row = {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+        db::queries::voice_profile::get_voice_profile(&conn, "default")
+            .map_err(|e| format!("Failed to get voice profile: {}", e))?
+    };
+    let voice_profile = voice_profile_row.as_ref().map(|row| row.to_voice_profile());
+
     let generated_text = claude::generate_proposal_streaming_with_key(
         &job_content,
         app_handle,
@@ -227,14 +434,16 @@ async fn regenerate_with_humanization(
 /// Analyze text for AI detection risk (Story 3.1 + 3.2 + 3.5)
 /// Returns perplexity analysis with score and flagged sentences.
 /// Story 3.5: Uses configurable threshold (default 180)
+/// Task 4.2: Added AppHandle for network event emission
 #[tauri::command]
 async fn analyze_perplexity(
     text: String,
     threshold: i32,
+    app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
 ) -> Result<claude::PerplexityAnalysis, String> {
     let api_key = config_state.get_api_key()?;
-    claude::analyze_perplexity_with_sentences(&text, threshold, api_key.as_deref()).await
+    claude::analyze_perplexity_with_sentences(&text, threshold, api_key.as_deref(), Some(&app_handle)).await
 }
 
 // ============================================================================
@@ -247,6 +456,18 @@ async fn analyze_perplexity(
 #[tauri::command]
 fn get_cooldown_remaining(cooldown: State<CooldownState>) -> u64 {
     cooldown.remaining_seconds()
+}
+
+// ============================================================================
+// Voice Cache Commands (Story 5.8: Voice Profile Caching)
+// ============================================================================
+
+/// Invalidate voice profile cache (Story 5.8 Subtask 4.4, AC-6)
+/// Called after recalibration (Story 5-4/5-7) to force reload from database
+#[tauri::command]
+fn invalidate_voice_cache(voice_cache: State<VoiceCache>) {
+    voice_cache.invalidate();
+    tracing::info!("Voice profile cache invalidated");
 }
 
 /// Database health check - returns database path and status
@@ -354,6 +575,222 @@ fn update_proposal_content(
     Ok(())
 }
 
+/// Create a revision (Story 6.3: Proposal Revision History)
+/// Called on auto-save from TipTap editor to track version history
+/// Triggers archiving if revision count exceeds threshold (Story 6.7)
+#[tauri::command]
+async fn create_revision(
+    database: State<'_, db::Database>,
+    proposal_id: i64,
+    content: String,
+    revision_type: Option<String>,
+) -> Result<i64, String> {
+    let mut conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let rev_type = revision_type.unwrap_or_else(|| "edit".to_string());
+
+    let revision_id =
+        db::queries::revisions::create_revision(&conn, proposal_id, &content, &rev_type, None)
+            .map_err(|e| format!("Failed to create revision: {}", e))?;
+
+    // Archive old revisions if threshold exceeded (AC1, AC4)
+    // This is fast (<100ms) so we do it synchronously to avoid lifetime complications
+    if let Err(e) = db::queries::revisions::archive_old_revisions(&mut conn, proposal_id) {
+        // Log but don't fail the revision creation (AC4)
+        tracing::warn!(
+            proposal_id = proposal_id,
+            error = %e,
+            "Archiving failed after revision creation"
+        );
+    }
+
+    Ok(revision_id)
+}
+
+/// Get revision summaries for history panel (Story 6.3)
+#[tauri::command]
+fn get_proposal_revisions(
+    database: State<db::Database>,
+    proposal_id: i64,
+) -> Result<Vec<db::queries::revisions::RevisionSummary>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::revisions::get_revisions(&conn, proposal_id)
+        .map_err(|e| format!("Failed to get revisions: {}", e))
+}
+
+/// Get full revision content for preview (Story 6.3)
+#[tauri::command]
+fn get_revision_content(
+    database: State<db::Database>,
+    revision_id: i64,
+) -> Result<db::queries::revisions::ProposalRevision, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::revisions::get_revision(&conn, revision_id)
+        .map_err(|e| format!("Failed to get revision: {}", e))
+}
+
+/// Restore a previous revision (Story 6.3)
+/// Creates a NEW revision with type='restore' and updates the proposal
+/// Triggers archiving if revision count exceeds threshold (Story 6.7 fix)
+#[tauri::command]
+fn restore_revision(
+    database: State<db::Database>,
+    proposal_id: i64,
+    source_revision_id: i64,
+) -> Result<i64, String> {
+    let mut conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Get the source revision content
+    let source = db::queries::revisions::get_revision(&conn, source_revision_id)
+        .map_err(|e| format!("Failed to get source revision: {}", e))?;
+
+    // Create new "restore" revision
+    let new_revision_id = db::queries::revisions::create_revision(
+        &conn,
+        proposal_id,
+        &source.content,
+        "restore",
+        Some(source_revision_id),
+    )
+    .map_err(|e| format!("Failed to create restore revision: {}", e))?;
+
+    // Archive old revisions if threshold exceeded (AC1 fix)
+    if let Err(e) = db::queries::revisions::archive_old_revisions(&mut conn, proposal_id) {
+        tracing::warn!(
+            proposal_id = proposal_id,
+            error = %e,
+            "Archiving failed after restore revision creation"
+        );
+    }
+
+    // Update the proposal's current content
+    db::queries::proposals::update_proposal_text(&conn, proposal_id, &source.content)
+        .map_err(|e| format!("Failed to update proposal: {}", e))?;
+
+    tracing::info!(
+        proposal_id = proposal_id,
+        source_revision_id = source_revision_id,
+        new_revision_id = new_revision_id,
+        "Restored proposal to previous revision"
+    );
+
+    Ok(new_revision_id)
+}
+
+// ============================================================================
+// Archived Revision Commands (Story 6-7: Archive Old Revisions)
+// ============================================================================
+
+/// Get archived revisions for a proposal (Story 6.7)
+#[tauri::command]
+async fn get_archived_revisions(
+    database: State<'_, db::Database>,
+    proposal_id: i64,
+) -> Result<Vec<archive::ArchivedRevision>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::revisions::get_archived_revisions(&conn, proposal_id)
+        .map_err(|e| format!("Failed to get archived revisions: {}", e))
+}
+
+/// Get count of archived revisions (Story 6.7)
+#[tauri::command]
+async fn get_archived_revision_count(
+    database: State<'_, db::Database>,
+    proposal_id: i64,
+) -> Result<i64, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::revisions::get_archived_revision_count(&conn, proposal_id)
+        .map_err(|e| format!("Failed to get archived revision count: {}", e))
+}
+
+/// Restore an archived revision (Story 6.7)
+/// Creates a new revision from archived content
+/// Triggers archiving if revision count exceeds threshold (AC1 fix)
+#[tauri::command]
+async fn restore_archived_revision(
+    database: State<'_, db::Database>,
+    proposal_id: i64,
+    archived_index: usize,
+) -> Result<i64, String> {
+    let (new_revision_id, content) = {
+        let mut conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        // Get archived revisions
+        let archived = db::queries::revisions::get_archived_revisions(&conn, proposal_id)
+            .map_err(|e| format!("Failed to get archived revisions: {}", e))?;
+
+        let source = archived
+            .get(archived_index)
+            .ok_or_else(|| format!("Archived revision at index {} not found", archived_index))?;
+
+        // Create new "restore" revision with archived content
+        let new_revision_id = db::queries::revisions::create_revision(
+            &conn,
+            proposal_id,
+            &source.content,
+            "restore",
+            Some(source.id), // Reference the original archived revision ID
+        )
+        .map_err(|e| format!("Failed to create restore revision: {}", e))?;
+
+        // Archive old revisions if threshold exceeded (AC1 fix)
+        if let Err(e) = db::queries::revisions::archive_old_revisions(&mut conn, proposal_id) {
+            tracing::warn!(
+                proposal_id = proposal_id,
+                error = %e,
+                "Archiving failed after archived restore revision creation"
+            );
+        }
+
+        (new_revision_id, source.content.clone())
+    }; // conn lock released here
+
+    // Update proposal content
+    {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        db::queries::proposals::update_proposal_text(&conn, proposal_id, &content)
+            .map_err(|e| format!("Failed to update proposal: {}", e))?;
+    }
+
+    tracing::info!(
+        proposal_id = proposal_id,
+        archived_index = archived_index,
+        new_revision_id = new_revision_id,
+        "Restored proposal from archived revision"
+    );
+
+    Ok(new_revision_id)
+}
+
 /// Check for draft proposal from previous session (Story 1.14)
 /// Returns the latest draft if exists, None otherwise
 #[tauri::command]
@@ -439,8 +876,57 @@ async fn analyze_job_post(
     let api_key = config_state.get_api_key()?;
 
     // AC-1: Call analysis function with Haiku (extracts client_name, key_skills, and hidden_needs)
-    let analysis = analysis::analyze_job(&raw_content, api_key.as_deref().ok_or("API key not found")?)
+    let mut analysis = analysis::analyze_job(&raw_content, api_key.as_deref().ok_or("API key not found")?)
         .await?;
+
+    // Story 4b.4 Task 6: Extract budget and calculate alignment (Subtask 6.1-6.5)
+    // Extract budget from job post
+    let budget_info = analysis::extract_budget(&raw_content, api_key.as_deref().ok_or("API key not found")?).await
+        .unwrap_or_else(|e| {
+            tracing::warn!("Budget extraction failed, defaulting to unknown: {}", e);
+            analysis::BudgetInfo {
+                min: None,
+                max: None,
+                budget_type: "unknown".to_string(),
+            }
+        });
+
+    // Get user rate configuration (Subtask 6.2)
+    let user_rate_config = {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        // Get hourly rate
+        let hourly_rate = match db::queries::settings::get_setting(&conn, "user_hourly_rate") {
+            Ok(Some(value)) => value.parse::<f64>().ok(),
+            _ => None,
+        };
+
+        // Get project rate minimum
+        let project_rate_min = match db::queries::settings::get_setting(&conn, "user_project_rate_min")
+        {
+            Ok(Some(value)) => value.parse::<f64>().ok(),
+            _ => None,
+        };
+
+        RateConfig {
+            hourly_rate,
+            project_rate_min,
+        }
+    };
+
+    // Calculate budget alignment (Subtask 6.3)
+    let alignment = analysis::calculate_budget_alignment(&budget_info, &user_rate_config);
+
+    // Update analysis with budget fields (Subtask 6.5)
+    analysis.budget_min = budget_info.min;
+    analysis.budget_max = budget_info.max;
+    analysis.budget_type = budget_info.budget_type.clone();
+    // H1 Fix: Include alignment in response for frontend (AC-2)
+    analysis.budget_alignment_pct = alignment.percentage;
+    analysis.budget_alignment_status = alignment.status.clone();
 
     // Story 4a.8: Save all analysis data atomically if job_post_id provided (AC-1, AC-2, AC-3)
     if let Some(job_id) = job_post_id {
@@ -483,6 +969,95 @@ async fn analyze_job_post(
                 save_duration
             );
         }
+
+        // Story 4b.3: Store client quality score in job_scores table (AC-1)
+        if let Some(score) = analysis.client_quality_score {
+            db::queries::scoring::store_client_quality_score(&conn, job_id, Some(score))
+                .map_err(|e| {
+                    tracing::warn!("Failed to store client quality score: {}", e);
+                    // Non-blocking: don't fail analysis if score storage fails
+                    e
+                })
+                .ok(); // Swallow error — score storage is non-critical
+            tracing::info!(
+                "Stored client quality score {} for job_post_id {}",
+                score,
+                job_id
+            );
+        }
+
+        // Story 4b.4: Save budget fields to database (AC-5, Subtask 6.4)
+        db::queries::job_posts::update_job_post_budget(
+            &conn,
+            job_id,
+            analysis.budget_min,
+            analysis.budget_max,
+            &analysis.budget_type,
+            alignment.percentage,
+            &alignment.status,
+        )
+        .map_err(|e| {
+            tracing::warn!("Failed to store budget data: {}", e);
+            // Non-blocking: don't fail analysis if budget storage fails (Subtask 6.6)
+            e
+        })
+        .ok(); // Swallow error — budget storage is non-critical
+
+        tracing::info!(
+            "Stored budget data for job_post_id {}: type={}, min={:?}, alignment={}%",
+            job_id,
+            analysis.budget_type,
+            analysis.budget_min,
+            alignment.percentage.map_or("N/A".to_string(), |p| p.to_string())
+        );
+
+        // Story 4b.5 Review Fix: Store budget alignment score in job_scores table
+        // This enables the weighted scoring formula to include the 20% budget component
+        if let Some(pct) = alignment.percentage {
+            db::queries::scoring::store_budget_alignment_score(&conn, job_id, Some(pct))
+                .map_err(|e| {
+                    tracing::warn!("Failed to store budget alignment score: {}", e);
+                    e
+                })
+                .ok(); // Non-blocking
+        }
+
+        // Story 4b.5 Task 5.3: Calculate overall job score after analysis completes
+        // Read component scores from job_scores table
+        let job_score = db::queries::scoring::get_job_score(&conn, job_id).ok().flatten();
+
+        let (skills_match, client_quality, budget_alignment_score) = match job_score {
+            Some(score) => (
+                score.skills_match_percentage,
+                score.client_quality_score,
+                score.budget_alignment_score,
+            ),
+            None => (None, None, None),
+        };
+
+        // Calculate overall score
+        let scoring_result =
+            scoring::calculate_overall_score(skills_match, client_quality, budget_alignment_score);
+
+        // Store overall score and color flag
+        db::queries::scoring::upsert_overall_score(
+            &conn,
+            job_id,
+            scoring_result.overall_score,
+            &scoring_result.color_flag,
+        )
+        .map_err(|e| {
+            tracing::warn!("Failed to store overall score: {}", e);
+            e
+        })
+        .ok(); // Non-blocking: don't fail analysis if overall score storage fails
+
+        tracing::info!(
+            "Calculated overall score for job_post_id {}: score={:?}, flag={}",
+            job_id,
+            scoring_result.overall_score,
+            scoring_result.color_flag
+        );
     }
 
     Ok(analysis)
@@ -723,27 +1298,43 @@ fn get_skill_suggestions(query: String) -> Result<Vec<String>, String> {
 
 /// Add a new skill to user's profile (Story 4b.1)
 /// Returns skill ID on success, error if duplicate (case-insensitive)
+/// Story 4b.5 Task 5.1: Triggers recalculation of all job scores
 #[tauri::command]
 fn add_user_skill(database: State<db::Database>, skill: String) -> Result<i64, String> {
-    let conn = database
-        .conn
-        .lock()
-        .map_err(|e| format!("Database lock error: {}", e))?;
+    let skill_id = {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
 
-    db::queries::user_skills::add_user_skill(&conn, &skill)
-        .map_err(|e| format!("Failed to add skill: {}", e))
+        db::queries::user_skills::add_user_skill(&conn, &skill)
+            .map_err(|e| format!("Failed to add skill: {}", e))?
+    };
+
+    // Story 4b.5 Task 5.1: Recalculate all scores after skill added
+    let _ = recalculate_all_scores(database);
+
+    Ok(skill_id)
 }
 
 /// Remove a skill from user's profile (Story 4b.1)
+/// Story 4b.5 Task 5.1: Triggers recalculation of all job scores
 #[tauri::command]
 fn remove_user_skill(database: State<db::Database>, skill_id: i64) -> Result<(), String> {
-    let conn = database
-        .conn
-        .lock()
-        .map_err(|e| format!("Database lock error: {}", e))?;
+    {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
 
-    db::queries::user_skills::remove_user_skill(&conn, skill_id)
-        .map_err(|e| format!("Failed to remove skill: {}", e))
+        db::queries::user_skills::remove_user_skill(&conn, skill_id)
+            .map_err(|e| format!("Failed to remove skill: {}", e))?;
+    }
+
+    // Story 4b.5 Task 5.1: Recalculate all scores after skill removed
+    let _ = recalculate_all_scores(database);
+
+    Ok(())
 }
 
 /// Get all user skills ordered by added_at DESC (Story 4b.1)
@@ -758,6 +1349,252 @@ fn get_user_skills(
 
     db::queries::user_skills::get_user_skills(&conn)
         .map_err(|e| format!("Failed to get skills: {}", e))
+}
+
+// ============================================================================
+// User Rate Configuration Commands (Story 4b.4)
+// ============================================================================
+
+use serde::{Deserialize, Serialize};
+
+/// User rate configuration for budget alignment (Story 4b.4)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateConfig {
+    pub hourly_rate: Option<f64>,
+    pub project_rate_min: Option<f64>,
+}
+
+/// Get user rate configuration from settings (Story 4b.4, Task 2)
+/// Returns hourly rate and minimum project rate (null if not configured)
+#[tauri::command]
+fn get_user_rate_config(database: State<db::Database>) -> Result<RateConfig, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Get hourly rate
+    let hourly_rate = match db::queries::settings::get_setting(&conn, "user_hourly_rate") {
+        Ok(Some(value)) => value.parse::<f64>().ok(),
+        _ => None,
+    };
+
+    // Get project rate minimum
+    let project_rate_min = match db::queries::settings::get_setting(&conn, "user_project_rate_min")
+    {
+        Ok(Some(value)) => value.parse::<f64>().ok(),
+        _ => None,
+    };
+
+    Ok(RateConfig {
+        hourly_rate,
+        project_rate_min,
+    })
+}
+
+/// Set user hourly rate (Story 4b.4, Task 2)
+/// Validates: must be positive, max 6 digits
+/// Story 4b.5 Task 5.2: Triggers recalculation of all job scores
+#[tauri::command]
+fn set_user_hourly_rate(database: State<db::Database>, rate: f64) -> Result<(), String> {
+    // Validate rate
+    if rate <= 0.0 {
+        return Err("Hourly rate must be positive".to_string());
+    }
+    if rate > 999999.0 {
+        return Err("Hourly rate too large (max 999999)".to_string());
+    }
+
+    tracing::debug!(rate = rate, "Setting user hourly rate");
+
+    {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        // Store as string with 2 decimal precision
+        let rate_str = format!("{:.2}", rate);
+        db::queries::settings::set_setting(&conn, "user_hourly_rate", &rate_str)
+            .map_err(|e| format!("Failed to set hourly rate: {}", e))?;
+    }
+
+    // Story 4b.5 Task 5.2: Recalculate all scores after rate changed
+    let _ = recalculate_all_scores(database);
+
+    Ok(())
+}
+
+/// Set user minimum project rate (Story 4b.4, Task 2)
+/// Validates: must be positive, max 6 digits
+/// Story 4b.5 Task 5.2: Triggers recalculation of all job scores
+#[tauri::command]
+fn set_user_project_rate_min(database: State<db::Database>, rate: f64) -> Result<(), String> {
+    // Validate rate
+    if rate <= 0.0 {
+        return Err("Project rate must be positive".to_string());
+    }
+    if rate > 999999.0 {
+        return Err("Project rate too large (max 999999)".to_string());
+    }
+
+    tracing::debug!(rate = rate, "Setting user project rate minimum");
+
+    {
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+
+        // Store as string with 2 decimal precision
+        let rate_str = format!("{:.2}", rate);
+        db::queries::settings::set_setting(&conn, "user_project_rate_min", &rate_str)
+            .map_err(|e| format!("Failed to set project rate: {}", e))?;
+    }
+
+    // Story 4b.5 Task 5.2: Recalculate all scores after rate changed
+    let _ = recalculate_all_scores(database);
+
+    Ok(())
+}
+
+// ============================================================================
+// Job Scoring Commands (Story 4b.2)
+// ============================================================================
+
+/// Calculate skills match percentage and store in job_scores table (AC-1)
+/// Returns the calculated percentage or null if edge case (AC-3)
+#[tauri::command]
+fn calculate_and_store_skills_match(
+    database: State<db::Database>,
+    job_post_id: i64,
+) -> Result<Option<f64>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let percentage = db::queries::scoring::calculate_skills_match(job_post_id, &conn)?;
+
+    db::queries::scoring::store_skills_match(&conn, job_post_id, percentage)?;
+
+    Ok(percentage)
+}
+
+/// Retrieve stored job score for a job post (Task 4)
+#[tauri::command]
+fn get_job_score(
+    database: State<db::Database>,
+    job_post_id: i64,
+) -> Result<Option<db::queries::scoring::JobScore>, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::scoring::get_job_score(&conn, job_post_id)
+}
+
+/// Get detailed scoring breakdown for UI display (Story 4b.6)
+/// Returns all component scores, matched/missing skills, and recommendation text
+#[tauri::command]
+fn get_scoring_breakdown(
+    database: State<db::Database>,
+    job_post_id: i64,
+) -> Result<scoring::ScoringBreakdown, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    scoring::assemble_scoring_breakdown(&conn, job_post_id)
+}
+
+/// Calculate and store overall job score (Story 4b.5 Task 3.1)
+/// Orchestrates: read component scores → calculate weighted score → store → return
+#[tauri::command]
+fn calculate_overall_job_score(
+    database: State<db::Database>,
+    job_post_id: i64,
+) -> Result<scoring::ScoringResult, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Read component scores from job_scores table
+    let job_score = db::queries::scoring::get_job_score(&conn, job_post_id)?;
+
+    let (skills_match, client_quality, budget_alignment) = match job_score {
+        Some(score) => (
+            score.skills_match_percentage,
+            score.client_quality_score,
+            score.budget_alignment_score,
+        ),
+        None => (None, None, None),
+    };
+
+    // Calculate overall score using weighted formula
+    let result = scoring::calculate_overall_score(skills_match, client_quality, budget_alignment);
+
+    // Store overall score and color flag
+    db::queries::scoring::upsert_overall_score(
+        &conn,
+        job_post_id,
+        result.overall_score,
+        &result.color_flag,
+    )?;
+
+    Ok(result)
+}
+
+/// Recalculate all job scores (Story 4b.5 Task 3.2)
+/// Bulk recalculation when user updates skills or rate configuration
+#[tauri::command]
+fn recalculate_all_scores(database: State<db::Database>) -> Result<usize, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    // Get all job_post_ids that have scoring data
+    let mut stmt = conn
+        .prepare("SELECT DISTINCT job_post_id FROM job_scores")
+        .map_err(|e| format!("Failed to prepare query: {}", e))?;
+
+    let job_ids: Vec<i64> = stmt
+        .query_map([], |row| row.get(0))
+        .map_err(|e| format!("Failed to query job IDs: {}", e))?
+        .collect::<Result<Vec<i64>, _>>()
+        .map_err(|e| format!("Failed to collect job IDs: {}", e))?;
+
+    let mut recalculated = 0;
+
+    for job_id in job_ids {
+        // Read component scores
+        let job_score = db::queries::scoring::get_job_score(&conn, job_id)?;
+
+        if let Some(score) = job_score {
+            // Recalculate overall score
+            let result = scoring::calculate_overall_score(
+                score.skills_match_percentage,
+                score.client_quality_score,
+                score.budget_alignment_score,
+            );
+
+            // Update stored score
+            db::queries::scoring::upsert_overall_score(
+                &conn,
+                job_id,
+                result.overall_score,
+                &result.color_flag,
+            )?;
+
+            recalculated += 1;
+        }
+    }
+
+    Ok(recalculated)
 }
 
 // ============================================================================
@@ -788,6 +1625,37 @@ fn get_safety_threshold_internal(database: &db::Database) -> Result<i32, String>
 #[tauri::command]
 fn get_safety_threshold(database: State<db::Database>) -> Result<i32, String> {
     get_safety_threshold_internal(&database)
+}
+
+// ============================================================================
+// Voice Learning Progress Commands (Story 8.6)
+// ============================================================================
+
+/// Get the current proposals edited count for voice learning progress.
+/// Returns 0 if not yet tracked (code-level default).
+#[tauri::command]
+fn get_proposals_edited_count(database: State<db::Database>) -> Result<i32, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::settings::get_proposals_edited_count(&conn)
+        .map_err(|e| format!("Failed to get proposals edited count: {}", e))
+}
+
+/// Increment the proposals edited count by 1.
+/// Called after user copies a proposal (indicating they edited it).
+/// Returns the new count after incrementing.
+#[tauri::command]
+fn increment_proposals_edited(database: State<db::Database>) -> Result<i32, String> {
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db::queries::settings::increment_proposals_edited(&conn)
+        .map_err(|e| format!("Failed to increment proposals edited count: {}", e))
 }
 
 // ============================================================================
@@ -1772,11 +2640,19 @@ pub fn run() {
             // Story 3.8: Initialize cooldown state for rate limiting (FR-12)
             let cooldown_state = CooldownState::new();
 
+            // Story 5.8 Subtask 4.1: Initialize voice cache for prompt caching (AC-6)
+            let voice_cache = VoiceCache::new();
+
+            // Story 8.13: Initialize blocked requests state for network security transparency
+            let blocked_requests_state = BlockedRequestsState::new();
+
             // Store in managed state
             app.manage(database);
             app.manage(config_state);
             app.manage(draft_state);
             app.manage(cooldown_state);
+            app.manage(voice_cache);
+            app.manage(blocked_requests_state);
 
             Ok(())
         })
@@ -1786,13 +2662,27 @@ pub fn run() {
             analyze_perplexity,
             // Cooldown commands (Story 3.8)
             get_cooldown_remaining,
+            // Voice cache commands (Story 5.8)
+            invalidate_voice_cache,
             check_database,
             save_proposal,
             get_proposals,
+            commands::proposals::get_proposal_history, // Story 8.7: Memory Optimization
             delete_proposal, // Story 6.8: Delete Proposal & All Revisions
             update_proposal_content, // Story 6.1: TipTap Editor auto-save
+            // Revision commands (Story 6.3: Proposal Revision History)
+            create_revision,
+            get_proposal_revisions,
+            get_revision_content,
+            restore_revision,
+            // Archived revision commands (Story 6.7: Archive Old Revisions)
+            get_archived_revisions,
+            get_archived_revision_count,
+            restore_archived_revision,
             save_job_post,
             analyze_job_post, // Story 4a.2: Client Name Extraction
+            job::rss::import_rss_feed, // Story 4b.7: RSS Feed Import
+            commands::job_queue::get_job_queue, // Story 4b.9: Job Queue View with Sorting
             has_api_key,
             set_api_key,
             get_api_key_masked,
@@ -1810,8 +2700,41 @@ pub fn run() {
             remove_user_skill,
             get_user_skills,
             get_skill_suggestions,
+            // User rate configuration commands (Story 4b.4)
+            get_user_rate_config,
+            set_user_hourly_rate,
+            set_user_project_rate_min,
+            // Job scoring commands (Story 4b.2, 4b.5, 4b.6)
+            calculate_and_store_skills_match,
+            get_job_score,
+            get_scoring_breakdown, // Story 4b.6
+            calculate_overall_job_score, // Story 4b.5
+            recalculate_all_scores, // Story 4b.5
+            // Scoring feedback commands (Story 4b.10)
+            commands::scoring_feedback::submit_scoring_feedback,
+            commands::scoring_feedback::check_can_report_score,
+            // Hook strategies commands (Story 5.2)
+            commands::hooks::get_hook_strategies,
+            // Golden set voice learning commands (Story 5.3, 5.4)
+            commands::voice::add_golden_proposal_command,
+            commands::voice::get_golden_proposals_command,
+            commands::voice::delete_golden_proposal_command,
+            commands::voice::get_golden_proposal_count_command,
+            commands::voice::pick_and_read_file,
+            commands::voice::calibrate_voice, // Story 5.4: Voice calibration
+            // Voice profile persistence commands (Story 5-5b)
+            commands::voice::get_voice_profile,
+            commands::voice::save_voice_profile,
+            commands::voice::delete_voice_profile,
+            // Manual voice parameter adjustments (Story 6.2)
+            commands::voice::update_voice_parameters,
+            // Quick calibration command (Story 5-7)
+            commands::voice::quick_calibrate,
             // Safety threshold commands (Story 3.5)
             get_safety_threshold,
+            // Voice learning progress commands (Story 8.6)
+            get_proposals_edited_count,
+            increment_proposals_edited,
             // Safety override commands (Story 3.6 + 3.7)
             log_safety_override, // Deprecated: kept for backwards compatibility
             record_safety_override, // Story 3.7: Per-override record tracking
@@ -1847,7 +2770,16 @@ pub fn run() {
             migrate_database,
             // Migration verification commands (Story 2.4)
             get_migration_verification,
-            delete_old_database
+            delete_old_database,
+            // System/performance commands (Story 8.10)
+            commands::system::get_memory_usage,
+            commands::system::signal_ready,
+            // Network security commands (Story 8.13)
+            commands::system::get_blocked_requests,
+            // Test data seeding commands (Story 8.10)
+            commands::test_data::seed_proposals,
+            commands::test_data::seed_job_posts,
+            commands::test_data::clear_test_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1991,6 +2923,7 @@ const THRESHOLD_MAX: i32 = 220;
 const THRESHOLD_DEFAULT: i32 = 180;
 const THRESHOLD_PROXIMITY: f32 = 10.0; // Only count overrides within 10 points of threshold
 const SUCCESSFUL_OVERRIDE_THRESHOLD: usize = 3; // Need 3 overrides to suggest change
+#[allow(dead_code)] // Reserved for Story 3.7 threshold decrease feature
 const INACTIVITY_DAYS: i32 = 60; // Days without overrides to suggest decrease
 
 /// Check for learning opportunity and suggest threshold adjustment (Story 3.7, Task 4.3)
@@ -2241,6 +3174,99 @@ async fn dismiss_threshold_suggestion(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // =========================================================================
+    // Story 4b.4: User Rate Configuration Tests
+    // =========================================================================
+
+    #[test]
+    fn test_user_hourly_rate_saves_correctly() {
+        // Subtask 9.4: Test hourly rate saves correctly
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let conn = db.conn.lock().unwrap();
+
+        // Validate and save rate
+        let rate = 75.0;
+        assert!(rate > 0.0 && rate <= 999999.0, "Rate should be positive and <= 999999");
+        let rate_str = format!("{:.2}", rate);
+        db::queries::settings::set_setting(&conn, "user_hourly_rate", &rate_str).unwrap();
+
+        // Verify saved
+        let saved = db::queries::settings::get_setting(&conn, "user_hourly_rate").unwrap();
+        assert_eq!(saved, Some("75.00".to_string()));
+
+        // Verify parses back correctly
+        let parsed = saved.unwrap().parse::<f64>().unwrap();
+        assert_eq!(parsed, 75.0);
+    }
+
+    #[test]
+    fn test_user_project_rate_min_saves_correctly() {
+        // Subtask 9.4: Test project rate saves correctly
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let conn = db.conn.lock().unwrap();
+
+        // Validate and save rate
+        let rate = 2000.0;
+        assert!(rate > 0.0 && rate <= 999999.0, "Rate should be positive and <= 999999");
+        let rate_str = format!("{:.2}", rate);
+        db::queries::settings::set_setting(&conn, "user_project_rate_min", &rate_str).unwrap();
+
+        // Verify saved
+        let saved = db::queries::settings::get_setting(&conn, "user_project_rate_min").unwrap();
+        assert_eq!(saved, Some("2000.00".to_string()));
+
+        // Verify parses back correctly
+        let parsed = saved.unwrap().parse::<f64>().unwrap();
+        assert_eq!(parsed, 2000.0);
+    }
+
+    #[test]
+    fn test_rate_config_returns_none_when_not_set() {
+        // Subtask 9.4: Test get_user_rate_config logic returns None for unset rates
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let conn = db.conn.lock().unwrap();
+
+        // Get hourly rate (should be None)
+        let hourly_rate = match db::queries::settings::get_setting(&conn, "user_hourly_rate") {
+            Ok(Some(value)) => value.parse::<f64>().ok(),
+            _ => None,
+        };
+
+        // Get project rate (should be None)
+        let project_rate_min = match db::queries::settings::get_setting(&conn, "user_project_rate_min") {
+            Ok(Some(value)) => value.parse::<f64>().ok(),
+            _ => None,
+        };
+
+        assert_eq!(hourly_rate, None);
+        assert_eq!(project_rate_min, None);
+    }
+
+    #[test]
+    fn test_rate_config_returns_set_values() {
+        // Subtask 9.4: Test get_user_rate_config logic returns configured rates
+        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let conn = db.conn.lock().unwrap();
+
+        // Set rates
+        db::queries::settings::set_setting(&conn, "user_hourly_rate", "75.00").unwrap();
+        db::queries::settings::set_setting(&conn, "user_project_rate_min", "2000.00").unwrap();
+
+        // Retrieve
+        let hourly_rate = match db::queries::settings::get_setting(&conn, "user_hourly_rate") {
+            Ok(Some(value)) => value.parse::<f64>().ok(),
+            _ => None,
+        };
+
+        let project_rate_min = match db::queries::settings::get_setting(&conn, "user_project_rate_min") {
+            Ok(Some(value)) => value.parse::<f64>().ok(),
+            _ => None,
+        };
+
+        assert_eq!(hourly_rate, Some(75.0));
+        assert_eq!(project_rate_min, Some(2000.0));
+    }
 
     // Story 3.5, Task 6.1: Test get_safety_threshold returns 180 if not set
     #[test]
@@ -2558,6 +3584,169 @@ mod tests {
             suggestions.len() <= 10,
             "Should return max 10 suggestions, got {}",
             suggestions.len()
+        );
+    }
+
+    // =========================================================================
+    // Story 5.8: VoiceCache tests (Task 4, Subtasks 6.7, 6.8)
+    // =========================================================================
+
+    /// Subtask 6.7: Test voice profile caching behavior
+    #[test]
+    fn test_voice_cache_get_returns_none_initially() {
+        let cache = VoiceCache::new();
+        assert!(
+            cache.get().is_none(),
+            "Cache should return None when empty"
+        );
+    }
+
+    /// Subtask 6.7: Test voice profile caching - set and get
+    #[test]
+    fn test_voice_cache_set_and_get() {
+        use voice::{CalibrationSource, StructurePreference, VoiceProfile};
+
+        let cache = VoiceCache::new();
+
+        let profile = VoiceProfile {
+            tone_score: 7.5,
+            avg_sentence_length: 18.0,
+            vocabulary_complexity: 11.2,
+            structure_preference: StructurePreference {
+                paragraphs_pct: 60,
+                bullets_pct: 40,
+            },
+            technical_depth: 8.0,
+            length_preference: 5.0,
+            common_phrases: vec!["test phrase".to_string()],
+            sample_count: 10,
+            calibration_source: CalibrationSource::GoldenSet,
+        };
+
+        // Set profile
+        cache.set(profile.clone());
+
+        // Get should return the profile
+        let cached = cache.get();
+        assert!(cached.is_some(), "Cache should return profile after set");
+
+        let cached_profile = cached.unwrap();
+        assert_eq!(cached_profile.tone_score, 7.5);
+        assert_eq!(cached_profile.sample_count, 10);
+    }
+
+    /// Subtask 6.8: Test cache invalidation
+    #[test]
+    fn test_voice_cache_invalidate() {
+        use voice::{CalibrationSource, StructurePreference, VoiceProfile};
+
+        let cache = VoiceCache::new();
+
+        let profile = VoiceProfile {
+            tone_score: 7.5,
+            avg_sentence_length: 18.0,
+            vocabulary_complexity: 11.2,
+            structure_preference: StructurePreference {
+                paragraphs_pct: 60,
+                bullets_pct: 40,
+            },
+            technical_depth: 8.0,
+            length_preference: 5.0,
+            common_phrases: vec![],
+            sample_count: 10,
+            calibration_source: CalibrationSource::QuickCalibration,
+        };
+
+        // Set profile
+        cache.set(profile.clone());
+        assert!(cache.get().is_some(), "Profile should be cached");
+
+        // Invalidate
+        cache.invalidate();
+
+        // Get should return None after invalidation
+        assert!(
+            cache.get().is_none(),
+            "Cache should return None after invalidation"
+        );
+    }
+
+    /// Subtask 6.7: Test cache reuse on subsequent requests
+    #[test]
+    fn test_voice_cache_reuse() {
+        use voice::{CalibrationSource, StructurePreference, VoiceProfile};
+
+        let cache = VoiceCache::new();
+
+        let profile = VoiceProfile {
+            tone_score: 5.0,
+            avg_sentence_length: 15.0,
+            vocabulary_complexity: 9.0,
+            structure_preference: StructurePreference {
+                paragraphs_pct: 70,
+                bullets_pct: 30,
+            },
+            technical_depth: 6.0,
+            length_preference: 5.0,
+            common_phrases: vec![],
+            sample_count: 5,
+            calibration_source: CalibrationSource::GoldenSet,
+        };
+
+        // First request: set profile
+        cache.set(profile.clone());
+
+        // Second request: get profile (simulates subsequent generation)
+        let cached1 = cache.get();
+        assert!(cached1.is_some(), "First get should return profile");
+
+        // Third request: get profile again (simulates another generation)
+        let cached2 = cache.get();
+        assert!(cached2.is_some(), "Second get should still return profile");
+
+        // Verify same profile
+        assert_eq!(cached1.unwrap().tone_score, cached2.unwrap().tone_score);
+    }
+
+    /// M2 fix: Test parallel loading performance (<150ms target per AC-2)
+    /// Tests that voice profile + settings queries complete within target time.
+    #[test]
+    fn test_context_loading_performance_target() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("perf_test.db");
+        let database = db::Database::new(db_path, None).unwrap();
+
+        // Measure loading time for voice profile + settings query
+        let start = std::time::Instant::now();
+
+        {
+            let conn = database.conn.lock().unwrap();
+
+            // Query 1: Voice profile (will return None, but measures query time)
+            let _voice_profile =
+                db::queries::voice_profile::get_voice_profile(&conn, "default").unwrap();
+
+            // Query 2: Humanization intensity setting
+            let _intensity =
+                db::queries::settings::get_setting(&conn, "humanization_intensity").unwrap();
+        }
+
+        let elapsed = start.elapsed();
+
+        // AC-2: Total parallel loading takes <150ms
+        assert!(
+            elapsed.as_millis() < 150,
+            "Context loading took {}ms, should be <150ms (AC-2)",
+            elapsed.as_millis()
+        );
+
+        // Bonus: Verify it's actually fast (should be <10ms for empty DB)
+        assert!(
+            elapsed.as_millis() < 50,
+            "Context loading took {}ms, expected <50ms for indexed queries",
+            elapsed.as_millis()
         );
     }
 }

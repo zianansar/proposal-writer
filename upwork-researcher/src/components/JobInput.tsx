@@ -32,9 +32,11 @@ interface JobInputProps {
   onJobContentChange?: (content: string) => void;
   onInputTypeChange?: (type: "url" | "text" | null, detectedUrl: string | null) => void;
   value?: string; // Allow parent to control value (Story 1.14 draft recovery)
+  /** Story 8.3 AC8: Error message for validation failures */
+  error?: string | null;
 }
 
-function JobInput({ onJobContentChange, onInputTypeChange, value }: JobInputProps) {
+function JobInput({ onJobContentChange, onInputTypeChange, value, error }: JobInputProps) {
   const [jobContent, setJobContent] = useState("");
   const [inputType, setInputType] = useState<"url" | "text" | null>(null);
 
@@ -60,6 +62,9 @@ function JobInput({ onJobContentChange, onInputTypeChange, value }: JobInputProp
     onInputTypeChange?.(result.type, result.url);
   };
 
+  // Story 8.3 AC8: Compute aria-describedby based on error presence
+  const describedBy = error ? "job-content-error" : undefined;
+
   return (
     <div className="job-input">
       <label htmlFor="job-content">Job Post</label>
@@ -69,7 +74,20 @@ function JobInput({ onJobContentChange, onInputTypeChange, value }: JobInputProp
         onChange={handleChange}
         placeholder="Paste a job post URL or the full job description text here..."
         rows={12}
+        aria-required="true"
+        aria-invalid={!!error}
+        aria-describedby={describedBy}
       />
+      {/* Story 8.3 AC8: Error message with role="alert" for immediate announcement */}
+      {error && (
+        <div
+          id="job-content-error"
+          className="job-input__error"
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
       {/* Story 4a.1: Visual indicator for detected input type */}
       {inputType === "url" && (
         <span className="input-type-indicator input-type-url" role="status" aria-live="polite">

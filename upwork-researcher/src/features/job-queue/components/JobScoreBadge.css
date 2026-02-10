@@ -1,0 +1,58 @@
+/* Job Score Badge Styles - Story 4b.9 */
+
+/* AC-7.2: Circular badge with score number and colored background */
+.score-badge {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  transition: transform 0.2s;
+  font-variant-numeric: tabular-nums;
+}
+
+/* AC-7.4: Size variants - sm (list view), lg (detail view) */
+.score-badge-sm {
+  width: 3.5rem;
+  height: 3.5rem;
+  font-size: 1.125rem;
+}
+
+.score-badge-lg {
+  width: 5rem;
+  height: 5rem;
+  font-size: 1.5rem;
+}
+
+/* AC-7.3: Colors based on component thresholds from Story 4b-5 */
+/* Green: skills_match >= 75 AND client_quality >= 80 */
+.score-green {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 2px solid #22c55e;
+}
+
+/* Yellow: skills_match 50-74 OR client_quality 60-79 (and not Red) */
+.score-yellow {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+  border: 2px solid #eab308;
+}
+
+/* Red: skills_match < 50 OR client_quality < 60 OR zero-hire client */
+.score-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 2px solid #ef4444;
+}
+
+/* Gray: not yet scored */
+.score-gray {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+  border: 2px solid #6b7280;
+}
+
+.score-value {
+  font-variant-numeric: tabular-nums;
+}

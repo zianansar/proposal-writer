@@ -1,11 +1,21 @@
 ---
-status: ready-for-dev
-assignedTo: ""
-tasksCompleted: 0
+status: done
+assignedTo: "Dev Agent Amelia"
+tasksCompleted: 5
 totalTasks: 5
-testsWritten: false
-codeReviewCompleted: false
-fileList: []
+testsWritten: true
+codeReviewCompleted: true
+fileList:
+  - upwork-researcher/src-tauri/src/voice/mod.rs
+  - upwork-researcher/src-tauri/src/voice/profile.rs
+  - upwork-researcher/src-tauri/src/voice/analyzer.rs  # CR: removed unused regex import
+  - upwork-researcher/src-tauri/src/commands/voice.rs
+  - upwork-researcher/src-tauri/src/lib.rs
+  - upwork-researcher/src-tauri/src/db/queries/voice_profile.rs  # CR: fixed unused var warning
+  - upwork-researcher/src/features/voice-learning/types.ts  # CR: added CalibrationResult + AnalysisProgress types
+  - upwork-researcher/src/features/voice-learning/VoiceCalibration.tsx
+  - upwork-researcher/src/features/voice-learning/VoiceCalibration.css
+  - upwork-researcher/src/features/voice-learning/VoiceCalibration.test.tsx  # CR: fixed TypeScript callable errors
 ---
 
 # Story 5.4: Local-Only Voice Analysis
@@ -38,46 +48,46 @@ So that my competitive writing samples stay private.
 
 ## Tasks/Subtasks
 
-- [ ] Task 1: Implement text analysis module in Rust (AC-2)
-  - [ ] Subtask 1.1: Create voice/analyzer.rs module
-  - [ ] Subtask 1.2: Implement sentence segmentation (split on . ! ? handling abbreviations)
-  - [ ] Subtask 1.3: Implement average sentence length calculation
-  - [ ] Subtask 1.4: Implement Flesch-Kincaid grade level calculation
-  - [ ] Subtask 1.5: Implement formality/tone scoring (formal word ratio)
-  - [ ] Subtask 1.6: Implement structure detection (bullet vs paragraph ratio)
-  - [ ] Subtask 1.7: Implement technical depth detection (domain term ratio)
-  - [ ] Subtask 1.8: Implement common phrase extraction (n-gram analysis)
+- [x] Task 1: Implement text analysis module in Rust (AC-2)
+  - [x] Subtask 1.1: Create voice/analyzer.rs module
+  - [x] Subtask 1.2: Implement sentence segmentation (split on . ! ? handling abbreviations)
+  - [x] Subtask 1.3: Implement average sentence length calculation
+  - [x] Subtask 1.4: Implement Flesch-Kincaid grade level calculation
+  - [x] Subtask 1.5: Implement formality/tone scoring (formal word ratio)
+  - [x] Subtask 1.6: Implement structure detection (bullet vs paragraph ratio)
+  - [x] Subtask 1.7: Implement technical depth detection (domain term ratio)
+  - [x] Subtask 1.8: Implement common phrase extraction (n-gram analysis)
 
-- [ ] Task 2: Create VoiceProfile struct and analysis aggregation (AC-2, AC-6)
-  - [ ] Subtask 2.1: Define VoiceProfile struct with all parameter fields
-  - [ ] Subtask 2.2: Implement analyze_single_proposal() function
-  - [ ] Subtask 2.3: Implement aggregate_voice_profile() to combine multiple proposals
-  - [ ] Subtask 2.4: Add serde derives for JSON serialization
+- [x] Task 2: Create VoiceProfile struct and analysis aggregation (AC-2, AC-6)
+  - [x] Subtask 2.1: Define VoiceProfile struct with all parameter fields
+  - [x] Subtask 2.2: Implement analyze_single_proposal() function
+  - [x] Subtask 2.3: Implement aggregate_voice_profile() to combine multiple proposals
+  - [x] Subtask 2.4: Add serde derives for JSON serialization
 
-- [ ] Task 3: Add Tauri command for voice calibration (AC-1, AC-3, AC-4)
-  - [ ] Subtask 3.1: Create calibrate_voice command in commands/voice.rs
-  - [ ] Subtask 3.2: Load golden_set_proposals from database
-  - [ ] Subtask 3.3: Run analysis on each proposal
-  - [ ] Subtask 3.4: Emit progress events via Tauri events ("analysis_progress")
-  - [ ] Subtask 3.5: Return aggregated VoiceProfile
-  - [ ] Subtask 3.6: Track and return elapsed time
+- [x] Task 3: Add Tauri command for voice calibration (AC-1, AC-3, AC-4)
+  - [x] Subtask 3.1: Create calibrate_voice command in commands/voice.rs
+  - [x] Subtask 3.2: Load golden_set_proposals from database
+  - [x] Subtask 3.3: Run analysis on each proposal
+  - [x] Subtask 3.4: Emit progress events via Tauri events ("analysis_progress")
+  - [x] Subtask 3.5: Return aggregated VoiceProfile
+  - [x] Subtask 3.6: Track and return elapsed time
 
-- [ ] Task 4: Build calibration UI component (AC-4, AC-5)
-  - [ ] Subtask 4.1: Create VoiceCalibration.tsx in features/voice-learning/
-  - [ ] Subtask 4.2: Add "Calibrate Voice" button
-  - [ ] Subtask 4.3: Listen to Tauri progress events
-  - [ ] Subtask 4.4: Show progress indicator: "Analyzing proposals... (3/5)"
-  - [ ] Subtask 4.5: Show completion message with elapsed time
-  - [ ] Subtask 4.6: Pass results to parent for display (Story 5-5)
+- [x] Task 4: Build calibration UI component (AC-4, AC-5)
+  - [x] Subtask 4.1: Create VoiceCalibration.tsx in features/voice-learning/
+  - [x] Subtask 4.2: Add "Calibrate Voice" button
+  - [x] Subtask 4.3: Listen to Tauri progress events
+  - [x] Subtask 4.4: Show progress indicator: "Analyzing proposals... (3/5)"
+  - [x] Subtask 4.5: Show completion message with elapsed time
+  - [x] Subtask 4.6: Pass results to parent for display (Story 5-5)
 
-- [ ] Task 5: Add tests (AC-1 through AC-6)
-  - [ ] Subtask 5.1: Test sentence segmentation edge cases
-  - [ ] Subtask 5.2: Test Flesch-Kincaid calculation accuracy
-  - [ ] Subtask 5.3: Test tone scoring on known formal/casual text
-  - [ ] Subtask 5.4: Test structure detection (bullets vs paragraphs)
-  - [ ] Subtask 5.5: Test aggregation of multiple proposals
-  - [ ] Subtask 5.6: Test performance (<2s for 5 proposals of 500 words each)
-  - [ ] Subtask 5.7: Test UI progress updates
+- [x] Task 5: Add tests (AC-1 through AC-6)
+  - [x] Subtask 5.1: Test sentence segmentation edge cases
+  - [x] Subtask 5.2: Test Flesch-Kincaid calculation accuracy
+  - [x] Subtask 5.3: Test tone scoring on known formal/casual text
+  - [x] Subtask 5.4: Test structure detection (bullets vs paragraphs)
+  - [x] Subtask 5.5: Test aggregation of multiple proposals
+  - [x] Subtask 5.6: Test performance (<2s for 5 proposals of 500 words each)
+  - [x] Subtask 5.7: Test UI progress updates
 
 ## Dev Notes
 
@@ -585,3 +595,92 @@ mod bench {
 - [Source: architecture.md#Voice Learning Data Architecture]
 - [Source: prd.md#FR-16: Golden Set calibration within 30 seconds]
 - [Flesch-Kincaid Formula Reference](https://en.wikipedia.org/wiki/Flesch%E2%80%93Kincaid_readability_tests)
+
+## Dev Agent Record
+
+### Implementation Plan
+
+**Approach:** Implemented local voice analysis using TDD (red-green-refactor) cycle
+
+1. Created voice module structure (mod.rs, profile.rs, analyzer.rs)
+2. Implemented 7 text analysis algorithms with comprehensive tests
+3. Added calibrate_voice Tauri command with progress events
+4. Built VoiceCalibration React component with real-time progress updates
+5. All analysis happens in Rust backend - zero API calls (AR-12 compliance)
+
+### Completion Notes
+
+**Implementation Summary:**
+- ✅ All 5 tasks complete (31 subtasks)
+- ✅ 22 Rust tests passing (voice module)
+- ✅ 7 Frontend tests passing (VoiceCalibration component)
+- ✅ Performance: <2s for 5 proposals (AC-3 met)
+- ✅ Privacy: Local-only analysis, no network calls
+
+**Text Analysis Algorithms Implemented:**
+1. Sentence segmentation (handles abbreviations, multiple punctuation)
+2. Average sentence length calculation
+3. Flesch-Kincaid grade level (syllable counting heuristic)
+4. Tone/formality scoring (formal vs casual markers)
+5. Structure detection (bullets vs paragraphs percentage)
+6. Technical depth (domain terms, acronyms, tech vocabulary)
+7. Common phrase extraction (n-gram analysis, top 5 phrases)
+
+**Key Technical Decisions:**
+- Used character-by-character parsing for sentence segmentation (handles edge cases better than regex split)
+- Syllable counting uses simplified heuristic with special handling for 'y' and silent 'e'
+- Exception for "-le" endings (apple, table) to preserve syllable count
+- Progress events emitted via Tauri's event system for real-time UI updates
+
+**Files Created/Modified:** 9 files
+- Backend: 4 Rust files (voice module + commands)
+- Frontend: 4 TypeScript files (component + types + tests)  
+- Integration: 1 file (lib.rs command registration)
+
+### Debug Log
+
+**Issue 1: Sentence segmentation not working**
+- Problem: Regex split losing punctuation, treating each punctuation mark separately
+- Solution: Switched to character-by-character parsing with lookahead for consecutive punctuation
+
+**Issue 2: Syllable counting inaccurate for "apple"**
+- Problem: Silent 'e' logic too aggressive, subtracted 'e' from "apple" (ap-ple → 1 syllable)
+- Solution: Added exception for consonant + "le" endings where 'le' forms its own syllable
+
+**Issue 3: Test race condition**
+- Problem: VoiceCalibration test checked for progress indicator before progress event fired
+- Solution: Emit first progress event before checking for indicator presence
+
+## Review Follow-ups (AI)
+
+- [ ] [AI-Review][LOW] Expand bullet pattern detection beyond 1-5 numbered lists [analyzer.rs:251]
+- [ ] [AI-Review][LOW] Expand technical terms list for broader domain coverage [analyzer.rs:299-303]
+
+## Senior Developer Review (AI)
+
+**Review Date:** 2026-02-09
+**Reviewer:** Amelia (Dev Agent)
+**Outcome:** APPROVED (after fixes)
+
+### Issues Found & Fixed
+
+| Severity | Issue | Status |
+|----------|-------|--------|
+| HIGH | Missing `CalibrationResult` and `AnalysisProgress` types in types.ts | ✅ Fixed |
+| HIGH | False test count (claimed 13, actual 7) | ✅ Fixed |
+| MEDIUM | Unused import `regex::Regex` in analyzer.rs | ✅ Fixed |
+| MEDIUM | Unused variable `db` in voice_profile.rs | ✅ Fixed |
+| LOW | Limited bullet patterns (1-5 only) | → Action item |
+| LOW | Technical terms list incomplete | → Action item |
+
+### Verification
+
+- TypeScript build: ✅ Passes for voice-learning module
+- Rust tests: ✅ 22 passing, 0 warnings
+- Frontend tests: ✅ 7 passing
+- Privacy (AR-12): ✅ No network calls, no text logging
+
+## Change Log
+
+- **2026-02-09**: Code review completed. Fixed missing TypeScript types, removed unused Rust import, corrected test count. 2 low-priority action items created.
+- **2026-02-09**: Story 5.4 implementation complete. Local voice analysis with 7 algorithms, calibrate_voice command, VoiceCalibration UI. 29 tests passing (22 Rust + 7 frontend). Privacy-compliant: zero API calls.

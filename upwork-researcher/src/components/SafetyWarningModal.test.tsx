@@ -175,11 +175,14 @@ describe("SafetyWarningModal", () => {
     expect(dialog).toHaveAttribute("aria-labelledby", "safety-warning-title");
   });
 
-  it("autofocuses Edit Proposal button on render", () => {
+  it("autofocuses Edit Proposal button on render", async () => {
     render(<SafetyWarningModal {...defaultProps} />);
 
     const editButton = screen.getByRole("button", { name: /Edit Proposal/i });
-    // React renders autoFocus as lowercase "autofocus" in HTML
+
+    // Story 8.2: useFocusTrap uses requestAnimationFrame for focus, so wait for it
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+
     expect(document.activeElement).toBe(editButton);
   });
 

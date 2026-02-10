@@ -40,6 +40,9 @@ vi.mock("@tiptap/react", () => {
       }),
       isActive: () => false,
       getHTML: () => "<p>Test content</p>",
+      getText: () => "Test content", // Story 6.4: Character and word count
+      on: vi.fn(), // Story 6.4: Event listener
+      off: vi.fn(), // Story 6.4: Event listener cleanup
       commands: {
         setContent: vi.fn(),
       },
@@ -118,5 +121,30 @@ describe("ProposalEditor", () => {
 
     expect(screen.getByRole("toolbar")).toBeInTheDocument();
     expect(screen.getByTestId("editor-content")).toBeInTheDocument();
+  });
+
+  // Story 6.4: Character and word count integration tests
+  describe("EditorStatusBar Integration (Story 6.4)", () => {
+    it("renders EditorStatusBar with counts", () => {
+      render(
+        <ProposalEditor content="<p>Test content</p>" proposalId={1} />
+      );
+
+      // Status bar should be present
+      expect(screen.getByRole("status")).toBeInTheDocument();
+
+      // Should display counts (from mock getText: "Test content" = 12 chars, 2 words)
+      expect(screen.getByText(/12 characters/)).toBeInTheDocument();
+      expect(screen.getByText(/2 words/)).toBeInTheDocument();
+    });
+
+    it("EditorStatusBar has accessibility attributes", () => {
+      render(
+        <ProposalEditor content="<p>Test</p>" proposalId={1} />
+      );
+
+      const statusBar = screen.getByRole("status");
+      expect(statusBar).toHaveAttribute("aria-live", "polite");
+    });
   });
 });

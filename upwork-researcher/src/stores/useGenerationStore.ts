@@ -1,9 +1,19 @@
 import { create } from "zustand";
+import type { StageStatus, PipelineStage } from "../types/pipeline";
 
 interface DraftRecovery {
   id: number;
   jobContent: string;
   generatedText: string;
+}
+
+interface StageRecord {
+  id: string;
+  status: StageStatus;
+  startedAt: number;
+  completedAt?: number;
+  durationMs?: number;
+  error?: string;
 }
 
 interface GenerationState {
@@ -29,6 +39,10 @@ interface GenerationState {
   cooldownRemaining: number;
   /** Whether job content was truncated during generation (Story 4a.9 H3) */
   generationWasTruncated: boolean;
+  /** Current active stage ID (Story 8.4) */
+  currentStage: string | null;
+  /** History of stage transitions with timing (Story 8.4) */
+  stageHistory: StageRecord[];
 }
 
 interface GenerationActions {
@@ -56,6 +70,8 @@ interface GenerationActions {
   clearCooldown: () => void;
   /** Update remaining seconds from cooldownEnd (Story 3.8) */
   tickCooldown: () => void;
+  /** Update stage status (Story 8.4) */
+  setStage: (stageId: string, status: StageStatus, error?: string) => void;
 }
 
 const initialState: GenerationState = {
@@ -70,6 +86,8 @@ const initialState: GenerationState = {
   cooldownEnd: null,
   cooldownRemaining: 0,
   generationWasTruncated: false,
+  currentStage: null,
+  stageHistory: [],
 };
 
 export const useGenerationStore = create<GenerationState & GenerationActions>(
@@ -146,9 +164,77 @@ export const useGenerationStore = create<GenerationState & GenerationActions>(
         const remaining = Math.max(0, Math.ceil((state.cooldownEnd - Date.now()) / 1000));
         return { cooldownRemaining: remaining };
       }),
+
+    // Story 8.4: Stage tracking
+    setStage: (stageId, status, error) =>
+      set((state) => {
+        const now = Date.now();
+        const history = [...state.stageHistory];
+
+        // Complete previous active stage
+        if (state.currentStage && status === "active") {
+          const prevIndex = history.findIndex((s) => s.id === state.currentStage);
+          if (prevIndex >= 0) {
+            history[prevIndex] = {
+              ...history[prevIndex],
+              status: "complete",
+              completedAt: now,
+              durationMs: now - history[prevIndex].startedAt,
+            };
+          }
+        }
+
+        // Add or update current stage
+        const existingIndex = history.findIndex((s) => s.id === stageId);
+        if (existingIndex >= 0) {
+          history[existingIndex] = {
+            ...history[existingIndex],
+            status,
+            ...(status === "error" ? { error } : {}),
+            ...(status === "complete"
+              ? {
+                  completedAt: now,
+                  durationMs: now - history[existingIndex].startedAt,
+                }
+              : {}),
+          };
+        } else {
+          history.push({
+            id: stageId,
+            status,
+            startedAt: now,
+            ...(status === "error" ? { error } : {}),
+          });
+        }
+
+        return {
+          currentStage: status === "complete" || status === "error" ? null : stageId,
+          stageHistory: history,
+        };
+      }),
   })
 );
 
 /** Get concatenated text from all tokens */
 export const getStreamedText = (state: GenerationState): string =>
   state.tokens.join("");
+
+/**
+ * Get all stages with their current status (Story 8.4)
+ *
+ * Note: Returns empty string for `label` because labels are UI concerns
+ * defined in PIPELINE_STAGES constant. The PipelineIndicator component
+ * looks up labels by stage ID from that constant. This separation keeps
+ * the store focused on state tracking while UI text lives in the component.
+ */
+export const getStages = (state: GenerationState): PipelineStage[] => {
+  const { currentStage, stageHistory } = state;
+
+  return stageHistory.map((record) => ({
+    id: record.id,
+    label: "", // UI label looked up from PIPELINE_STAGES by component
+    status: record.id === currentStage ? "active" : record.status,
+    durationMs: record.durationMs,
+    error: record.error,
+  }));
+};

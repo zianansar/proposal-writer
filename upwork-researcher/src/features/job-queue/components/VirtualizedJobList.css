@@ -1,0 +1,30 @@
+/* Virtualized Job List Styles - Story 4b.9 Task 10 */
+
+.virtualized-job-list {
+  flex: 1;
+  overflow: hidden; /* AutoSizer handles scrolling */
+  min-height: 0; /* Allow flex child to shrink */
+}
+
+/* Override react-window's default scrollbar styling for consistency */
+.virtualized-job-list :global(.ReactVirtualized__List) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border, #333) transparent;
+}
+
+.virtualized-job-list :global(.ReactVirtualized__List)::-webkit-scrollbar {
+  width: 8px;
+}
+
+.virtualized-job-list :global(.ReactVirtualized__List)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.virtualized-job-list :global(.ReactVirtualized__List)::-webkit-scrollbar-thumb {
+  background-color: var(--color-border, #333);
+  border-radius: 4px;
+}
+
+.virtualized-job-list :global(.ReactVirtualized__List)::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-tertiary, #666);
+}

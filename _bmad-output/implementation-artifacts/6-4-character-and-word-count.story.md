@@ -1,9 +1,17 @@
 ---
-status: ready-for-dev
-assignedTo: null
-tasksCompleted: 0
-testsWritten: 0
-fileList: []
+status: done
+assignedTo: Dev Agent
+tasksCompleted: 7
+testsWritten: 32
+fileList:
+  - src/components/EditorStatusBar.tsx
+  - src/components/EditorStatusBar.css
+  - src/components/EditorStatusBar.test.tsx
+  - src/utils/textStats.ts
+  - src/utils/textStats.test.ts
+  - src/components/ProposalEditor.tsx
+  - src/components/ProposalEditor.css
+  - src/components/ProposalEditor.test.tsx
 ---
 
 # Story 6.4: Character and Word Count
@@ -85,55 +93,61 @@ The status bar should appear below the TipTap editor, showing:
 ## Implementation Tasks
 
 ### Task 1: Create EditorStatusBar Component
-- [ ] Create `upwork-researcher/src/components/EditorStatusBar.tsx`
-- [ ] Create `upwork-researcher/src/components/EditorStatusBar.css`
-- [ ] Display character count: "{N} characters"
-- [ ] Display word count: "{N} words"
-- [ ] Add separator between counts (· or |)
-- [ ] Position below editor content area
+- [x] Create `upwork-researcher/src/components/EditorStatusBar.tsx`
+- [x] Create `upwork-researcher/src/components/EditorStatusBar.css`
+- [x] Display character count: "{N} characters"
+- [x] Display word count: "{N} words"
+- [x] Add separator between counts (· or |)
+- [x] Position below editor content area
 
 ### Task 2: Implement Count Logic
-- [ ] Create `upwork-researcher/src/utils/textStats.ts`
-- [ ] Implement `countCharacters(text: string): number`
-- [ ] Implement `countWords(text: string): number`
-- [ ] Handle edge cases (empty, whitespace-only, rich text)
-- [ ] Export utility functions for testing
+- [x] Create `upwork-researcher/src/utils/textStats.ts`
+- [x] Implement `countCharacters(text: string): number`
+- [x] Implement `countWords(text: string): number`
+- [x] Handle edge cases (empty, whitespace-only, rich text)
+- [x] Export utility functions for testing
 
 ### Task 3: Add Warning Messages
-- [ ] If wordCount < 200: Show warning "Upwork recommends 200-500 words"
-- [ ] If wordCount > 600: Show warning "Long proposals may not be fully read"
-- [ ] If 200 <= wordCount <= 600: No warning (ideal range)
-- [ ] Style warnings with appropriate color (yellow/amber for caution)
-- [ ] Add warning icon (⚠️) for visual prominence
+- [x] If wordCount < 200: Show warning "Upwork recommends 200-500 words"
+- [x] If wordCount > 600: Show warning "Long proposals may not be fully read"
+- [x] If 200 <= wordCount <= 600: No warning (ideal range)
+- [x] Style warnings with appropriate color (yellow/amber for caution)
+- [x] Add warning icon (⚠️) for visual prominence
 
 ### Task 4: Integrate with TipTap Editor
-- [ ] Pass editor content to EditorStatusBar component
-- [ ] Subscribe to editor content changes (onUpdate callback)
-- [ ] Extract plain text from ProseMirror document
-- [ ] Update counts on every change (no debounce)
+- [x] Pass editor content to EditorStatusBar component
+- [x] Subscribe to editor content changes (onUpdate callback)
+- [x] Extract plain text from ProseMirror document
+- [x] Update counts on every change (no debounce)
 
 ### Task 5: Style for Dark Mode
-- [ ] Status bar background slightly different from editor
-- [ ] Text colors readable in dark mode
-- [ ] Warning colors accessible (sufficient contrast)
-- [ ] Subtle border/divider between editor and status bar
+- [x] Status bar background slightly different from editor
+- [x] Text colors readable in dark mode
+- [x] Warning colors accessible (sufficient contrast)
+- [x] Subtle border/divider between editor and status bar
 
 ### Task 6: Write Tests
-- [ ] Unit tests for `countCharacters()` utility
-- [ ] Unit tests for `countWords()` utility
-- [ ] Unit tests for edge cases (empty, whitespace, special chars)
-- [ ] Component tests for EditorStatusBar
+- [x] Unit tests for `countCharacters()` utility
+- [x] Unit tests for `countWords()` utility
+- [x] Unit tests for edge cases (empty, whitespace, special chars)
+- [x] Component tests for EditorStatusBar
   - Displays correct counts
   - Shows warning when wordCount < 200
   - Shows warning when wordCount > 600
   - No warning when in ideal range
-- [ ] Integration test: counts update as user types
+- [x] Integration test: counts update as user types
 
 ### Task 7: Accessibility
-- [ ] ARIA live region for count updates (polite, not assertive)
-- [ ] Screen reader announces warnings
-- [ ] Status bar has proper semantic role
-- [ ] Color is not the only indicator for warnings (also text + icon)
+- [x] ARIA live region for count updates (polite, not assertive)
+- [x] Screen reader announces warnings
+- [x] Status bar has proper semantic role
+- [x] Color is not the only indicator for warnings (also text + icon)
+
+### Review Follow-ups (AI) - RESOLVED
+- [x] [AI-Review][MEDIUM] Fix test count in story: corrected to 32 (13+17+2)
+- [x] [AI-Review][MEDIUM] Add missing test for wordCount=0 warning case [EditorStatusBar.test.tsx:22-25]
+- [x] [AI-Review][MEDIUM] Added CSS variables for theme consistency [EditorStatusBar.css]
+- [x] [AI-Review][LOW] Fixed internal story inconsistency
 
 ## Files to Create
 
@@ -447,3 +461,53 @@ For proposals of typical length, counting is sub-millisecond and won't impact ty
 - [Story 6-1: TipTap Editor Integration](6-1-tiptap-editor-integration.story.md) — parent editor component
 - [Domain Research: Upwork Proposal Strategies](../planning-artifacts/research/domain-upwork-proposal-strategies-research-2026-01-29.md) — optimal length 150-250 words
 - [UX Specification: Character Count](../planning-artifacts/ux-design-specification.md) — character count mentioned for job input
+
+## Dev Agent Record
+
+### Implementation Plan
+
+**Date:** 2026-02-10
+
+**Approach:**
+- Followed TDD: RED → GREEN → REFACTOR cycle
+- Created textStats utilities first (simpler, no dependencies)
+- Created EditorStatusBar component second (depends on textStats)
+- Integrated with ProposalEditor last (depends on both)
+
+**Architecture Decisions:**
+1. Used editor.getText() for plain text extraction (strips formatting)
+2. Real-time calculation via editor "update" event (no debouncing needed)
+3. Counts stored in local state, updated synchronously
+4. Warning thresholds: <200 (low) and >600 (high)
+5. Status bar positioned between editor content and save status
+
+### Completion Notes
+
+**Date:** 2026-02-10
+
+**Implementation Summary:**
+- ✅ Created EditorStatusBar.tsx with character/word counts and warnings
+- ✅ Created EditorStatusBar.css with dark mode support
+- ✅ Created textStats.ts with countCharacters() and countWords() utilities
+- ✅ Integrated EditorStatusBar into ProposalEditor component
+- ✅ Added real-time count updates via TipTap editor events
+- ✅ Full accessibility: aria-live, role="status", role="alert", icon+text warnings
+- ✅ All 32 tests passing (13 textStats + 17 EditorStatusBar + 2 integration)
+
+**Tests Created:**
+1. `textStats.test.ts` - 13 tests for character/word counting utilities
+2. `EditorStatusBar.test.tsx` - 17 tests for component rendering and warnings
+3. `ProposalEditor.test.tsx` - Updated mock + 2 integration tests
+
+**Acceptance Criteria Validation:**
+- ✅ AC-1: Displays "{N} characters" and "{N} words" in real-time
+- ✅ AC-2: Shows warning when <200 words: "Upwork recommends 200-500 words"
+- ✅ AC-3: Shows warning when >600 words: "Long proposals may not be fully read"
+- ✅ AC-4: No warning when 200-600 words (ideal range)
+- ✅ AC-5: Dark mode styling with accessible colors
+- ✅ AC-6: Accessibility (aria-live, role="status", icon+text)
+
+**Performance:**
+- Count calculation is O(n) where n = text length
+- Typical proposal (200-500 words) = sub-millisecond calculation
+- No perceptible lag on keystroke

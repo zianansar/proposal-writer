@@ -97,6 +97,7 @@ describe("App", () => {
 
     expect(mockInvoke).toHaveBeenCalledWith("generate_proposal_streaming", {
       jobContent: "Looking for a React developer",
+      strategyId: null, // Story 5.2: Strategy ID passed to backend (null if not selected)
     });
   });
 
@@ -789,5 +790,54 @@ describe("App", () => {
 
     // Verify NO generation truncation warning appears (use specific text to differentiate from analysis warning)
     expect(screen.queryByText(/content was trimmed to fit generation limits/i)).not.toBeInTheDocument();
+  });
+
+  // Story 4b.6 L2: jobPostId integration test
+  // Verifies save_job_post returns id which is stored for scoring breakdown fetch
+  it("stores jobPostId after save_job_post for scoring breakdown (4b.6)", async () => {
+    const user = userEvent.setup();
+    let savedJobPostId: number | null = null;
+
+    // Mock flow: save_job_post returns id, analyze_job_post succeeds
+    mockInvoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      if (command === "has_api_key") {
+        return Promise.resolve(true);
+      }
+      if (command === "save_job_post") {
+        return Promise.resolve({ id: 123, saved: true }); // Returns jobPostId
+      }
+      if (command === "analyze_job_post") {
+        // Capture that analyze_job_post receives the jobPostId from save_job_post
+        savedJobPostId = args?.jobPostId as number;
+        return Promise.resolve({
+          clientName: "Test Client",
+          keySkills: ["React"],
+          hiddenNeeds: [],
+        });
+      }
+      if (command === "calculate_and_store_skills_match") {
+        return Promise.resolve(75.0);
+      }
+      return Promise.resolve(null);
+    });
+
+    render(<App />);
+    await waitForAppReady();
+
+    // Type job content and analyze
+    await user.type(screen.getByRole("textbox"), "Looking for a React developer");
+    await user.click(screen.getByRole("button", { name: /analyze job/i }));
+
+    // Wait for analysis to complete
+    await waitFor(() => {
+      expect(screen.getByText(/client: test client/i)).toBeInTheDocument();
+    });
+
+    // Story 4b.6: Verify jobPostId was passed to analyze_job_post
+    // This confirms the flow: save_job_post returns id → stored → passed to analysis
+    expect(savedJobPostId).toBe(123);
+
+    // Verify JobAnalysisPanel renders (receives jobPostId prop for breakdown fetch)
+    expect(screen.getByTestId("job-analysis-panel")).toBeInTheDocument();
   });
 });

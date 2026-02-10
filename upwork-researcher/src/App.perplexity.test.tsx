@@ -267,16 +267,25 @@ describe("App — Perplexity Analysis Integration", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
-    // Type in job input and start new generation
-    await user.type(screen.getByRole("textbox"), "New job post");
-    await user.click(screen.getByRole("button", { name: /generate proposal/i }));
-
-    // After new generation starts, previous perplexity state should be cleared
-    // (tested by verifying no stale modal appears during streaming)
+    // H5 fix: After generation completes, the proposal output is shown (not the generate view).
+    // Test that starting a NEW generation (via store) clears previous perplexity state.
+    // Reset the generation store to simulate user starting fresh.
     act(() => {
-      useGenerationStore.getState().setStreaming(true);
+      useGenerationStore.getState().reset();
     });
 
+    // Modal should not re-appear after store reset
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    // Start new streaming generation - modal should not appear (perplexity state cleared)
+    act(() => {
+      useGenerationStore.getState().setStreaming(true);
+      useGenerationStore.getState().appendTokens(["New ", "generation"]);
+    });
+
+    // During streaming, no modal should appear (perplexity not analyzed yet)
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });

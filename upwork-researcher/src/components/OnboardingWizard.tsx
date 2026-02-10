@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useOnboardingStore } from "../stores/useOnboardingStore";
 import WelcomeStep from "./onboarding/WelcomeStep";
 import ApiKeyStep from "./onboarding/ApiKeyStep";
@@ -11,6 +12,10 @@ const TOTAL_STEPS = 4;
 
 function OnboardingWizard() {
   const { currentStep, showOnboarding, setShowOnboarding } = useOnboardingStore();
+
+  // Story 8.2: Focus trap for keyboard navigation
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef);
 
   // Keyboard navigation: Escape to close (Task 8)
   useEffect(() => {
@@ -53,7 +58,7 @@ function OnboardingWizard() {
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
-      <div className="onboarding-wizard">
+      <div ref={modalRef} className="onboarding-wizard">
         <div className="onboarding-wizard__progress">
           Step {currentStep} of {TOTAL_STEPS}
         </div>

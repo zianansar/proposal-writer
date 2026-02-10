@@ -102,7 +102,7 @@ describe("EncryptionDetailsModal", () => {
     );
   });
 
-  it("focuses close button on mount", () => {
+  it("focuses close button on mount", async () => {
     render(
       <EncryptionDetailsModal status={encryptedStatus} onClose={vi.fn()} />
     );
@@ -110,11 +110,15 @@ describe("EncryptionDetailsModal", () => {
     const closeButton = screen.getByRole("button", {
       name: /Close encryption details/i,
     });
+
+    // Story 8.2: useFocusTrap uses requestAnimationFrame for focus
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+
     expect(document.activeElement).toBe(closeButton);
   });
 
   // Review Fix H1: focus trap keeps Tab within modal
-  it("traps focus within modal on Tab", () => {
+  it("traps focus within modal on Tab", async () => {
     render(
       <EncryptionDetailsModal status={encryptedStatus} onClose={vi.fn()} />
     );
@@ -122,6 +126,9 @@ describe("EncryptionDetailsModal", () => {
     const closeButton = screen.getByRole("button", {
       name: /Close encryption details/i,
     });
+
+    // Story 8.2: Wait for focus trap to initialize
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
 
     // Close button is the only focusable element
     // Tab from it should cycle back to itself
@@ -131,10 +138,13 @@ describe("EncryptionDetailsModal", () => {
   });
 
   // Review Fix H1: Shift+Tab also stays trapped
-  it("traps focus within modal on Shift+Tab", () => {
+  it("traps focus within modal on Shift+Tab", async () => {
     render(
       <EncryptionDetailsModal status={encryptedStatus} onClose={vi.fn()} />
     );
+
+    // Story 8.2: Wait for focus trap to initialize
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
 
     const closeButton = screen.getByRole("button", {
       name: /Close encryption details/i,

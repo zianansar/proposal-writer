@@ -1,8 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore, getHumanizationIntensity, type HumanizationIntensity } from "../stores/useSettingsStore";
 import { useOnboardingStore } from "../stores/useOnboardingStore";
 import UserSkillsConfig from "./UserSkillsConfig";
+import { VoiceSettings } from "./VoiceSettings";
+
+/** Story 4b.4: Rate configuration for budget alignment */
+interface RateConfig {
+  hourly_rate: number | null;
+  project_rate_min: number | null;
+}
 
 const INTENSITY_OPTIONS: { value: HumanizationIntensity; label: string; description: string; badge?: string }[] = [
   { value: "off", label: "Off", description: "No humanization — pure AI output" },
@@ -22,17 +29,45 @@ function SettingsPanel() {
   const [intensitySaving, setIntensitySaving] = useState(false);
   const [intensityMessage, setIntensityMessage] = useState<string | null>(null);
 
+  // Story 8.14: Crash reporting opt-in state
+  const [crashReportingEnabled, setCrashReportingEnabled] = useState(false);
+  const [crashReportingSaving, setCrashReportingSaving] = useState(false);
+
   // Story 3.5: Safety threshold state
   const [threshold, setThreshold] = useState(180);
   const [thresholdSaving, setThresholdSaving] = useState(false);
   const [thresholdMessage, setThresholdMessage] = useState<string | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
+  // Story 4b.4: Rate configuration state
+  const [hourlyRate, setHourlyRate] = useState<string>("");
+  const [projectRateMin, setProjectRateMin] = useState<string>("");
+  const [rateSaving, setRateSaving] = useState<'hourly' | 'project' | null>(null);
+  const [rateMessage, setRateMessage] = useState<string | null>(null);
+  const hourlyTimeoutRef = useRef<number | null>(null);
+  const projectTimeoutRef = useRef<number | null>(null);
+
   useEffect(() => {
     // Load current log level from settings
     const currentLevel = getSetting("log_level") || "INFO";
     setLogLevel(currentLevel);
   }, [getSetting]);
+
+  // Story 8.14: Load crash reporting setting on mount
+  useEffect(() => {
+    const loadCrashReporting = async () => {
+      try {
+        const value = await invoke<string | null>("get_setting", {
+          key: "crash_reporting_enabled",
+        });
+        setCrashReportingEnabled(value === "true");
+      } catch (err) {
+        console.error("Failed to load crash reporting setting:", err);
+        // Keep default false on error
+      }
+    };
+    loadCrashReporting();
+  }, []);
 
   // Story 3.5: Load safety threshold on mount
   useEffect(() => {
@@ -47,6 +82,47 @@ function SettingsPanel() {
     };
     loadThreshold();
   }, []);
+
+  // Story 4b.4: Load rate configuration on mount
+  useEffect(() => {
+    const loadRateConfig = async () => {
+      try {
+        const config = await invoke<RateConfig>("get_user_rate_config");
+        if (config.hourly_rate !== null) {
+          setHourlyRate(config.hourly_rate.toString());
+        }
+        if (config.project_rate_min !== null) {
+          setProjectRateMin(config.project_rate_min.toString());
+        }
+      } catch (err) {
+        console.error("Failed to load rate config:", err);
+      }
+    };
+    loadRateConfig();
+  }, []);
+
+  // Story 8.14: Handle crash reporting toggle
+  const handleCrashReportingChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const newValue = e.target.checked;
+    setCrashReportingEnabled(newValue);
+    setCrashReportingSaving(true);
+
+    try {
+      await invoke("set_setting", {
+        key: "crash_reporting_enabled",
+        value: newValue.toString(),
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert(`Failed to update crash reporting: ${errorMessage}`);
+      // Revert on error
+      setCrashReportingEnabled(!newValue);
+    } finally {
+      setCrashReportingSaving(false);
+    }
+  };
 
   const handleLogLevelChange = async (
     e: React.ChangeEvent<HTMLSelectElement>
@@ -120,6 +196,68 @@ function SettingsPanel() {
     }, 300);
   };
 
+  // Story 4b.4: Handle hourly rate change with 500ms debounce (Subtask 7.6)
+  const handleHourlyRateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setHourlyRate(value);
+    setRateMessage(null);
+
+    // Clear pending timeout
+    if (hourlyTimeoutRef.current) clearTimeout(hourlyTimeoutRef.current);
+
+    // Don't save empty values
+    if (!value.trim()) return;
+
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue <= 0) return;
+
+    // Debounce save (500ms per story requirement)
+    hourlyTimeoutRef.current = window.setTimeout(async () => {
+      setRateSaving('hourly');
+      try {
+        await invoke("set_user_hourly_rate", { rate: numValue });
+        setRateMessage("✓ Hourly rate saved");
+        setTimeout(() => setRateMessage(null), 2000);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setRateMessage(`Failed: ${errorMessage}`);
+      } finally {
+        setRateSaving(null);
+      }
+    }, 500);
+  }, []);
+
+  // Story 4b.4: Handle project rate change with 500ms debounce (Subtask 7.6)
+  const handleProjectRateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setProjectRateMin(value);
+    setRateMessage(null);
+
+    // Clear pending timeout
+    if (projectTimeoutRef.current) clearTimeout(projectTimeoutRef.current);
+
+    // Don't save empty values
+    if (!value.trim()) return;
+
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue <= 0) return;
+
+    // Debounce save (500ms per story requirement)
+    projectTimeoutRef.current = window.setTimeout(async () => {
+      setRateSaving('project');
+      try {
+        await invoke("set_user_project_rate_min", { rate: numValue });
+        setRateMessage("✓ Project rate saved");
+        setTimeout(() => setRateMessage(null), 2000);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setRateMessage(`Failed: ${errorMessage}`);
+      } finally {
+        setRateSaving(null);
+      }
+    }, 500);
+  }, []);
+
   return (
     <div className="settings-panel">
       <h2>Settings</h2>
@@ -132,6 +270,61 @@ function SettingsPanel() {
             Skills used for job matching and scoring (Story 4b.2)
           </p>
           <UserSkillsConfig />
+        </div>
+
+        {/* Story 4b.4: Rate configuration (Task 7) */}
+        <div className="settings-field settings-field--rates">
+          <label>Your Rates</label>
+          <p className="settings-help" id="rates-help">
+            Used to calculate budget alignment for job scoring
+          </p>
+          <div className="rate-inputs">
+            <div className="rate-input-group">
+              <label htmlFor="hourly-rate">Hourly Rate ($/hr)</label>
+              <input
+                type="number"
+                id="hourly-rate"
+                value={hourlyRate}
+                onChange={handleHourlyRateChange}
+                placeholder="75"
+                min="0"
+                max="999999"
+                step="0.01"
+                disabled={rateSaving === 'hourly'}
+                aria-describedby="rates-help"
+                aria-label="Hourly rate in dollars per hour"
+                data-testid="hourly-rate-input"
+              />
+              {rateSaving === 'hourly' && (
+                <span className="rate-saving">Saving...</span>
+              )}
+            </div>
+            <div className="rate-input-group">
+              <label htmlFor="project-rate">Minimum Project Rate ($)</label>
+              <input
+                type="number"
+                id="project-rate"
+                value={projectRateMin}
+                onChange={handleProjectRateChange}
+                placeholder="2000"
+                min="0"
+                max="999999"
+                step="0.01"
+                disabled={rateSaving === 'project'}
+                aria-describedby="rates-help"
+                aria-label="Minimum project rate in dollars"
+                data-testid="project-rate-input"
+              />
+              {rateSaving === 'project' && (
+                <span className="rate-saving">Saving...</span>
+              )}
+            </div>
+          </div>
+          {rateMessage && (
+            <p className={`settings-message ${rateMessage.includes("Failed") ? "error" : "success"}`}>
+              {rateMessage}
+            </p>
+          )}
         </div>
       </section>
 
@@ -198,6 +391,36 @@ function SettingsPanel() {
         </div>
       </section>
 
+      {/* Story 8.14: Privacy and telemetry */}
+      <section className="settings-section">
+        <h3>Privacy</h3>
+        <div className="privacy-indicator">
+          <span className="privacy-icon" aria-hidden="true">✓</span>
+          <span className="privacy-label">Zero Telemetry</span>
+          <p className="settings-help">
+            No usage data, analytics, or crash reports are sent without your permission.
+            All data stays on your device.
+          </p>
+        </div>
+
+        <div className="settings-field">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={crashReportingEnabled}
+              onChange={handleCrashReportingChange}
+              disabled={crashReportingSaving}
+              aria-label="Enable crash reporting"
+            />
+            <span>Enable crash reporting (helps improve the app)</span>
+          </label>
+          <p className="settings-help settings-help--warning">
+            When enabled, anonymous crash data may be sent to help diagnose issues.
+            Disabled by default for maximum privacy.
+          </p>
+        </div>
+      </section>
+
       <section className="settings-section">
         <h3>Humanization</h3>
         <p className="settings-help">
@@ -259,6 +482,11 @@ function SettingsPanel() {
           Re-run the initial setup wizard to configure your API key and
           preferences.
         </p>
+      </section>
+
+      {/* Story 6.2: Voice Settings - Manual voice parameter adjustments */}
+      <section className="settings-section">
+        <VoiceSettings />
       </section>
     </div>
   );

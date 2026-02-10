@@ -1,4 +1,4 @@
-use crate::{db, events, humanization, sanitization::sanitize_job_content, DraftState};
+use crate::{db, events, humanization, network, sanitization::sanitize_job_content, DraftState};
 use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -124,13 +124,14 @@ fn resolve_api_key(provided_key: Option<&str>) -> Result<String, String> {
 }
 
 pub async fn generate_proposal(job_content: &str) -> Result<String, String> {
-    generate_proposal_with_key(job_content, None, "medium").await
+    generate_proposal_with_key(job_content, None, "medium", None).await
 }
 
 pub async fn generate_proposal_with_key(
     job_content: &str,
     api_key: Option<&str>,
     humanization_intensity: &str,
+    app_handle: Option<&AppHandle>,
 ) -> Result<String, String> {
     let api_key = resolve_api_key(api_key)?;
 
@@ -173,6 +174,15 @@ pub async fn generate_proposal_with_key(
         }],
         stream: None, // Non-streaming request
     };
+
+    // AR-14: Validate domain before making request (network allowlist enforcement)
+    // Task 4.2: Emit event if domain is blocked and AppHandle is available
+    if let Err(e) = network::validate_url(ANTHROPIC_API_URL) {
+        if let (Some(handle), network::NetworkError::BlockedDomain(domain)) = (app_handle, &e) {
+            network::emit_blocked_event(handle, domain.clone(), ANTHROPIC_API_URL.to_string());
+        }
+        return Err(format!("Network security: {}", e));
+    }
 
     let response = client
         .post(ANTHROPIC_API_URL)
@@ -290,6 +300,20 @@ pub async fn generate_proposal_streaming_with_key(
         }],
         stream: Some(true),
     };
+
+    // AR-14: Validate domain before making request (network allowlist enforcement)
+    // Task 4.2: Emit event if domain is blocked
+    if let Err(e) = network::validate_url(ANTHROPIC_API_URL) {
+        match &e {
+            network::NetworkError::BlockedDomain(domain) => {
+                network::emit_blocked_event(&app_handle, domain.clone(), ANTHROPIC_API_URL.to_string());
+            }
+            network::NetworkError::InvalidUrl(_) => {
+                // Invalid URL doesn't need event emission, just error
+            }
+        }
+        return Err(format!("Network security: {}", e));
+    }
 
     let response = client
         .post(ANTHROPIC_API_URL)
@@ -589,6 +613,10 @@ pub async fn analyze_perplexity(text: &str, api_key: Option<&str>) -> Result<f32
         stream: None, // No streaming for quick analysis
     };
 
+    // AR-14: Validate domain before making request (network allowlist enforcement)
+    network::validate_url(ANTHROPIC_API_URL)
+        .map_err(|e| format!("Network security: {}", e))?;
+
     let response = client
         .post(ANTHROPIC_API_URL)
         .header("x-api-key", &api_key)
@@ -644,10 +672,12 @@ pub async fn analyze_perplexity(text: &str, api_key: Option<&str>) -> Result<f32
 /// Returns perplexity score AND specific risky sentences with humanization suggestions
 /// Uses Claude Haiku for cost-effective detailed analysis
 /// Story 3.5: Accepts configurable threshold parameter (140-220, default 180)
+/// Task 4.2: Added AppHandle for network event emission
 pub async fn analyze_perplexity_with_sentences(
     text: &str,
     threshold: i32,
     api_key: Option<&str>,
+    app_handle: Option<&AppHandle>,
 ) -> Result<PerplexityAnalysis, String> {
     let api_key = resolve_api_key(api_key)?;
 
@@ -694,6 +724,15 @@ Return ONLY valid JSON, no other text."#,
         }],
         stream: None,
     };
+
+    // AR-14: Validate domain before making request (network allowlist enforcement)
+    // Task 4.2: Emit event if domain is blocked and AppHandle is available
+    if let Err(e) = network::validate_url(ANTHROPIC_API_URL) {
+        if let (Some(handle), network::NetworkError::BlockedDomain(domain)) = (app_handle, &e) {
+            network::emit_blocked_event(handle, domain.clone(), ANTHROPIC_API_URL.to_string());
+        }
+        return Err(format!("Network security: {}", e));
+    }
 
     let response = client
         .post(ANTHROPIC_API_URL)

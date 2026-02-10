@@ -3,9 +3,15 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { invoke } from "@tauri-apps/api/core";
 import CopyButton from "./CopyButton";
+import { LiveAnnouncerProvider } from "./LiveAnnouncer";
 
 const mockWriteText = vi.mocked(writeText);
 const mockInvoke = vi.mocked(invoke);
+
+// Test helper to wrap components with LiveAnnouncerProvider
+const renderWithLiveAnnouncer = (ui: React.ReactElement) => {
+  return render(<LiveAnnouncerProvider>{ui}</LiveAnnouncerProvider>);
+};
 
 describe("CopyButton", () => {
   beforeEach(() => {
@@ -24,6 +30,10 @@ describe("CopyButton", () => {
           flaggedSentences: [],
         });
       }
+      // Story 8.6: Mock proposals edited counter
+      if (command === "increment_proposals_edited") {
+        return Promise.resolve(1);
+      }
       return Promise.resolve(null);
     });
   });
@@ -33,12 +43,12 @@ describe("CopyButton", () => {
   });
 
   it("renders with default text", () => {
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
     expect(screen.getByRole("button")).toHaveTextContent("Copy to Clipboard");
   });
 
   it("calls get_safety_threshold, analyze_perplexity, then writeText when clicked", async () => {
-    render(<CopyButton text="Test proposal text" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal text" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -56,7 +66,7 @@ describe("CopyButton", () => {
 
   it("shows 'Copied!' after successful copy", async () => {
     mockWriteText.mockResolvedValueOnce(undefined);
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -67,7 +77,7 @@ describe("CopyButton", () => {
 
   it("returns to 'Copy to Clipboard' after 2 seconds", async () => {
     mockWriteText.mockResolvedValueOnce(undefined);
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -84,17 +94,17 @@ describe("CopyButton", () => {
   });
 
   it("is disabled when disabled prop is true", () => {
-    render(<CopyButton text="Test proposal" disabled />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" disabled />);
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
   it("is disabled when text is empty", () => {
-    render(<CopyButton text="" />);
+    renderWithLiveAnnouncer(<CopyButton text="" />);
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
   it("does not call writeText when disabled", async () => {
-    render(<CopyButton text="Test proposal" disabled />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" disabled />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -105,19 +115,18 @@ describe("CopyButton", () => {
 
   it("shows error message when copy fails", async () => {
     mockWriteText.mockRejectedValueOnce(new Error("Clipboard error"));
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
     });
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Failed to copy to clipboard"
-    );
+    // Error should be shown (use text query to avoid conflict with LiveAnnouncer)
+    expect(screen.getByText("Failed to copy to clipboard")).toBeInTheDocument();
   });
 
   it("has correct aria-label for accessibility", () => {
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
     expect(screen.getByRole("button")).toHaveAttribute(
       "aria-label",
       "Copy to clipboard"
@@ -126,7 +135,7 @@ describe("CopyButton", () => {
 
   it("updates aria-label after copy", async () => {
     mockWriteText.mockResolvedValueOnce(undefined);
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -163,7 +172,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -194,7 +203,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -226,7 +235,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -274,7 +283,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -305,7 +314,7 @@ describe("CopyButton", () => {
 
   it("does NOT show modal when score is below threshold", async () => {
     // Default mock returns score 120 < 180 threshold
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -343,7 +352,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -371,7 +380,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -398,7 +407,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button"));
@@ -437,7 +446,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     // Click Copy to trigger analysis
     await act(async () => {
@@ -489,7 +498,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     // Click Copy to trigger analysis
     await act(async () => {
@@ -545,7 +554,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     // Click Copy to trigger analysis
     await act(async () => {
@@ -600,7 +609,7 @@ describe("CopyButton", () => {
     // Clipboard will fail
     mockWriteText.mockRejectedValueOnce(new Error("Clipboard access denied"));
 
-    render(<CopyButton text="Test proposal" />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
 
     // Click Copy to trigger analysis
     await act(async () => {
@@ -622,10 +631,8 @@ describe("CopyButton", () => {
     // Dialog should be gone
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
-    // Error should be shown
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Failed to copy to clipboard"
-    );
+    // Error should be shown (use className to avoid conflict with LiveAnnouncer)
+    expect(screen.getByText("Failed to copy to clipboard")).toBeInTheDocument();
   });
 
   // Story 3.7: Verify record_safety_override is called with correct parameters
@@ -654,7 +661,7 @@ describe("CopyButton", () => {
       return Promise.resolve(null);
     });
 
-    render(<CopyButton text="Test proposal" proposalId={proposalId} />);
+    renderWithLiveAnnouncer(<CopyButton text="Test proposal" proposalId={proposalId} />);
 
     // Click Copy to trigger analysis
     await act(async () => {
@@ -676,6 +683,81 @@ describe("CopyButton", () => {
       proposalId,
       aiScore: 195.5,
       threshold: 180,
+    });
+  });
+
+  // Story 6.6: Dynamic content via getContent callback
+  describe("Dynamic content (Story 6.6)", () => {
+    it("uses getContent() when provided instead of static text prop", async () => {
+      const getContent = vi.fn(() => "Dynamic edited content");
+      renderWithLiveAnnouncer(<CopyButton text="Original text" getContent={getContent} />);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button"));
+      });
+
+      // Should call getContent to get current content
+      expect(getContent).toHaveBeenCalled();
+
+      // Should analyze the dynamic content (not the static text)
+      expect(mockInvoke).toHaveBeenCalledWith("analyze_perplexity", {
+        text: "Dynamic edited content",
+        threshold: 180,
+      });
+
+      // Should copy the dynamic content
+      expect(mockWriteText).toHaveBeenCalledWith("Dynamic edited content");
+    });
+
+    it("falls back to static text prop when getContent not provided", async () => {
+      renderWithLiveAnnouncer(<CopyButton text="Static text only" />);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button"));
+      });
+
+      // Should use static text
+      expect(mockInvoke).toHaveBeenCalledWith("analyze_perplexity", {
+        text: "Static text only",
+        threshold: 180,
+      });
+
+      expect(mockWriteText).toHaveBeenCalledWith("Static text only");
+    });
+
+    it("safety check analyzes dynamic content from getContent", async () => {
+      mockInvoke.mockImplementation((command: string, args?: any) => {
+        if (command === "get_safety_threshold") {
+          return Promise.resolve(180);
+        }
+        if (command === "analyze_perplexity") {
+          // Verify we're analyzing the edited content
+          expect(args.text).toBe("Edited proposal with changes");
+          return Promise.resolve({
+            score: 200,
+            threshold: 180,
+            flaggedSentences: [
+              {
+                text: "Edited proposal with changes",
+                suggestion: "Review this",
+                index: 0,
+              },
+            ],
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const getContent = vi.fn(() => "Edited proposal with changes");
+      renderWithLiveAnnouncer(<CopyButton text="Original text" getContent={getContent} />);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button"));
+      });
+
+      // Modal should show with flagged content from edited text
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByText(/Edited proposal with changes/i)).toBeInTheDocument();
     });
   });
 });

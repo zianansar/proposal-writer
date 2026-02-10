@@ -130,10 +130,10 @@ Use a single `analyze_job_post` Rust module/function that can grow. When 4a-3 la
 
 - [x] [AI-Review][CRITICAL] C1: AC-3 not implemented - FIXED: Added clientName param to save_job_post command, frontend passes extracted value when saving [lib.rs:392-410, App.tsx:607-611]
 - [x] [AI-Review][HIGH] H1: Light mode CSS uses `body.light-mode` selector but app uses `@media (prefers-color-scheme: light)` - FIXED: Changed to media query [App.css:1178-1188]
-- [ ] [AI-Review][HIGH] H2: Missing App.tsx integration tests for handleAnalyze function - no test verifies invoke call, state updates, or error handling [App.tsx:504-528]
+- [x] [AI-Review][HIGH] H2: Missing App.tsx integration tests for handleAnalyze function - RESOLVED: Subsequent stories (4a-3, 4a-4, 4a-6, 4a-7, 4a-8) added comprehensive integration tests covering invoke call, state updates, error handling, loading state, and double-click prevention in App.test.tsx
 - [x] [AI-Review][MEDIUM] M1: analysis-error element lacks ARIA role="alert" for accessibility - FIXED [App.tsx:770]
 - [x] [AI-Review][MEDIUM] M2: 3-second timeout too aggressive for slow networks - FIXED: Extended to 5 seconds [analysis.rs:89-91]
-- [ ] [AI-Review][MEDIUM] M3: Rust API mocking tests 6.1-6.3 claim to exist but analysis.rs only has JSON parsing tests - actual HTTP mocking tests may not exist [analysis.rs:241-299]
+- [ ] [AI-Review][MEDIUM] M3: Rust API mocking tests 6.1-6.3 confirmed missing - analysis.rs has 17 unit tests for JSON parsing/struct serialization but no HTTP mocking tests for analyze_job function — DEFERRED (requires API mocking infrastructure, same gap as 4a-4 M3)
 
 ## Dev Notes
 

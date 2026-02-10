@@ -1,0 +1,14 @@
+Hi there,
+
+I noticed your React dashboard project and it aligns perfectly with my recent work. I've spent the last 5 years building data-heavy interfaces for fintech and SaaS companies.
+
+What caught my eye:
+- Your need for real-time data visualization
+- The emphasis on clean, maintainable code
+
+My approach would be to start with a solid component architecture using React 19 + TypeScript, integrate Chart.js or D3 for the visualizations, and ensure everything is properly tested with Jest and React Testing Library.
+
+I'm currently available 30+ hours/week and could start immediately. Would you be open to a quick call to discuss the technical requirements?
+
+Best,
+Alex
