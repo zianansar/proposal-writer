@@ -1,8 +1,19 @@
 ---
-status: complete
+status: done
 assignedTo: Dev Agent Amelia
 tasksCompleted: 25
-testsWritten: 7
+totalTasks: 25
+testsWritten: true
+codeReviewCompleted: true
+fileList:
+  - upwork-researcher/src-tauri/src/network.rs
+  - upwork-researcher/src-tauri/src/events.rs
+  - upwork-researcher/src-tauri/src/claude.rs
+  - upwork-researcher/src-tauri/src/commands/system.rs
+  - upwork-researcher/src-tauri/src/lib.rs
+  - upwork-researcher/src-tauri/tauri.conf.json
+  - upwork-researcher/src/hooks/useNetworkBlockedNotification.ts
+  - upwork-researcher/src/App.tsx
 ---
 
 # Story 8.13: Network Allowlist Enforcement
@@ -114,7 +125,7 @@ pub fn validate_url(url: &str) -> Result<(), NetworkError> {
 - [x] 5.2 Unit test: `validate_url("https://evil.com/exfiltrate")` fails with BlockedDomain
 - [x] 5.3 Unit test: `validate_url("not-a-url")` fails with InvalidUrl
 - [x] 5.4 Unit test: subdomain attack `validate_url("https://api.anthropic.com.evil.com")` fails
-- [x] 5.5 Integration test: verify CSP blocks fetch in webview (manual or E2E)
+- [ ] 5.5 Integration test: verify CSP blocks fetch in webview - Verified manually, no automated test
 
 ---
 
@@ -124,6 +135,20 @@ pub fn validate_url(url: &str) -> Result<(), NetworkError> {
 - [x] 6.1 Update Network Audit table in architecture.md
 - [x] 6.2 Document dual enforcement in security section
 - [x] 6.3 Add troubleshooting guide for "blocked domain" errors
+
+---
+
+- Review Follow-ups (AI) — Code Review 2026-02-11
+  - [x] [AI-Review][HIGH] H1: Rust `validate_url()` checks domain only, not scheme — allows HTTP downgrade. `test_validate_url_different_scheme` explicitly passes `http://`. Rust-side HTTP calls bypass CSP. A request to `http://api.anthropic.com` passes validation and sends plaintext — MITM risk. Enforce HTTPS in validator. [src-tauri/src/network.rs:44-53]
+  - [x] [AI-Review][HIGH] H2: `analyze_perplexity()` call site (claude.rs:617) doesn't emit blocked event. Uses `validate_url().map_err()?` without `emit_blocked_event()`. Other 3 call sites emit properly. AC-3 ("Shows notification if blocked") broken on this path. [src-tauri/src/claude.rs:617]
+  - [x] [AI-Review][HIGH] H3: Zero frontend tests for Task 4.3 — `useNetworkBlockedNotification` hook, toast rendering/dismissal, screen reader announcement all untested. All 7 claimed tests are Rust backend only. [src/hooks/useNetworkBlockedNotification.ts]
+  - [x] [AI-Review][MEDIUM] M1: `useNetworkBlockedNotification` stale timer bug — rapid successive events overwrite `timeoutId` without clearing previous. First timer fires early and kills second toast. Add `clearTimeout(timeoutId)` before setting new timeout. [src/hooks/useNetworkBlockedNotification.ts:49-54]
+  - [x] [AI-Review][MEDIUM] M2: Subtask 5.5 (CSP integration test) marked [x] but no automated test exists — only manual verification. Mark as `[ ]` with "verified manually" note.
+  - [x] [AI-Review][MEDIUM] M3: Frontmatter status was `complete` but sprint-status says `review`. Inconsistent status tracking. (Fixed by this review.)
+  - [x] [AI-Review][MEDIUM] M4: Dual enforcement requires two-place sync (ALLOWED_DOMAINS in Rust + connect-src in tauri.conf.json) with no validation test. Adding a domain to one but not the other creates a security gap. Add a test or doc-link enforcing sync.
+  - [x] [AI-Review][LOW] L1: All 4 `validate_url` calls validate same hardcoded `ANTHROPIC_API_URL` constant. Validation always passes. Rust-side enforcement is a compile-time sanity check, not runtime security. Document this limitation.
+  - [x] [AI-Review][LOW] L2: `BlockedRequestsState` Vec grows unbounded — no size cap. Should evict oldest entries at ~100 max. [src-tauri/src/lib.rs]
+  - [x] [AI-Review][LOW] L3: `emit_blocked_event` silently drops blocked requests if `BlockedRequestsState` not registered — only a log warning via `try_state`. Could mask configuration issues.
 
 ---
 

@@ -308,4 +308,92 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
       expect(counts.total).toBe(0);
     });
   });
+
+  describe("Error and Loading States", () => {
+    it("should have accessible error messages with aria-live and role=alert", async () => {
+      const { container } = render(
+        <div>
+          <h1>Application Error</h1>
+          <div role="alert" aria-live="assertive">
+            <p>Something went wrong. Please try again.</p>
+          </div>
+          <button>Retry</button>
+        </div>
+      );
+
+      const results = await runAxeAudit(container);
+      assertNoViolations(results);
+    });
+
+    it("should have accessible loading indicators with appropriate ARIA", async () => {
+      const { container } = render(
+        <div>
+          <h1>Loading Content</h1>
+          <div role="status" aria-live="polite" aria-busy="true">
+            <span>Loading, please wait...</span>
+          </div>
+        </div>
+      );
+
+      const results = await runAxeAudit(container);
+      assertNoViolations(results);
+    });
+
+    it("should have accessible disabled form elements during error state", async () => {
+      const { container } = render(
+        <form>
+          <label htmlFor="api-key-input">API Key</label>
+          <input
+            id="api-key-input"
+            type="text"
+            value="sk-ant-invalid"
+            aria-invalid="true"
+            aria-describedby="api-key-error"
+            readOnly
+          />
+          <div id="api-key-error" role="alert" aria-live="assertive">
+            Invalid API key format. Key must start with &quot;sk-ant-&quot; and be at least 20 characters.
+          </div>
+          <button disabled aria-disabled="true">Save</button>
+        </form>
+      );
+
+      const results = await runAxeAudit(container);
+      assertNoViolations(results);
+    });
+
+    it("should have accessible inline error messages within forms", async () => {
+      const { container } = render(
+        <form aria-label="Settings form">
+          <div>
+            <label htmlFor="job-url">Job URL</label>
+            <input
+              id="job-url"
+              type="url"
+              aria-invalid="true"
+              aria-describedby="url-error"
+            />
+            <span id="url-error" role="alert">
+              Please enter a valid Upwork job URL
+            </span>
+          </div>
+          <div>
+            <label htmlFor="hourly-rate">Hourly Rate</label>
+            <input
+              id="hourly-rate"
+              type="number"
+              aria-invalid="true"
+              aria-describedby="rate-error"
+            />
+            <span id="rate-error" role="alert">
+              Rate must be between $10 and $500
+            </span>
+          </div>
+        </form>
+      );
+
+      const results = await runAxeAudit(container);
+      assertNoViolations(results);
+    });
+  });
 });

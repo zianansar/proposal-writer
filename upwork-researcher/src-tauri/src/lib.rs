@@ -169,7 +169,7 @@ impl BlockedRequestsState {
             }
             Err(poisoned) => {
                 tracing::warn!("BlockedRequestsState mutex poisoned, recovering");
-                let guard = poisoned.into_inner();
+                let mut guard = poisoned.into_inner();
                 if guard.len() >= MAX_BLOCKED_ENTRIES {
                     guard.remove(0);
                 }
@@ -1347,7 +1347,7 @@ fn add_user_skill(database: State<'_, db::AppDatabase>, skill: String) -> Result
     };
 
     // Story 4b.5 Task 5.1: Recalculate all scores after skill added
-    let _ = recalculate_all_scores(database);
+    let _ = recalculate_all_scores_internal(database);
 
     Ok(skill_id)
 }
@@ -1368,7 +1368,7 @@ fn remove_user_skill(database: State<'_, db::AppDatabase>, skill_id: i64) -> Res
     }
 
     // Story 4b.5 Task 5.1: Recalculate all scores after skill removed
-    let _ = recalculate_all_scores(database);
+    let _ = recalculate_all_scores_internal(database);
 
     Ok(())
 }
@@ -1459,7 +1459,7 @@ fn set_user_hourly_rate(database: State<'_, db::AppDatabase>, rate: f64) -> Resu
     }
 
     // Story 4b.5 Task 5.2: Recalculate all scores after rate changed
-    let _ = recalculate_all_scores(database);
+    let _ = recalculate_all_scores_internal(database);
 
     Ok(())
 }
@@ -1493,7 +1493,7 @@ fn set_user_project_rate_min(database: State<'_, db::AppDatabase>, rate: f64) ->
     }
 
     // Story 4b.5 Task 5.2: Recalculate all scores after rate changed
-    let _ = recalculate_all_scores(database);
+    let _ = recalculate_all_scores_internal(database);
 
     Ok(())
 }
@@ -1592,17 +1592,13 @@ fn calculate_overall_job_score(
     Ok(result)
 }
 
-/// Recalculate all job scores (Story 4b.5 Task 3.2)
-/// Bulk recalculation when user updates skills or rate configuration
-#[tauri::command]
-fn recalculate_all_scores(database: State<'_, db::AppDatabase>) -> Result<usize, String> {
-    let database = database.get()?;
+/// Internal helper: Recalculate all job scores (Story 4b.5 Task 3.2)
+fn recalculate_all_scores_internal(database: &db::Database) -> Result<usize, String> {
     let conn = database
         .conn
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
-    // Get all job_post_ids that have scoring data
     let mut stmt = conn
         .prepare("SELECT DISTINCT job_post_id FROM job_scores")
         .map_err(|e| format!("Failed to prepare query: {}", e))?;
@@ -1616,18 +1612,15 @@ fn recalculate_all_scores(database: State<'_, db::AppDatabase>) -> Result<usize,
     let mut recalculated = 0;
 
     for job_id in job_ids {
-        // Read component scores
         let job_score = db::queries::scoring::get_job_score(&conn, job_id)?;
 
         if let Some(score) = job_score {
-            // Recalculate overall score
             let result = scoring::calculate_overall_score(
                 score.skills_match_percentage,
                 score.client_quality_score,
                 score.budget_alignment_score,
             );
 
-            // Update stored score
             db::queries::scoring::upsert_overall_score(
                 &conn,
                 job_id,
@@ -1641,6 +1634,15 @@ fn recalculate_all_scores(database: State<'_, db::AppDatabase>) -> Result<usize,
 
     Ok(recalculated)
 }
+
+/// Recalculate all job scores (Story 4b.5 Task 3.2)
+/// Bulk recalculation when user updates skills or rate configuration
+#[tauri::command]
+fn recalculate_all_scores(database: State<'_, db::AppDatabase>) -> Result<usize, String> {
+    let database = database.get()?;
+    recalculate_all_scores_internal(database)
+}
+
 
 // ============================================================================
 // Safety Threshold Commands (Story 3.5)
@@ -2150,6 +2152,15 @@ async fn generate_recovery_key(
         .map_err(|e| format!("Failed to write recovery hash file: {}", e))?;
     std::fs::write(&wrapped_key_path, &wrapped_db_key)
         .map_err(|e| format!("Failed to write wrapped key file: {}", e))?;
+
+    // M2 fix (Review 2): Restrict file permissions on Unix (sensitive recovery data)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let restricted = std::fs::Permissions::from_mode(0o600);
+        let _ = std::fs::set_permissions(&recovery_hash_path, restricted.clone());
+        let _ = std::fs::set_permissions(&wrapped_key_path, restricted);
+    }
 
     tracing::info!("Recovery data stored to external files for locked-DB recovery");
 

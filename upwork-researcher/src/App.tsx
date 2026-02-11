@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event"; // Story 2-7b
 import JobInput from "./components/JobInput";
 import AnalyzeButton from "./components/AnalyzeButton";
 import AnalysisProgress from "./components/AnalysisProgress"; // Story 4a.6
@@ -16,6 +17,7 @@ import DraftRecoveryModal from "./components/DraftRecoveryModal";
 import OnboardingWizard from "./components/OnboardingWizard";
 import SettingsPanel from "./components/SettingsPanel";
 import PassphraseEntry from "./components/PassphraseEntry";
+import PassphraseUnlock from "./components/PassphraseUnlock"; // Story 2-7b
 import SkipLink from "./components/SkipLink"; // Story 8.2
 import { LiveAnnouncerProvider, useAnnounce } from "./components/LiveAnnouncer"; // Story 8.3
 import { PreMigrationBackup } from "./components/PreMigrationBackup";
@@ -56,6 +58,8 @@ function AppContent() {
   const [checkingApiKey, setCheckingApiKey] = useState(true);
   const [needsPassphrase, setNeedsPassphrase] = useState<boolean>(false);
   const [passphraseSetupComplete, setPassphraseSetupComplete] = useState(false);
+  // Story 2-7b: Unlock state for encrypted database on restart
+  const [needsUnlock, setNeedsUnlock] = useState<boolean>(false);
   const [migrationPhase, setMigrationPhase] = useState<MigrationPhase>("idle");
   const [backupFilePath, setBackupFilePath] = useState<string | null>(null);
   const [migrationPassphrase, setMigrationPassphrase] = useState<string | null>(null);
@@ -346,6 +350,74 @@ function AppContent() {
 
     initializeApp();
   }, [loadSettings, setDraftRecovery, setShowOnboarding, setCooldown]);
+
+  // Story 2-7b: Listen for passphrase-required event from backend
+  useEffect(() => {
+    const unlisten = listen("passphrase-required", () => {
+      setNeedsUnlock(true);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Story 2-7b: Handler for successful database unlock
+  // M1+M3 fix (Review 2): Re-run DB-dependent initialization that failed while DB was locked.
+  // The initial initializeApp() runs before unlock — queries like check_for_draft,
+  // get_cooldown_remaining, and check_threshold_learning silently fail when DB is locked.
+  const handleDatabaseUnlocked = useCallback(() => {
+    setNeedsUnlock(false);
+
+    // Re-fetch encryption status
+    invoke<EncryptionStatus>("get_encryption_status")
+      .then((status) => setEncryptionStatus(status))
+      .catch(() => {});
+
+    // Re-check for draft recovery (Story 1.14)
+    invoke<{
+      id: number;
+      jobContent: string;
+      generatedText: string;
+      createdAt: string;
+      status: string;
+    } | null>("check_for_draft")
+      .then((draft) => {
+        if (draft) {
+          setDraftRecovery({
+            id: draft.id,
+            jobContent: draft.jobContent,
+            generatedText: draft.generatedText,
+          });
+        }
+      })
+      .catch(() => {});
+
+    // Re-sync cooldown state (Story 3.8)
+    invoke<number>("get_cooldown_remaining")
+      .then((remaining) => {
+        if (remaining > 0) {
+          setCooldown(remaining * 1000);
+        }
+      })
+      .catch(() => {});
+
+    // Re-check threshold learning (Story 3.7)
+    invoke<ThresholdSuggestion | null>("check_threshold_learning")
+      .then((suggestion) => {
+        if (suggestion) {
+          setThresholdSuggestion(suggestion);
+        }
+      })
+      .catch(() => {});
+
+    invoke<ThresholdSuggestion | null>("check_threshold_decrease")
+      .then((suggestion) => {
+        if (suggestion) {
+          setThresholdSuggestion((prev) => prev || suggestion);
+        }
+      })
+      .catch(() => {});
+  }, [setDraftRecovery, setCooldown]);
 
   // Handler for when API key setup is complete
   const handleApiKeySetupComplete = useCallback(() => {
@@ -870,6 +942,11 @@ function AppContent() {
         <div className="api-key-setup__loading">Loading...</div>
       </main>
     );
+  }
+
+  // Story 2-7b: Show unlock modal for encrypted database on restart
+  if (needsUnlock) {
+    return <PassphraseUnlock onUnlocked={handleDatabaseUnlocked} />;
   }
 
   // Show passphrase entry if needed (Story 2.1 - Epic 2)

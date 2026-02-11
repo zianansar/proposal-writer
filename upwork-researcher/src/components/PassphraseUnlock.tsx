@@ -161,7 +161,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
         <div className="passphrase-unlock-icon" aria-hidden="true">🔒</div>
         <h2 className="passphrase-unlock-title">Unlock Database</h2>
         <p className="passphrase-unlock-subtitle">
-          Enter your passphrase to decrypt and access your proposals
+          Enter your passphrase to access your encrypted proposals
         </p>
 
         <form onSubmit={handleSubmit} className="passphrase-unlock-form">

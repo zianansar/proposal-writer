@@ -1,8 +1,3 @@
-/// <reference types="vitest" />
-
-import type { AxeMatchers } from "vitest-axe";
-
-declare module "vitest" {
-  export interface Assertion extends AxeMatchers {}
-  export interface AsymmetricMatchersContaining extends AxeMatchers {}
-}
+// vitest-axe type augmentation removed - using custom assertNoViolations() helper instead.
+// If switching to matcher syntax (expect(...).toHaveNoViolations()), restore axe matcher types.
+export {};

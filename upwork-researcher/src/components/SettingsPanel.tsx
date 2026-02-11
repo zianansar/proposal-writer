@@ -30,8 +30,11 @@ function SettingsPanel() {
   const [intensityMessage, setIntensityMessage] = useState<string | null>(null);
 
   // Story 8.14: Crash reporting opt-in state
+  // TODO: crash_reporting_enabled setting is persisted but currently has no backend consumer.
+  // When crash reporting (e.g., Sentry) is integrated, read this setting to enable/disable.
   const [crashReportingEnabled, setCrashReportingEnabled] = useState(false);
   const [crashReportingSaving, setCrashReportingSaving] = useState(false);
+  const [crashReportingError, setCrashReportingError] = useState<string | null>(null);
 
   // Story 3.5: Safety threshold state
   const [threshold, setThreshold] = useState(180);
@@ -54,6 +57,7 @@ function SettingsPanel() {
   }, [getSetting]);
 
   // Story 8.14: Load crash reporting setting on mount
+  // NOTE: Could be batched with other settings loads for fewer round-trips
   useEffect(() => {
     const loadCrashReporting = async () => {
       try {
@@ -108,6 +112,7 @@ function SettingsPanel() {
     const newValue = e.target.checked;
     setCrashReportingEnabled(newValue);
     setCrashReportingSaving(true);
+    setCrashReportingError(null);
 
     try {
       await invoke("set_setting", {
@@ -116,7 +121,7 @@ function SettingsPanel() {
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      alert(`Failed to update crash reporting: ${errorMessage}`);
+      setCrashReportingError(errorMessage);
       // Revert on error
       setCrashReportingEnabled(!newValue);
     } finally {
@@ -392,6 +397,8 @@ function SettingsPanel() {
       </section>
 
       {/* Story 8.14: Privacy and telemetry */}
+      {/* AC-4: No update check sends user data. Constraint: If auto-update is added,
+          it must NOT send user data without opt-in. See NFR-8. */}
       <section className="settings-section">
         <h3>Privacy</h3>
         <div className="privacy-indicator">
@@ -418,6 +425,11 @@ function SettingsPanel() {
             When enabled, anonymous crash data may be sent to help diagnose issues.
             Disabled by default for maximum privacy.
           </p>
+          {crashReportingError && (
+            <p className="settings-error" role="alert" aria-live="assertive">
+              Failed to save: {crashReportingError}
+            </p>
+          )}
         </div>
       </section>
 

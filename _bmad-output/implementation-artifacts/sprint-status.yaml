@@ -67,7 +67,7 @@ development_status:
   1-16-logging-infrastructure: done
   epic-1-retrospective: done
 
-  epic-2: in-progress
+  epic-2: done
   2-1-passphrase-entry-ui: done
   2-2-pre-migration-automated-backup: done
   2-3-sqlite-to-sqlcipher-database-migration: done
@@ -75,7 +75,7 @@ development_status:
   2-5-migration-failure-recovery: done
   2-6-api-key-migration-to-os-keychain: done
   2-7a-encrypted-database-access-backend: done  # Split from 2-7 on 2026-02-05: Code review #2 passed (Opus 4.5)
-  2-7b-encrypted-database-access-frontend: review  # Split from 2-7 on 2026-02-05: Code review fixes applied 2026-02-11. 6/8 issues fixed (2 CRITICAL, 2 MEDIUM, 2 LOW). 2 deferred (integration tests).
+  2-7b-encrypted-database-access-frontend: done  # Code review R2 2026-02-11: 5 fixes applied (M1+M3 post-unlock init, M2 file permissions, L1 subtitle, L3 CSS tokens). 1 deferred (L2 timing). 26 tests passing.
   2-8-encryption-status-indicator: done  # Code review 2026-02-06: 6 fixes applied (H1 focus trap, M1-M5), 20 tests passing
   2-9-passphrase-recovery-options: done  # Code review R2 2026-02-06: 7 more fixes (M1-M4, L1-L3), 194 Rust tests, 245 frontend tests. AC6 partial (DB re-key deferred).
   epic-2-retrospective: optional
@@ -140,8 +140,8 @@ development_status:
   6-8-delete-proposal-all-revisions: done  # 2026-02-07: Code review complete. 7 issues fixed (4 HIGH, 3 MEDIUM). 16 tests total (12 frontend + 4 Rust). CASCADE test added.
   epic-6-retrospective: done  # Completed 2026-02-11
 
-  epic-8: in-progress
-  8-1-dark-theme-system: complete  # 2026-02-10: All review issues fixed (9/10, L2 deferred to v1.1). 103 tokens, 26 tests passing. Definition of Done met.
+  epic-8: done
+  8-1-dark-theme-system: done  # 2026-02-10: All review issues fixed (9/10, L2 deferred to v1.1). 103 tokens, 26 tests passing. Definition of Done met.
   8-2-complete-keyboard-navigation: done  # 2026-02-10: Code review PASSED. All 5 issues fixed. 43 tests + focus trap + skip link + arrow keys. Definition of Done met.
   8-3-screen-reader-support: done  # 2026-02-10: Code review PASSED. 20/20 tests passing. LiveAnnouncer + landmarks + headings + ARIA. 6/7 issues fixed (1 MEDIUM deferred).
   8-4-pipeline-stage-indicators-during-generation: done  # 2026-02-10: Code review PASSED. All 4 issues fixed (2 MEDIUM, 2 LOW). 85 tests passing. Definition of Done met.

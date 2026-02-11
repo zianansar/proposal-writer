@@ -1,38 +1,38 @@
 /**
- * Tauri E2E Test Driver
+ * Tauri E2E Test Driver (C5/C6/M4 fixes)
  *
- * Manages Tauri app lifecycle for E2E tests:
- * - Launches the Tauri app in test mode
- * - Waits for app to be ready
- * - Provides cleanup on test completion
+ * Manages Tauri app lifecycle for E2E tests using tauri-driver:
+ * 1. Launches `tauri-driver` which wraps the app binary and exposes WebDriver protocol
+ * 2. Playwright connects to the WebView via the WebDriver endpoint
+ * 3. Proper readiness check via WebDriver /status endpoint (replaces time-based heuristic)
+ * 4. Clean shutdown with exit listener attached before kill signal (fixes race condition)
  *
- * Implementation Note:
- * Tauri v2 E2E testing uses electron-like approach:
- * 1. Launch app via `npm run tauri dev` or built binary
- * 2. Playwright attaches to the WebView
- * 3. Tests interact with UI through Playwright API
- *
- * For CI: Use built binary from `npm run tauri build`
- * For local: Use dev server for faster iteration
+ * For CI: Uses built binary via `tauri-driver`
+ * For local dev: Uses `cargo tauri dev` with WebDriver enabled
  */
 
 import { spawn, ChildProcess } from 'child_process';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
+import { getDirname } from './esm-utils';
+import { getMockApiBaseUrl } from './mockApiServer';
 
-// ES module __dirname polyfill
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getDirname(import.meta.url);
 
-let tauriProcess: ChildProcess | null = null;
+let tauriDriverProcess: ChildProcess | null = null;
+let tauriAppProcess: ChildProcess | null = null;
+
+/** Port for tauri-driver WebDriver endpoint */
+const WEBDRIVER_PORT = 4444;
 
 interface LaunchOptions {
   /** Use built binary instead of dev server */
   useBuild?: boolean;
   /** Additional environment variables */
   env?: Record<string, string>;
-  /** Timeout in ms (default: 30000) */
+  /** Timeout in ms for app readiness (default: 30000) */
   timeout?: number;
+  /** Use mock API server for deterministic responses */
+  useMockApi?: boolean;
 }
 
 /**
@@ -43,161 +43,184 @@ export async function launchTauriApp(options: LaunchOptions = {}): Promise<void>
     useBuild = process.env.CI === 'true',
     env = {},
     timeout = 30_000,
+    useMockApi = true,
   } = options;
 
-  if (tauriProcess) {
+  if (tauriDriverProcess || tauriAppProcess) {
     console.warn('Tauri app already running. Skipping launch.');
     return;
   }
 
   const projectRoot = resolve(__dirname, '../../../');
 
-  if (useBuild) {
-    // Launch built binary (for CI)
-    const binaryPath = getBinaryPath();
-    console.log(`Launching Tauri app from: ${binaryPath}`);
+  // Build environment with mock API URL if enabled
+  const appEnv: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    ...env,
+    TAURI_ENV_DEBUG: 'true',
+  };
 
-    tauriProcess = spawn(binaryPath, [], {
+  if (useMockApi) {
+    appEnv.ANTHROPIC_API_BASE_URL = getMockApiBaseUrl();
+  }
+
+  if (useBuild) {
+    // Launch via tauri-driver (WebDriver protocol wrapper)
+    console.log('Launching Tauri app via tauri-driver...');
+
+    const binaryPath = getBinaryPath();
+    tauriDriverProcess = spawn('tauri-driver', [], {
       cwd: projectRoot,
       env: {
-        ...process.env,
-        ...env,
-        // Tauri test mode flags
-        TAURI_ENV_DEBUG: 'true',
+        ...appEnv,
+        TAURI_WEBDRIVER_BINARY: binaryPath,
       },
       stdio: 'pipe',
     });
+
+    attachProcessLogging(tauriDriverProcess, 'tauri-driver');
   } else {
-    // Launch dev server (for local testing)
+    // Launch app in dev mode
     console.log('Launching Tauri app in dev mode...');
 
-    tauriProcess = spawn('npm', ['run', 'tauri', 'dev'], {
+    tauriAppProcess = spawn('npm', ['run', 'tauri', 'dev'], {
       cwd: projectRoot,
-      env: {
-        ...process.env,
-        ...env,
-        // Prevent app auto-opening browser
-        BROWSER: 'none',
-      },
+      env: { ...appEnv, BROWSER: 'none' },
       stdio: 'pipe',
       shell: true,
     });
+
+    attachProcessLogging(tauriAppProcess, 'tauri-dev');
   }
 
-  // Capture stdout/stderr for debugging
-  if (tauriProcess.stdout) {
-    tauriProcess.stdout.on('data', (data) => {
-      console.log(`[Tauri stdout]: ${data.toString().trim()}`);
-    });
-  }
-
-  if (tauriProcess.stderr) {
-    tauriProcess.stderr.on('data', (data) => {
-      console.error(`[Tauri stderr]: ${data.toString().trim()}`);
-    });
-  }
-
-  tauriProcess.on('error', (err) => {
-    console.error('[Tauri] Process error:', err);
-  });
-
-  tauriProcess.on('exit', (code, signal) => {
-    console.log(`[Tauri] Process exited with code ${code}, signal ${signal}`);
-    tauriProcess = null;
-  });
-
-  // Wait for app to be ready
+  // C6: Proper readiness check via WebDriver /status endpoint or stdout signals
   await waitForAppReady(timeout);
   console.log('Tauri app is ready for testing');
 }
 
 /**
- * Close the Tauri app
+ * Close the Tauri app cleanly (M4: listener attached before kill signal)
  */
 export async function closeTauriApp(): Promise<void> {
-  if (!tauriProcess) {
+  const processToClose = tauriDriverProcess || tauriAppProcess;
+  if (!processToClose) {
     return;
   }
 
   console.log('Closing Tauri app...');
 
-  return new Promise((resolve) => {
-    if (!tauriProcess) {
-      resolve();
-      return;
-    }
-
-    // Handle exit event
-    tauriProcess.on('exit', () => {
-      tauriProcess = null;
+  return new Promise<void>((resolvePromise) => {
+    // M4 FIX: Attach exit listener BEFORE sending kill signal
+    processToClose.on('exit', () => {
+      tauriDriverProcess = null;
+      tauriAppProcess = null;
       console.log('Tauri app closed');
-      resolve();
+      resolvePromise();
     });
 
-    // Kill the process
+    // Send graceful shutdown signal
     if (process.platform === 'win32') {
-      // Windows: Use taskkill to ensure clean shutdown
-      spawn('taskkill', ['/pid', tauriProcess.pid!.toString(), '/f', '/t']);
+      spawn('taskkill', ['/pid', processToClose.pid!.toString(), '/f', '/t']);
     } else {
-      // Unix: Send SIGTERM
-      tauriProcess.kill('SIGTERM');
+      processToClose.kill('SIGTERM');
     }
 
-    // Force kill after 5s if not closed
+    // Force kill after 5s if graceful shutdown fails
     setTimeout(() => {
-      if (tauriProcess && !tauriProcess.killed) {
+      if (processToClose && !processToClose.killed) {
         console.warn('Force killing Tauri app after timeout');
-        tauriProcess.kill('SIGKILL');
-        tauriProcess = null;
-        resolve();
+        processToClose.kill('SIGKILL');
+        tauriDriverProcess = null;
+        tauriAppProcess = null;
+        resolvePromise();
       }
     }, 5000);
   });
 }
 
 /**
- * Wait for Tauri app to be responsive
+ * C6: Wait for Tauri app to be responsive
  *
- * Strategy:
- * 1. Wait for process to spawn
- * 2. Wait for window to appear (detected via stdout patterns)
- * 3. Additional settling time for WebView initialization
+ * Uses WebDriver /status endpoint for tauri-driver mode,
+ * or stdout signal detection for dev mode.
+ * Replaces the previous 3s-alive + 1s-sleep heuristic.
  */
 async function waitForAppReady(timeout: number): Promise<void> {
   const startTime = Date.now();
-  let appWindowReady = false;
+  const pollInterval = 500;
 
-  return new Promise<void>((resolve, reject) => {
-    const checkInterval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-
-      // Timeout check
-      if (elapsed > timeout) {
-        clearInterval(checkInterval);
-        reject(new Error(`Tauri app failed to start within ${timeout}ms`));
-        return;
+  // If using tauri-driver, poll WebDriver /status endpoint
+  if (tauriDriverProcess) {
+    while (Date.now() - startTime < timeout) {
+      if (!tauriDriverProcess || tauriDriverProcess.killed) {
+        throw new Error('tauri-driver process terminated unexpectedly');
       }
-
-      // Process check
-      if (!tauriProcess) {
-        clearInterval(checkInterval);
-        reject(new Error('Tauri process terminated unexpectedly'));
-        return;
+      try {
+        const response = await fetch(`http://localhost:${WEBDRIVER_PORT}/status`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.value?.ready !== false) {
+            return;
+          }
+        }
+      } catch {
+        // Server not ready yet, continue polling
       }
+      await sleep(pollInterval);
+    }
+    throw new Error(`Tauri app failed to respond at WebDriver port within ${timeout}ms`);
+  }
 
-      // Simple readiness check: process is alive for >3 seconds
-      // More sophisticated checks can be added based on app logs
-      if (elapsed > 3000 && !appWindowReady) {
-        appWindowReady = true;
-        clearInterval(checkInterval);
+  // Dev mode: wait for stdout signal indicating app is ready
+  if (tauriAppProcess) {
+    return new Promise<void>((resolvePromise, reject) => {
+      let resolved = false;
+      const timeoutId = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          reject(new Error(`Tauri dev server failed to start within ${timeout}ms`));
+        }
+      }, timeout);
 
-        // Additional settling time for WebView
-        setTimeout(() => {
-          resolve();
-        }, 1000);
-      }
-    }, 500);
-  });
+      const onData = (data: Buffer) => {
+        const output = data.toString();
+        // Tauri dev mode emits these messages when the window is ready
+        if (
+          output.includes('Running on') ||
+          output.includes('Watching') ||
+          output.includes('Window created') ||
+          output.includes('localhost')
+        ) {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeoutId);
+            // Brief settle for WebView initialization
+            setTimeout(resolvePromise, 500);
+          }
+        }
+      };
+
+      tauriAppProcess!.stdout?.on('data', onData);
+      tauriAppProcess!.stderr?.on('data', onData);
+
+      tauriAppProcess!.on('exit', (code) => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeoutId);
+          reject(new Error(`Tauri process exited unexpectedly with code ${code}`));
+        }
+      });
+    });
+  }
+
+  throw new Error('No Tauri process launched');
+}
+
+/**
+ * Get the WebDriver endpoint URL for Playwright connection
+ */
+export function getWebDriverUrl(): string {
+  return `http://localhost:${WEBDRIVER_PORT}`;
 }
 
 /**
@@ -208,16 +231,13 @@ function getBinaryPath(): string {
   const projectRoot = resolve(__dirname, '../../../');
 
   if (platform === 'darwin') {
-    // macOS: .app bundle
     return resolve(
       projectRoot,
       'src-tauri/target/release/bundle/macos/Upwork Research Agent.app/Contents/MacOS/upwork-research-agent'
     );
   } else if (platform === 'win32') {
-    // Windows: .exe
     return resolve(projectRoot, 'src-tauri/target/release/upwork-research-agent.exe');
   } else {
-    // Linux
     return resolve(projectRoot, 'src-tauri/target/release/upwork-research-agent');
   }
 }
@@ -226,5 +246,31 @@ function getBinaryPath(): string {
  * Check if app is currently running
  */
 export function isAppRunning(): boolean {
-  return tauriProcess !== null && !tauriProcess.killed;
+  const proc = tauriDriverProcess || tauriAppProcess;
+  return proc !== null && !proc.killed;
+}
+
+/**
+ * Attach stdout/stderr logging to a child process
+ */
+function attachProcessLogging(proc: ChildProcess, label: string): void {
+  proc.stdout?.on('data', (data: Buffer) => {
+    console.log(`[${label} stdout]: ${data.toString().trim()}`);
+  });
+
+  proc.stderr?.on('data', (data: Buffer) => {
+    console.error(`[${label} stderr]: ${data.toString().trim()}`);
+  });
+
+  proc.on('error', (err) => {
+    console.error(`[${label}] Process error:`, err);
+  });
+
+  proc.on('exit', (code, signal) => {
+    console.log(`[${label}] Process exited with code ${code}, signal ${signal}`);
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }

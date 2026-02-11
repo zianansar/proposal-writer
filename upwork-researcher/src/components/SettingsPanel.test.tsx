@@ -918,6 +918,48 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
     expect(screen.getByText(/disabled by default for maximum privacy/i)).toBeInTheDocument();
   });
 
+  it("reverts crash reporting toggle on save failure", async () => {
+    // Start with crash reporting disabled (default)
+    await act(async () => {
+      render(<SettingsPanel />);
+    });
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("get_setting", {
+        key: "crash_reporting_enabled",
+      });
+    });
+
+    const checkbox = screen.getByRole("checkbox", { name: /enable crash reporting/i });
+    expect(checkbox).not.toBeChecked();
+
+    // Make set_setting fail
+    mockInvoke.mockImplementation((command: string) => {
+      if (command === "set_setting") {
+        return Promise.reject(new Error("Database write failed"));
+      }
+      if (command === "get_safety_threshold") return Promise.resolve(180);
+      if (command === "get_user_rate_config") return Promise.resolve({ hourly_rate: null, project_rate_min: null });
+      if (command === "get_user_skills") return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    // Try to enable - should fail and revert
+    await act(async () => {
+      fireEvent.click(checkbox);
+      await flushPromises();
+    });
+
+    // Checkbox should revert to unchecked
+    await waitFor(() => {
+      expect(checkbox).not.toBeChecked();
+    });
+
+    // Error message should be displayed
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByText(/failed to save/i)).toBeInTheDocument();
+  });
+
   it("disables crash reporting checkbox while saving", async () => {
     await act(async () => {
       render(<SettingsPanel />);

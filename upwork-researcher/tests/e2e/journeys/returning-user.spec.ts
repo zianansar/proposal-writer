@@ -20,7 +20,7 @@ import { PassphraseDialog } from '../pages/PassphraseDialog';
 import { HistoryPage } from '../pages/HistoryPage';
 import { MainEditorPage } from '../pages/MainEditorPage';
 import { launchTauriApp, closeTauriApp } from '../helpers/tauriDriver';
-import { seedDatabase, verifyDatabaseState } from '../helpers/dbUtils';
+import { seedDatabase, verifyDatabaseState, clearDatabase } from '../helpers/dbUtils';
 import { mockClaudeAPI } from '../helpers/apiMocks';
 
 const SAMPLE_JOB = `Senior Full-Stack Engineer needed for SaaS startup.
@@ -51,6 +51,11 @@ test.describe('Journey 2: Returning User', () => {
 
   test.afterAll(async () => {
     await closeTauriApp();
+  });
+
+  // M5: Per-test isolation — reseed DB before each test
+  test.beforeEach(async () => {
+    seedDatabase('returning-user');
   });
 
   test('completes full returning user flow', async ({ page }) => {
@@ -139,7 +144,7 @@ test.describe('Journey 2: Returning User', () => {
     // Verify Database State (AC-3 Final Assertion)
     // =====================================================
     // Database should now have 4 proposals (3 existing + 1 new)
-    await verifyDatabaseState({
+    await verifyDatabaseState(page, {
       proposalCount: 4,
     });
     console.log('✓ Database contains 4 proposals');

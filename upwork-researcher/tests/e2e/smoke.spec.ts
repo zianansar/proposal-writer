@@ -1,5 +1,5 @@
 /**
- * Smoke test for E2E infrastructure
+ * Smoke test for E2E infrastructure (L3 fix)
  *
  * Verifies:
  * - Tauri app can launch
@@ -9,17 +9,15 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { launchTauriApp, closeTauriApp } from './helpers/tauriDriver';
+import { launchTauriApp, closeTauriApp, isAppRunning } from './helpers/tauriDriver';
 import { clearDatabase } from './helpers/dbUtils';
 
 test.describe('E2E Infrastructure Smoke Test', () => {
   test.beforeAll(async () => {
-    // Clear database for fresh state
     clearDatabase();
 
-    // Launch Tauri app
     const setupStart = Date.now();
-    await launchTauriApp({ useBuild: false }); // Use dev mode for faster testing
+    await launchTauriApp({ useBuild: false });
     const setupDuration = Date.now() - setupStart;
 
     console.log(`Setup completed in ${setupDuration}ms`);
@@ -32,26 +30,16 @@ test.describe('E2E Infrastructure Smoke Test', () => {
     await closeTauriApp();
   });
 
-  test('app launches successfully', async () => {
-    // This test validates that:
-    // 1. Tauri app launched (verified in beforeAll)
-    // 2. No crashes during launch
-    // 3. Process is still running
-
-    // If we reach this point, app launched successfully
-    expect(true).toBe(true);
+  test('app launches and process is running', async () => {
+    // L3 FIX: Real assertion — verify the Tauri app process is alive
+    expect(isAppRunning()).toBe(true);
   });
 
   test.skip('can interact with UI elements', async ({ page }) => {
-    // Note: This test is skipped until we have Playwright properly connected to Tauri WebView
-    // TODO: Implement proper WebView connection strategy
-
-    // Expected flow:
-    // 1. Connect Playwright page to Tauri WebView
-    // 2. Find a basic element (e.g., app title or input field)
-    // 3. Verify element is visible
-    // 4. Interact with element (click, type, etc.)
-
-    await expect(page).toBeDefined();
+    // Skipped until Playwright is connected to Tauri WebView via tauri-driver.
+    // Once C5 (WebDriver connection) is integrated in Playwright config,
+    // this test should navigate to the app and verify a visible element.
+    await page.goto('tauri://localhost');
+    await expect(page.locator('body')).toBeVisible();
   });
 });

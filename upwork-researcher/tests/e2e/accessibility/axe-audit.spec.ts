@@ -78,9 +78,10 @@ test.describe('Accessibility: axe-core Audits', () => {
     clearDatabase();
     await page.goto('tauri://localhost');
 
+    // M1 FIX: Use .withRules() for rule filtering, not .include() which takes CSS selectors
     const contrastResults = await new AxeBuilder({ page })
       .withTags(['wcag2aa'])
-      .include(['color-contrast'])
+      .withRules(['color-contrast'])
       .analyze();
 
     expect(contrastResults.violations).toHaveLength(0);
@@ -91,8 +92,9 @@ test.describe('Accessibility: axe-core Audits', () => {
     seedDatabase('with-api-key');
     await page.goto('tauri://localhost');
 
+    // M1 FIX: Use .withRules() instead of .include() for rule-based filtering
     const imageResults = await new AxeBuilder({ page })
-      .include(['image-alt'])
+      .withRules(['image-alt'])
       .analyze();
 
     expect(imageResults.violations).toHaveLength(0);
@@ -103,8 +105,9 @@ test.describe('Accessibility: axe-core Audits', () => {
     clearDatabase();
     await page.goto('tauri://localhost');
 
-    const labelResults = await new AxeBuilder({ page})
-      .include(['label'])
+    // M1 FIX: Use .withRules() instead of .include() for rule-based filtering
+    const labelResults = await new AxeBuilder({ page })
+      .withRules(['label'])
       .analyze();
 
     expect(labelResults.violations).toHaveLength(0);

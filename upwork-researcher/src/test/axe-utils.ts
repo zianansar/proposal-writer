@@ -1,38 +1,17 @@
 import { axe, type AxeResults } from "vitest-axe";
-import type { Result } from "axe-core";
+import type { Result, RunOptions } from "axe-core";
 
 /**
  * Axe-core configuration for WCAG AA compliance testing
+ *
+ * Uses tag-based filtering which automatically includes all rules for
+ * WCAG 2.0 Level A, WCAG 2.0 Level AA, WCAG 2.1 Level A, and WCAG 2.1 Level AA
+ * -- covering 80+ rules instead of an explicit subset.
  */
-export const WCAG_AA_CONFIG = {
-  rules: {
-    // WCAG 2.1 Level AA - Color contrast
-    "color-contrast": { enabled: true },
-    // WCAG 2.1 Level A - Images must have alt text
-    "image-alt": { enabled: true },
-    // WCAG 2.1 Level A - Form elements must have labels
-    label: { enabled: true },
-    // WCAG 2.1 Level A - ARIA attributes
-    "aria-allowed-attr": { enabled: true },
-    "aria-required-attr": { enabled: true },
-    "aria-valid-attr": { enabled: true },
-    "aria-valid-attr-value": { enabled: true },
-    // WCAG 2.1 Level A - Buttons must have accessible names
-    "button-name": { enabled: true },
-    // WCAG 2.1 Level A - Headings
-    "empty-heading": { enabled: true },
-    "heading-order": { enabled: true },
-    // WCAG 2.1 Level A - Links must have accessible names
-    "link-name": { enabled: true },
-    // WCAG 2.1 Level A - List structure
-    list: { enabled: true },
-    listitem: { enabled: true },
-    // WCAG 2.1 Level A - Landmark regions
-    region: { enabled: true },
-    // WCAG 2.1 Level A - Page must have a title
-    "document-title": { enabled: true },
-    // WCAG 2.1 Level A - HTML lang attribute
-    "html-has-lang": { enabled: true },
+export const WCAG_AA_CONFIG: RunOptions = {
+  runOnly: {
+    type: 'tag',
+    values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'],
   },
 };
 

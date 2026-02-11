@@ -11,8 +11,8 @@ reviewFindings:
   medium: 3
   low: 4
   autoFixed: 10
-  requiresManualTest: 5
-  requiresPMDecision: 3
+  requiresManualTest: 8  # Round 2 re-test (5 industries + re-humanize check + summary + status update)
+  requiresPMDecision: 0  # Resolved: Option 3 executed, Epic 3 complete
 ---
 
 # Story 0.5: Validate AI Detection Passing
@@ -104,17 +104,20 @@ Use one or more of:
 - [x] **[AI-Review][LOW]** ✅ Add human baseline test table structure [Human Baseline Test table added]
 - [x] **[AI-Review][LOW]** ✅ Document git commit message issue in change log [Change Log updated]
 
-#### Manual Testing Required (User Action)
-- [ ] **[MANUAL-TEST]** Fill in generation timing data for tests #1-5 (requires re-running tests with timer)
-- [ ] **[MANUAL-TEST]** Execute tests #6-8: Technical domains (DevOps, Database Admin, Security pentesting)
-- [ ] **[MANUAL-TEST]** Execute test #H1: Human-written proposal baseline
-- [ ] **[MANUAL-TEST]** Collect and store test evidence: Screenshots, raw proposal text, tool versions
-- [ ] **[MANUAL-TEST]** Document Cargo.toml error message, root cause, and fix rationale
+#### Re-test with Humanization (User Action — Round 2)
+- [ ] **[RE-TEST]** Launch app with `npm run tauri dev` and confirm humanization features are active
+- [ ] **[RE-TEST]** Generate proposal for SaaS/CRM job post → test with ZeroGPT → record score in Round 2 table
+- [ ] **[RE-TEST]** Generate proposal for Automation job post → test with ZeroGPT → record score
+- [ ] **[RE-TEST]** Generate proposal for UI/UX Design job post → test with ZeroGPT → record score
+- [ ] **[RE-TEST]** Generate proposal for ML/Data Analysis job post → test with ZeroGPT → record score
+- [ ] **[RE-TEST]** Generate proposal for Copywriting job post → test with ZeroGPT → record score
+- [ ] **[RE-TEST]** If any fail: use one-click re-humanization (Story 3-4) and re-test
+- [ ] **[RE-TEST]** Update "Round 2 Summary" with pass/fail count and mark AC-2 result
 
-#### Awaiting Product Decision
-- [ ] **[PM-DECISION]** Review "Product Decision Required" section and select Option 1-4
-- [ ] **[PM-DECISION]** Set decision deadline date
-- [ ] **[PM-DECISION]** Update story status based on decision (done/in-progress/blocked)
+#### Product Decision (RESOLVED)
+- [x] **[PM-DECISION]** ~~Review "Product Decision Required" section and select Option 1-4~~ → Option 3 selected and executed
+- [x] **[PM-DECISION]** ~~Set decision deadline date~~ → Epic 3 completed 2026-02-07
+- [ ] **[PM-DECISION]** Update story status based on Round 2 re-test results (done if 4/5 pass)
 
 ## Dev Notes
 
@@ -153,7 +156,23 @@ Use one or more of:
 | 4 | ML/Data Analysis | Technical/Creative | Machine learning data analysis | [TBD] | ZeroGPT: 89% AI | ZeroGPT | FAIL ❌ |
 | 5 | Copywriting | Creative | Content writing/marketing | [TBD] | ZeroGPT: 100% AI | ZeroGPT | FAIL ❌ |
 
-**Initial Round Summary:** 1/5 passed (20% success rate) - ❌ **AC-2 FAILED** (requires 4/5 minimum, 80%)
+**Round 1 Summary (2026-02-04, no humanization):** 1/5 passed (20% success rate) - ❌ **AC-2 FAILED** (requires 4/5 minimum, 80%)
+
+### Round 2: Re-test with Humanization (Post-Epic 3)
+
+**Context:** Epic 3 humanization features are now fully implemented. Re-testing the same 5 industries to validate improvement.
+
+| # | Industry | Domain Type | Job Excerpt | Gen Time (s) | Detection Score | Re-humanized? | Tool Used | Pass/Fail |
+|---|----------|-------------|-------------|--------------|-----------------|---------------|-----------|-----------|
+| 1 | SaaS/CRM | Technical | CRM setup specialist | [TBD] | [TBD] | [N/A] | ZeroGPT | [TBD] |
+| 2 | Automation | Technical/Creative | Automation setup | [TBD] | [TBD] | [Y/N] | ZeroGPT | [TBD] |
+| 3 | UI/UX Design | Creative | UI/UX design work | [TBD] | [TBD] | [Y/N] | ZeroGPT | [TBD] |
+| 4 | ML/Data Analysis | Technical/Creative | ML data analysis | [TBD] | [TBD] | [Y/N] | ZeroGPT | [TBD] |
+| 5 | Copywriting | Creative | Content writing/marketing | [TBD] | [TBD] | [Y/N] | ZeroGPT | [TBD] |
+
+**Round 2 Summary:** [TBD] / 5 passed — AC-2: [TBD]
+
+**Pass criteria reminder:** 4/5 must pass with either perplexity <150 OR <30% AI detection score.
 
 #### Additional Technical Domain Tests (AI Review Action Item #5)
 
@@ -188,36 +207,22 @@ Use one or more of:
 
 ### Recommendations for Epic 3
 
-**CRITICAL PRIORITY - Epic 3 (Safety & Compliance) STRONGLY RECOMMENDED:**
+**STATUS: Epic 3 (Safety & Compliance) COMPLETE** ✅
 
-> **Product Decision Required:** Testing shows 1/5 proposals passed (20% vs. required 80%). Based on these findings, Dev Agent recommends Epic 3 as mandatory blocker for MVP. **Escalate to PM/SM for prioritization decision.**
+> **Original recommendation** (2026-02-04): Epic 3 mandatory blocker for MVP. **Decision: Accepted.** Epic 3 was sequenced immediately after Epic 2 and completed 2026-02-07 with all 9 stories done.
 
-1. **Humanization Techniques Required:**
-   - Implement perplexity-based humanization injection (Story 3-3)
-   - Add adaptive threshold learning (Story 3-7)
-   - Target: Reduce AI detection to <30% consistently
+**Implemented features that address the original 1/5 failure:**
 
-2. **Pre-flight Analysis Mandatory:**
-   - Implement Perplexity pre-flight analysis (Story 3-1)
-   - Flag high-risk sentences before generation
-   - User must see warnings before copying
+1. **Humanization Injection** (Story 3-3) ✅ — Perplexity-based humanization during generation
+2. **Pre-flight Perplexity Analysis** (Story 3-1) ✅ — Flags high-risk sentences before generation
+3. **Safety Warning Screen** (Story 3-2) ✅ — User sees flagged sentences before copying
+4. **One-click Re-humanization** (Story 3-4) ✅ — Quick fix for detected AI patterns
+5. **Safety Threshold Configuration** (Story 3-5) ✅ — Configurable block/warning/safe thresholds
+6. **Override Safety Warning** (Story 3-6) ✅ — User can override with acknowledgment
+7. **Adaptive Threshold Learning** (Story 3-7) ✅ — Learns from user overrides
+8. **Rate Limiting** (Story 3-8) ✅ — Prevents excessive generation
 
-3. **Recommended Safety Thresholds (ZeroGPT/GPTCleanup % AI Scale):**
-   - Block threshold: >70% AI detection (auto-warn user)
-   - Warning threshold: 50-70% AI detection (suggest re-humanization)
-   - Safe zone: <50% AI detection (allow copy)
-   - **Note:** Epic 3 implementation will need to map between tool-specific scales (% vs perplexity vs confidence)
-
-4. **Industry-Specific Tuning:**
-   - Technical domains (SaaS, CRM): Current approach acceptable
-   - Creative domains (Copywriting, Design): Require aggressive humanization
-
-5. **Epic 0 Decision:**
-   - **DO NOT skip Epic 0** - Walking Skeleton validation failed
-   - Core concept requires Epic 3 humanization to be viable
-   - Skipping Epic 0 was contingent on 5/5 pass; only achieved 1/5
-
-**BLOCKER:** Product cannot launch without Epic 3 humanization features. Current generation is not market-ready.
+**Re-test needed:** Run the same 5 industry tests with humanization active to validate the improvement. See "Round 2 Re-test" section below.
 
 ## Product Decision Required (AI Review Action Item #1)
 
@@ -258,9 +263,11 @@ Use one or more of:
 - **Risk:** Major product direction change
 - **Timeline Impact:** Requires new PRD/Architecture
 
-**PM/SM Decision:** [PENDING - Assign to Product Manager for evaluation]
+**PM/SM Decision:** RESOLVED — Option 3 was executed. Epic 3 (Safety & Compliance) was implemented in full (all 9 stories complete, retrospective done 2026-02-07). Humanization injection, pre-flight analysis, adaptive thresholds, and rate limiting are all in place.
 
-**Decision Deadline:** [TBD - Recommend decision by: date]
+**Decision Date:** 2026-02-05 (Epic 3 sequenced as mandatory; completed 2026-02-07)
+
+**Next Action:** Re-run AI detection tests with humanization features active to validate that Epic 3 resolves the original 1/5 pass rate.
 
 ## References
 
@@ -306,3 +313,4 @@ Fixed prerequisite issues to enable manual testing:
 - 2026-02-05: Implemented all 10 structural action items: Added Product Decision section (4 options for PM), Test Evidence template, expanded test tables (technical domains + human baseline), documented error context, clarified thresholds and pass criteria - Dev Agent
 - 2026-02-05: Created manual testing checklist (5 items) and PM decision checklist (3 items) for story completion - Dev Agent
 - 2026-02-05: Note: Git commit bbbaeb7 message says "feat: Complete story 0-5" but should clarify AC-2 failed (1/5 passed). Future commits should indicate validation outcomes. - Code Review
+- 2026-02-11: PM Decision resolved — Option 3 (Epic 3 mandatory) was executed; Epic 3 completed 2026-02-07. Recommendations section updated. Round 2 re-test table added. Story prepped for re-validation with humanization features active. - Dev Agent

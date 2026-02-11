@@ -207,9 +207,10 @@ pub struct RssFallbackPayload {
 #[tauri::command]
 pub async fn import_rss_feed<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     feed_url: String,
 ) -> Result<RssImportResult, String> {
+    let database = database.get()?;
     info!("Starting import with fallback from: {}", feed_url);
 
     // 1. Try import with fallback chain (RSS → scraping)

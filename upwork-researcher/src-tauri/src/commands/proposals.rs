@@ -2,7 +2,7 @@
 //!
 //! Provides Tauri commands for querying proposal history with pagination and virtualization support.
 
-use crate::db::Database;
+use crate::db::AppDatabase;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -107,10 +107,11 @@ fn query_proposal_history_internal(
 /// ```
 #[tauri::command]
 pub async fn get_proposal_history(
-    db: State<'_, Database>,
+    db: State<'_, AppDatabase>,
     limit: u32,
     offset: u32,
 ) -> Result<ProposalHistoryResponse, String> {
+    let db = db.get()?;
     let start = std::time::Instant::now();
 
     // Get connection

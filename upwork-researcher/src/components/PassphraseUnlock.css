@@ -175,8 +175,8 @@
 }
 
 .passphrase-unlock-btn-secondary:hover {
-  background-color: #333;
-  border-color: #555;
+  background-color: var(--color-bg-hover, #333);
+  border-color: var(--color-border-hover, #555);
 }
 
 .passphrase-unlock-actions {

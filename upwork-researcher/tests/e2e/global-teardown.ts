@@ -8,18 +8,22 @@
  */
 
 import { closeTauriApp, isAppRunning } from './helpers/tauriDriver';
+import { stopMockApiServer } from './helpers/mockApiServer';
 
 export default async function globalTeardown(): Promise<void> {
   console.log('\n=== E2E Test Global Teardown ===\n');
 
   // 1. Ensure Tauri app is closed
   if (isAppRunning()) {
-    console.log('⚠ Tauri app still running. Closing...');
+    console.log('Tauri app still running. Closing...');
     await closeTauriApp();
   }
 
-  // 2. Log completion
-  console.log('✓ Cleanup complete');
+  // 2. Stop mock API server
+  await stopMockApiServer();
+
+  // 3. Log completion
+  console.log('Cleanup complete');
 
   console.log('\n=== Teardown Complete ===\n');
 }

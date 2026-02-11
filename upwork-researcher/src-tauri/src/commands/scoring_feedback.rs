@@ -2,7 +2,7 @@
 //!
 //! Provides Tauri commands for submitting and checking scoring feedback.
 
-use crate::db::Database;
+use crate::db::AppDatabase;
 use crate::scoring::{CanReportResult, ScoringFeedbackIssue, ScoringFeedbackResult, SubmitScoringFeedbackInput};
 use chrono::{Duration, Utc};
 use rusqlite::{Connection, OptionalExtension};
@@ -172,8 +172,9 @@ fn submit_scoring_feedback_internal(
 #[tauri::command]
 pub async fn check_can_report_score(
     job_post_id: i64,
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
 ) -> Result<CanReportResult, String> {
+    let database = database.get()?;
     let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
     check_can_report_internal(&conn, job_post_id).map_err(|e| e.into())
 }
@@ -182,9 +183,10 @@ pub async fn check_can_report_score(
 #[tauri::command]
 pub async fn submit_scoring_feedback(
     input: SubmitScoringFeedbackInput,
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
     app: tauri::AppHandle,
 ) -> Result<ScoringFeedbackResult, String> {
+    let database = database.get()?;
     // Get app version from Tauri
     let app_version = app
         .package_info()

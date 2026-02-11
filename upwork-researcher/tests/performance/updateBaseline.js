@@ -1,12 +1,19 @@
 // Updates performance baseline from recent test run
 // Run with: npm run test:perf:update-baseline
+// Use --force or --yes to skip the confirmation prompt (useful in CI/scripts)
 
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
+import fs from 'fs';
+import path from 'path';
+import readline from 'readline';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const RESULTS_PATH = path.resolve(__dirname, '../../test-results/perf-results.json');
 const BASELINE_PATH = path.resolve(__dirname, 'baseline.json');
+
+const forceUpdate = process.argv.includes('--force') || process.argv.includes('--yes');
 
 async function updateBaseline() {
   if (!fs.existsSync(RESULTS_PATH)) {
@@ -44,27 +51,37 @@ async function updateBaseline() {
   console.log(JSON.stringify(timings, null, 2));
   console.log(`\n[PERF] Found ${Object.keys(timings).length} benchmark results`);
 
-  // Prompt for confirmation
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+  if (forceUpdate) {
+    // Skip confirmation when --force or --yes is passed
+    console.log('[PERF] --force/--yes flag detected, skipping confirmation prompt');
+    writeBaseline(timings);
+  } else {
+    // Prompt for confirmation
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
 
-  rl.question('\nUpdate baseline? (yes/no): ', (answer) => {
-    if (answer.toLowerCase() === 'yes') {
-      const baseline = {
-        version: process.env.npm_package_version || '0.0.0',
-        updatedAt: new Date().toISOString(),
-        results: timings,
-      };
+    rl.question('\nUpdate baseline? (yes/no): ', (answer) => {
+      if (answer.toLowerCase() === 'yes') {
+        writeBaseline(timings);
+      } else {
+        console.log('[PERF] Baseline update cancelled');
+      }
+      rl.close();
+    });
+  }
+}
 
-      fs.writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, 2));
-      console.log('[PERF] Baseline updated successfully');
-    } else {
-      console.log('[PERF] Baseline update cancelled');
-    }
-    rl.close();
-  });
+function writeBaseline(timings) {
+  const baseline = {
+    version: process.env.npm_package_version || '0.0.0',
+    updatedAt: new Date().toISOString(),
+    results: timings,
+  };
+
+  fs.writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, 2));
+  console.log('[PERF] Baseline updated successfully');
 }
 
 updateBaseline().catch(error => {

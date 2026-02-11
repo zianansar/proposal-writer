@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 assignedTo: dev
 splitFrom: "2-7-encrypted-database-access-on-app-restart"
 prerequisiteStory: "2-7a-encrypted-database-access-backend"
@@ -127,6 +127,12 @@ impl AppDatabase {
 - [x] [AI-Review][LOW] Dialog title inconsistent with spec - renders "Unlock Your Data" but spec says "Unlock Database" [PassphraseUnlock.tsx:162] — **FIXED:** Changed to "Unlock Database"
 - [x] [AI-Review][LOW] Hardcoded hover color breaks theming - uses `#2563eb` instead of design token variable [PassphraseUnlock.css:157] — **FIXED:** Changed to `var(--color-primary-hover, #2563eb)`
 - [ ] [AI-Review][LOW] Frontend tests comprehensive but 100% mocked - good unit coverage but missing integration tests — **DEFERRED:** Same as M5
+- [x] [AI-Review-2][MEDIUM] `database-ready` event emitted by backend (lib.rs:1968, 2285) but never consumed by frontend — dead code. Frontend uses invoke result instead. — **RESOLVED:** Event kept for extensibility; real fix is M3 below.
+- [x] [AI-Review-2][MEDIUM] Recovery files (.recovery_hash, .recovery_wrapped_key) written with default OS permissions — sensitive data readable by same-user processes [lib.rs:2151-2154] — **FIXED:** Added `#[cfg(unix)]` 0o600 permission restriction after write.
+- [x] [AI-Review-2][MEDIUM] `handleDatabaseUnlocked` only re-fetches encryption status — doesn't re-run check_for_draft, get_cooldown_remaining, check_threshold_learning which silently failed while DB was locked [App.tsx:365-371] — **FIXED:** Added all DB-dependent init queries to handleDatabaseUnlocked callback.
+- [x] [AI-Review-2][LOW] Subtitle text "decrypt and access" doesn't match spec "access your encrypted proposals" [PassphraseUnlock.tsx:164] — **FIXED:** Changed to match spec.
+- [ ] [AI-Review-2][LOW] `passphrase-required` event relies on 500ms timing heuristic for frontend readiness [lib.rs:2765] — **DEFERRED:** Requires architectural change (IPC poll instead of event).
+- [x] [AI-Review-2][LOW] Secondary button hover uses hardcoded `#333`/`#555` instead of CSS custom properties [PassphraseUnlock.css:177-179] — **FIXED:** Changed to `var(--color-bg-hover, #333)` and `var(--color-border-hover, #555)`.
 
 ## Dev Notes
 
@@ -301,3 +307,12 @@ impl AppDatabase {
   - **Deferred:** M5+L3 integration tests (requires E2E infrastructure)
   - 26 frontend tests still passing
   - Story status → review
+- 2026-02-11: Code Review Round 2 (AI)
+  - **0 CRITICAL**, **3 MEDIUM**, **3 LOW** issues found
+  - **M1+M3 FIXED:** `handleDatabaseUnlocked` now re-runs all DB-dependent init queries (draft recovery, cooldown sync, threshold learning) that silently failed while DB was locked
+  - **M2 FIXED:** Recovery files (.recovery_hash, .recovery_wrapped_key) now get `0o600` permissions on Unix
+  - **L1 FIXED:** Subtitle text changed to match spec ("access your encrypted proposals")
+  - **L3 FIXED:** Secondary button hover uses CSS custom properties instead of hardcoded colors
+  - **Deferred:** L2 (500ms timing heuristic) — requires architectural change
+  - 26 frontend tests still passing
+  - Story status → done

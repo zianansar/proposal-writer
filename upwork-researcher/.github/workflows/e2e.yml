@@ -51,25 +51,23 @@ jobs:
         working-directory: ./upwork-researcher
         run: npm ci
 
-      - name: Build Tauri app (macOS)
+      - name: Build Tauri app
+        working-directory: ./upwork-researcher
+        run: npm run tauri build
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      # M2 FIX: Install WebKit for macOS (matches Tauri's WKWebView).
+      # Windows uses Edge WebView2 (pre-installed on runners) — no browser install needed.
+      # Do NOT install Chromium — Tauri apps use native WebViews, not browser engines.
+      - name: Install Playwright WebKit (macOS)
         if: matrix.os == 'macos-latest'
         working-directory: ./upwork-researcher
-        run: npm run tauri build
-        env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: npx playwright install --with-deps webkit
 
-      - name: Build Tauri app (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: ./upwork-researcher
-        run: npm run tauri build
-        env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-
-      - name: Install Playwright browsers
-        working-directory: ./upwork-researcher
-        run: npx playwright install --with-deps chromium
+      - name: Install tauri-driver
+        run: cargo install tauri-driver
 
       - name: Run E2E tests
         working-directory: ./upwork-researcher

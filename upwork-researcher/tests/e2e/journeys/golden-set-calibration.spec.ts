@@ -23,12 +23,9 @@ import { launchTauriApp, closeTauriApp } from '../helpers/tauriDriver';
 import { seedDatabase, verifyDatabaseState } from '../helpers/dbUtils';
 import { mockClaudeAPI } from '../helpers/apiMocks';
 import { resolve } from 'path';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { getDirname } from '../helpers/esm-utils';
 
-// ES module __dirname polyfill
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getDirname(import.meta.url);
 
 // Fixture paths
 const PROPOSAL_1 = resolve(__dirname, '../fixtures/sample-proposals/proposal-1.txt');
@@ -60,6 +57,11 @@ test.describe('Journey 3: Golden Set Calibration', () => {
 
   test.afterAll(async () => {
     await closeTauriApp();
+  });
+
+  // M5: Per-test isolation — reseed DB before each test
+  test.beforeEach(async () => {
+    seedDatabase('with-api-key');
   });
 
   test('completes golden set calibration flow', async ({ page }) => {
@@ -159,9 +161,9 @@ test.describe('Journey 3: Golden Set Calibration', () => {
     // =====================================================
     // Verify Database State
     // =====================================================
-    await verifyDatabaseState({
+    await verifyDatabaseState(page, {
       hasVoiceProfile: true,
-      proposalCount: 1, // 1 newly generated proposal
+      proposalCount: 1,
     });
     console.log('✓ Database contains voice profile');
 

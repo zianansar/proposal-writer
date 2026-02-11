@@ -19,7 +19,7 @@ import { OnboardingPage } from '../pages/OnboardingPage';
 import { MainEditorPage } from '../pages/MainEditorPage';
 import { VoiceCalibrationPage } from '../pages/VoiceCalibrationPage';
 import { launchTauriApp, closeTauriApp } from '../helpers/tauriDriver';
-import { clearDatabase, verifyDatabaseState } from '../helpers/dbUtils';
+import { clearDatabase, verifyDatabaseState, seedDatabase } from '../helpers/dbUtils';
 import { mockClaudeAPI } from '../helpers/apiMocks';
 import { PerformanceTimer, PERFORMANCE_THRESHOLDS, assertPerformanceThreshold } from '../helpers/performanceUtils';
 
@@ -55,6 +55,11 @@ test.describe('Journey 1: First-Time User', () => {
   test.afterAll(async () => {
     await closeTauriApp();
     console.log('✓ Tauri app closed');
+  });
+
+  // M5: Per-test isolation — reset DB state before each test
+  test.beforeEach(async () => {
+    clearDatabase();
   });
 
   test('completes full first-time user flow', async ({ page }) => {
@@ -173,7 +178,7 @@ test.describe('Journey 1: First-Time User', () => {
 
     // For now, we'll verify via UI that data persists
     // In a production test, we'd implement proper DB verification
-    await verifyDatabaseState({
+    await verifyDatabaseState(page, {
       hasApiKey: true,
       hasVoiceProfile: true,
       proposalCount: 1,

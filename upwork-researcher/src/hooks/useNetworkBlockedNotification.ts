@@ -42,6 +42,11 @@ export function useNetworkBlockedNotification(): NetworkBlockedToast | null {
     const unlisten = listen<NetworkBlockedPayload>('network:blocked', (event) => {
       const { domain, url, timestamp } = event.payload;
 
+      // Clear previous timer to prevent stale closure from dismissing new toast
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
       // Set toast notification
       setToast({ domain, url, timestamp });
 

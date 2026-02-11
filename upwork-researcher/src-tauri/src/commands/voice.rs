@@ -7,7 +7,7 @@ use crate::db::queries::golden_set::{
     add_golden_proposal, delete_golden_proposal, get_golden_proposal_count, get_golden_proposals,
     GoldenProposal,
 };
-use crate::db::Database;
+use crate::db::AppDatabase;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
 
@@ -29,8 +29,9 @@ pub struct FileContent {
 pub async fn add_golden_proposal_command(
     content: String,
     source_filename: Option<String>,
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
 ) -> Result<i64, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -49,8 +50,9 @@ pub async fn add_golden_proposal_command(
 /// - Returns list of uploaded proposals with preview
 #[tauri::command]
 pub async fn get_golden_proposals_command(
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
 ) -> Result<Vec<GoldenProposal>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -66,8 +68,9 @@ pub async fn get_golden_proposals_command(
 #[tauri::command]
 pub async fn delete_golden_proposal_command(
     id: i64,
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
 ) -> Result<(), String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -82,8 +85,9 @@ pub async fn delete_golden_proposal_command(
 /// - Counter: "2/5 proposals uploaded"
 #[tauri::command]
 pub async fn get_golden_proposal_count_command(
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
 ) -> Result<i64, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -187,11 +191,12 @@ struct AnalysisProgress {
 #[tauri::command]
 pub async fn calibrate_voice(
     window: tauri::Window,
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
     voice_cache: State<'_, crate::VoiceCache>, // Story 5.8 Subtask 4.5: Cache invalidation
 ) -> Result<CalibrationResult, String> {
     use std::time::Instant;
 
+    let database = database.get()?;
     let start = Instant::now();
 
     // Load golden set proposals (Task 3.2)
@@ -236,9 +241,13 @@ pub async fn calibrate_voice(
     let elapsed = start.elapsed();
 
     // Save profile to database (Story 5-5b: AC-1)
-    save_voice_profile(profile.clone(), database.clone())
-        .await
-        .map_err(|e| format!("Warning: Failed to save voice profile: {}", e))?;
+    {
+        use crate::db::queries::voice_profile::{self, VoiceProfileRow};
+        let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+        let row = VoiceProfileRow::from_voice_profile(&profile, "default");
+        voice_profile::save_voice_profile(&conn, &row)
+            .map_err(|e| format!("Warning: Failed to save voice profile: {}", e))?;
+    }
 
     // Story 5.8 Subtask 4.5: Invalidate cache after recalibration (AC-6)
     voice_cache.invalidate();
@@ -261,10 +270,11 @@ pub async fn calibrate_voice(
 /// - Completes in <100ms (indexed query)
 #[tauri::command]
 pub async fn get_voice_profile(
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
 ) -> Result<Option<crate::voice::VoiceProfile>, String> {
     use crate::db::queries::voice_profile;
 
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -283,10 +293,11 @@ pub async fn get_voice_profile(
 #[tauri::command]
 pub async fn save_voice_profile(
     profile: crate::voice::VoiceProfile,
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
 ) -> Result<(), String> {
     use crate::db::queries::voice_profile::{self, VoiceProfileRow};
 
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -303,9 +314,10 @@ pub async fn save_voice_profile(
 /// - Removes existing profile to allow recalibration
 /// - Returns true if profile was deleted, false if none existed
 #[tauri::command]
-pub async fn delete_voice_profile(database: State<'_, Database>) -> Result<bool, String> {
+pub async fn delete_voice_profile(database: State<'_, AppDatabase>) -> Result<bool, String> {
     use crate::db::queries::voice_profile;
 
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -339,12 +351,13 @@ pub struct VoiceParameterUpdate {
 pub async fn update_voice_parameters(
     user_id: String,
     params: VoiceParameterUpdate,
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
     voice_cache: State<'_, crate::VoiceCache>, // Invalidate cache on update
 ) -> Result<crate::voice::VoiceProfile, String> {
     use crate::db::queries::voice_profile::{get_voice_profile, save_voice_profile};
     use crate::db::queries::voice_profile::VoiceProfileRow;
 
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -422,7 +435,7 @@ pub struct QuickCalibrationAnswers {
 #[tauri::command]
 pub async fn quick_calibrate(
     answers: QuickCalibrationAnswers,
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
     voice_cache: State<'_, crate::VoiceCache>, // Story 5.8 Subtask 4.5: Cache invalidation
 ) -> Result<crate::voice::VoiceProfile, String> {
     use crate::voice::{CalibrationSource, StructurePreference, VoiceProfile};
@@ -482,9 +495,14 @@ pub async fn quick_calibrate(
     };
 
     // Save profile to database (Subtask 3.4)
-    save_voice_profile(profile.clone(), database.clone())
-        .await
-        .map_err(|e| format!("Failed to save voice profile: {}", e))?;
+    {
+        use crate::db::queries::voice_profile::{self, VoiceProfileRow};
+        let database = database.get()?;
+        let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+        let row = VoiceProfileRow::from_voice_profile(&profile, "default");
+        voice_profile::save_voice_profile(&conn, &row)
+            .map_err(|e| format!("Failed to save voice profile: {}", e))?;
+    }
 
     // Story 5.8 Subtask 4.5: Invalidate cache after recalibration (AC-6)
     voice_cache.invalidate();

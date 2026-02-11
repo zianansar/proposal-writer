@@ -3,7 +3,7 @@
 //! Provides Tauri commands for fetching hook strategies from the database.
 
 use crate::db::queries::hook_strategies::{get_all_hook_strategies, HookStrategy};
-use crate::db::Database;
+use crate::db::AppDatabase;
 use tauri::State;
 
 /// Tauri command: Get all hook strategies
@@ -16,8 +16,9 @@ use tauri::State;
 /// - AC-6: Returns error if database query fails
 #[tauri::command]
 pub async fn get_hook_strategies(
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
 ) -> Result<Vec<HookStrategy>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()

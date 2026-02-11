@@ -2,7 +2,7 @@
 //!
 //! Provides Tauri commands for querying the job queue with sorting and filtering.
 
-use crate::db::Database;
+use crate::db::AppDatabase;
 use crate::job::types::{ColorCounts, JobQueueItem, JobQueueResponse, ScoreColor, ScoreFilter, SortField};
 use rusqlite::Connection;
 use tauri::State;
@@ -140,8 +140,9 @@ pub async fn get_job_queue(
     filter: ScoreFilter,
     limit: u32,
     offset: u32,
-    db: State<'_, Database>,
+    db: State<'_, AppDatabase>,
 ) -> Result<JobQueueResponse, String> {
+    let db = db.get()?;
     let start = std::time::Instant::now();
 
     // Lock database connection

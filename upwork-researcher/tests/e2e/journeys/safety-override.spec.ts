@@ -21,12 +21,10 @@ import { launchTauriApp, closeTauriApp } from '../helpers/tauriDriver';
 import { seedDatabase, verifyDatabaseState } from '../helpers/dbUtils';
 import { mockClaudeAPI, mockPerplexityAnalysis } from '../helpers/apiMocks';
 import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
+import { getDirname } from '../helpers/esm-utils';
 
-// ES module __dirname polyfill
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getDirname(import.meta.url);
 
 // Load high AI detection job fixture
 const HIGH_AI_JOB_PATH = resolve(__dirname, '../fixtures/high-ai-detection-job.txt');
@@ -44,6 +42,11 @@ test.describe('Journey 4: Safety Override', () => {
 
   test.afterAll(async () => {
     await closeTauriApp();
+  });
+
+  // M5: Per-test isolation — reseed DB before each test
+  test.beforeEach(async () => {
+    seedDatabase('with-voice-profile');
   });
 
   test('completes safety override flow', async ({ page }) => {
@@ -124,7 +127,7 @@ test.describe('Journey 4: Safety Override', () => {
     // =====================================================
     // Step 6: Verify Override Logged (AC-5 Step 6)
     // =====================================================
-    await verifyDatabaseState({
+    await verifyDatabaseState(page, {
       safetyOverrideCount: 1,
     });
     console.log('✓ Override logged to safety_overrides table');
@@ -164,7 +167,7 @@ test.describe('Journey 4: Safety Override', () => {
     console.log('✓ Override canceled, returned to warning modal');
 
     // No override should be logged
-    await verifyDatabaseState({
+    await verifyDatabaseState(page, {
       safetyOverrideCount: 0,
     });
   });
@@ -195,7 +198,7 @@ test.describe('Journey 4: Safety Override', () => {
     console.log('✓ Rehumanization triggered');
 
     // No override should be logged
-    await verifyDatabaseState({
+    await verifyDatabaseState(page, {
       safetyOverrideCount: 0,
     });
   });

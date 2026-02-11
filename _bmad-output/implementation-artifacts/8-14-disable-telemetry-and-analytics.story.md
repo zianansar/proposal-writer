@@ -1,8 +1,14 @@
 ---
-status: review
+status: done
 assignedTo: dev-agent
 tasksCompleted: 7
-testsWritten: 8
+totalTasks: 7
+testsWritten: true
+codeReviewCompleted: true
+fileList:
+  - upwork-researcher/src/components/SettingsPanel.tsx
+  - upwork-researcher/src/components/SettingsPanel.test.tsx
+  - upwork-researcher/src/App.css
 ---
 
 # Story 8.14: Disable Telemetry & Analytics
@@ -180,6 +186,19 @@ So that my proposal writing activity remains private.
 - [x] 7.1 Add "Telemetry & Analytics" section documenting zero-telemetry policy
 - [x] 7.2 Update Network Audit table to confirm no analytics endpoints
 - [x] 7.3 Document crash reporting opt-in behavior for future implementation
+
+---
+
+- Review Follow-ups (AI) — Code Review 2026-02-11
+  - [x] [AI-Review][HIGH] H1: `alert()` used for error feedback in `handleCrashReportingChange`. Blocking browser dialog — bad UX, not accessible, inconsistent with toast pattern used in Story 8-13. Replace with inline error or toast notification. [src/components/SettingsPanel.tsx]
+  - [x] [AI-Review][HIGH] H2: No test for error revert behavior. Handler reverts `crashReportingEnabled` on save failure (`setCrashReportingEnabled(!newValue)`). Critical UX path with zero test coverage. Add test: mock `set_setting` to reject, verify checkbox reverts. [src/components/SettingsPanel.test.tsx]
+  - [x] [AI-Review][MEDIUM] M1: Hardcoded colors bypass design token system. `.privacy-icon`/`.privacy-label` use `#5cb85c`, `.settings-help--warning` uses `#f59e0b`. Story 8-1 dark theme uses CSS custom properties. May have contrast issues in dark mode. Use `var(--color-success)` / `var(--color-warning)`. [src/App.css:1019-1045]
+  - [x] [AI-Review][MEDIUM] M2: Privacy indicator background/border use hardcoded `rgba(92, 184, 92, ...)`. Won't adapt to dark theme — may be invisible or have poor contrast on dark backgrounds. [src/App.css:1025-1026]
+  - [x] [AI-Review][MEDIUM] M3: Frontmatter was missing `totalTasks` and `fileList`. (Fixed by this review.)
+  - [x] [AI-Review][MEDIUM] M4: Crash reporting toggle is UI-only — `crash_reporting_enabled` setting persists but nothing reads it. Setting has zero functional effect. Add inline TODO comment in code so future devs know this is intentionally disconnected. [src/components/SettingsPanel.tsx]
+  - [x] [AI-Review][LOW] L1: Task 4.3 (PII in error messages) marked [x] with no automated scanning or evidence. Manual audit claim with no documentation of what was checked or where.
+  - [x] [AI-Review][LOW] L2: Separate `useEffect` for crash reporting setting on mount — extra `invoke` call. Could batch with existing settings initialization for fewer round-trips.
+  - [x] [AI-Review][LOW] L3: AC-4 ("No update check sends user data") satisfied only because auto-update isn't configured. No guard prevents future data leakage if auto-update is added. Document as explicit constraint.
 
 ---
 

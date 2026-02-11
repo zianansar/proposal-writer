@@ -2,18 +2,18 @@
  * Playwright Global Setup
  *
  * Runs once before all tests:
- * - Install Playwright browsers if needed
- * - Set up test environment variables
  * - Prepare test database directory
+ * - Start mock API server for deterministic responses
+ * - Verify environment variables
+ * - Log test configuration
  */
 
 import { mkdirSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
+import { getDirname } from './helpers/esm-utils';
+import { startMockApiServer } from './helpers/mockApiServer';
 
-// ES module __dirname polyfill
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getDirname(import.meta.url);
 
 export default async function globalSetup(): Promise<void> {
   console.log('\n=== E2E Test Global Setup ===\n');
@@ -22,17 +22,20 @@ export default async function globalSetup(): Promise<void> {
   const testDataDir = resolve(__dirname, '../../test-data');
   if (!existsSync(testDataDir)) {
     mkdirSync(testDataDir, { recursive: true });
-    console.log('✓ Created test-data directory');
+    console.log('Created test-data directory');
   }
 
-  // 2. Verify environment variables
+  // 2. Start mock API server (C4: intercepts Rust-side API calls)
+  await startMockApiServer('standard');
+
+  // 3. Verify environment variables
   if (!process.env.TEST_API_KEY && !process.env.CI) {
     console.warn(
-      '⚠ TEST_API_KEY not set. Tests requiring API key will be skipped or use mocks.'
+      'TEST_API_KEY not set. Tests requiring API key will use mocks.'
     );
   }
 
-  // 3. Check if Tauri binary exists (for build-based tests)
+  // 4. Check if Tauri binary exists (for build-based tests)
   const platform = process.platform;
   let binaryPath = '';
 
@@ -48,11 +51,11 @@ export default async function globalSetup(): Promise<void> {
   }
 
   if (process.env.USE_BUILD === 'true' && !existsSync(binaryPath)) {
-    console.warn('⚠ Tauri binary not found. Run `npm run tauri build` first.');
+    console.warn('Tauri binary not found. Run `npm run tauri build` first.');
     console.warn(`  Expected: ${binaryPath}`);
   }
 
-  // 4. Log test configuration
+  // 5. Log test configuration
   console.log('Test configuration:');
   console.log(`  Platform: ${platform}`);
   console.log(`  CI: ${process.env.CI || 'false'}`);

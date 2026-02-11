@@ -140,6 +140,54 @@ impl Database {
     }
 }
 
+/// Wrapper for database state supporting lazy initialization (Story 2.7b).
+///
+/// For unencrypted databases: initialized immediately during app setup.
+/// For encrypted databases: initialized after passphrase entry.
+///
+/// Uses `OnceLock` for zero-cost reads after initialization — no locking
+/// overhead on the hot path (database access in commands).
+pub struct AppDatabase {
+    inner: std::sync::OnceLock<Database>,
+}
+
+impl AppDatabase {
+    /// Create empty AppDatabase (encrypted startup path — waiting for passphrase).
+    pub fn new_empty() -> Self {
+        Self {
+            inner: std::sync::OnceLock::new(),
+        }
+    }
+
+    /// Create pre-initialized AppDatabase (unencrypted startup path).
+    pub fn new_with(db: Database) -> Self {
+        let app_db = Self::new_empty();
+        // Safe: called only once during setup before any commands run
+        let _ = app_db.inner.set(db);
+        app_db
+    }
+
+    /// Get database reference. Returns error if not yet unlocked.
+    pub fn get(&self) -> Result<&Database, String> {
+        self.inner
+            .get()
+            .ok_or_else(|| "Database not unlocked - passphrase required".to_string())
+    }
+
+    /// Set database after successful passphrase verification.
+    /// Can only be called once — subsequent calls return error.
+    pub fn set(&self, db: Database) -> Result<(), String> {
+        self.inner
+            .set(db)
+            .map_err(|_| "Database already initialized".to_string())
+    }
+
+    /// Check if database is ready for use.
+    pub fn is_ready(&self) -> bool {
+        self.inner.get().is_some()
+    }
+}
+
 /// Open encrypted database with passphrase verification (Story 2.7)
 ///
 /// High-level function for app restart flow that:

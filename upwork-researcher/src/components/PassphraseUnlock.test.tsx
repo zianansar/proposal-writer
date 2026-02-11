@@ -31,7 +31,7 @@ describe("PassphraseUnlock", () => {
 
     expect(screen.getByText("Unlock Database")).toBeInTheDocument();
     expect(
-      screen.getByText(/enter your passphrase to decrypt/i)
+      screen.getByText(/enter your passphrase to access your encrypted/i)
     ).toBeInTheDocument();
   });
 

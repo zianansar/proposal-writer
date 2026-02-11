@@ -1,5 +1,9 @@
 # Development Conventions
 
+> **Scope:** This document covers performance test baseline management conventions only.
+> For general project conventions, see the project README.
+> See also: [tests/performance/README.md](tests/performance/README.md) for the performance testing overview.
+
 ## Performance Testing
 
 ### Performance Baseline Management

@@ -4,7 +4,10 @@
 use thiserror::Error;
 use tauri::{AppHandle, Emitter, Manager};
 
-/// Allowlisted domains for network requests
+/// Allowlisted domains for network requests.
+/// SYNC REQUIRED: This list MUST match the `connect-src` directive in
+/// `src-tauri/tauri.conf.json` security.csp. Both must be updated together.
+/// See Story 8.13 for dual-enforcement architecture.
 const ALLOWED_DOMAINS: &[&str] = &["api.anthropic.com"];
 
 /// Network validation errors
@@ -37,6 +40,10 @@ pub enum NetworkError {
 /// assert!(validate_url("https://evil.com/exfiltrate").is_err());
 /// ```
 pub fn validate_url(url: &str) -> Result<(), NetworkError> {
+    // NOTE: Currently all call sites validate the same ANTHROPIC_API_URL constant,
+    // so this validation is effectively a compile-time sanity check.
+    // Runtime enforcement comes from CSP in the WebView layer.
+
     // Parse URL
     let parsed = url::Url::parse(url)
         .map_err(|e| NetworkError::InvalidUrl(format!("{}: {}", e, url)))?;
@@ -46,16 +53,27 @@ pub fn validate_url(url: &str) -> Result<(), NetworkError> {
         .ok_or_else(|| NetworkError::InvalidUrl(format!("No host in URL: {}", url)))?;
 
     // Check against allowlist
-    if ALLOWED_DOMAINS.contains(&host) {
-        Ok(())
-    } else {
+    if !ALLOWED_DOMAINS.contains(&host) {
         tracing::warn!(
             domain = %host,
             url = %url,
             "Blocked network request to unauthorized domain"
         );
-        Err(NetworkError::BlockedDomain(host.to_string()))
+        return Err(NetworkError::BlockedDomain(host.to_string()));
     }
+
+    // Enforce HTTPS to prevent downgrade attacks (Rust-side calls bypass CSP)
+    let scheme = parsed.scheme();
+    if scheme != "https" {
+        tracing::warn!(
+            scheme = %scheme,
+            domain = %host,
+            "Blocked non-HTTPS request - downgrade attack prevention"
+        );
+        return Err(NetworkError::BlockedDomain(format!("{}:// not allowed (HTTPS required)", scheme)));
+    }
+
+    Ok(())
 }
 
 /// Helper to emit network:blocked event and record blocked request.
@@ -85,7 +103,7 @@ pub fn emit_blocked_event(app_handle: &AppHandle, domain: String, url: String) {
     if let Some(blocked_state) = app_handle.try_state::<crate::BlockedRequestsState>() {
         blocked_state.add(domain, url);
     } else {
-        tracing::warn!("BlockedRequestsState not available in app state");
+        tracing::error!("BlockedRequestsState not registered in app state - blocked request not recorded");
     }
 }
 
@@ -150,11 +168,10 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_url_different_scheme() {
-        // AC: allowlisted domain with http (not https) should still pass host check
-        // Note: TLS verification happens at HTTP client layer, not here
+    fn test_validate_url_rejects_http_scheme() {
+        // AR-14: HTTPS required to prevent downgrade attacks
         let result = validate_url("http://api.anthropic.com/test");
-        assert!(result.is_ok(), "Scheme shouldn't affect domain validation");
+        assert!(result.is_err(), "HTTP should be rejected - HTTPS required");
     }
 
     #[test]

@@ -586,7 +586,7 @@ pub fn extract_json_from_response(text: &str) -> &str {
 /// Returns a perplexity score (0-300+). Higher = more human-like.
 /// Threshold: <180 = safe, ≥180 = risky (per FR-11, Story 3.1)
 #[deprecated(note = "Use analyze_perplexity_with_sentences for structured analysis (Story 3.2)")]
-pub async fn analyze_perplexity(text: &str, api_key: Option<&str>) -> Result<f32, String> {
+pub async fn analyze_perplexity(text: &str, api_key: Option<&str>, app_handle: Option<&AppHandle>) -> Result<f32, String> {
     let api_key = resolve_api_key(api_key)?;
 
     let client = Client::builder()
@@ -614,8 +614,13 @@ pub async fn analyze_perplexity(text: &str, api_key: Option<&str>) -> Result<f32
     };
 
     // AR-14: Validate domain before making request (network allowlist enforcement)
-    network::validate_url(ANTHROPIC_API_URL)
-        .map_err(|e| format!("Network security: {}", e))?;
+    // Task 4.2: Emit event if domain is blocked and AppHandle is available
+    if let Err(e) = network::validate_url(ANTHROPIC_API_URL) {
+        if let (Some(handle), network::NetworkError::BlockedDomain(domain)) = (app_handle, &e) {
+            network::emit_blocked_event(handle, domain.clone(), ANTHROPIC_API_URL.to_string());
+        }
+        return Err(format!("Network security: {}", e));
+    }
 
     let response = client
         .post(ANTHROPIC_API_URL)

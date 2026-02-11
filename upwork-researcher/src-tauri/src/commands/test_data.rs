@@ -1,7 +1,7 @@
 // Test data seeding commands for performance benchmarks
 // Story 8.10: Performance Validation Tests
 
-use crate::db::Database;
+use crate::db::AppDatabase;
 use rusqlite::Connection;
 use tauri::State;
 
@@ -10,9 +10,10 @@ use tauri::State;
 #[tauri::command]
 #[specta::specta]
 pub async fn seed_proposals(
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
     count: i64,
 ) -> Result<(), String> {
+    let database = database.get()?;
     let mut conn = database
         .conn
         .lock()
@@ -26,9 +27,10 @@ pub async fn seed_proposals(
 #[tauri::command]
 #[specta::specta]
 pub async fn seed_job_posts(
-    database: State<'_, Database>,
+    database: State<'_, AppDatabase>,
     count: i64,
 ) -> Result<(), String> {
+    let database = database.get()?;
     let mut conn = database
         .conn
         .lock()
@@ -42,13 +44,33 @@ pub async fn seed_job_posts(
 /// CAUTION: This will delete ALL data - only use in test environments
 #[tauri::command]
 #[specta::specta]
-pub async fn clear_test_data(database: State<'_, Database>) -> Result<(), String> {
+pub async fn clear_test_data(database: State<'_, AppDatabase>) -> Result<(), String> {
+    let database = database.get()?;
     let mut conn = database
         .conn
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
     // Delete in reverse order of foreign key dependencies
+    // Clear dependent/leaf tables first
+    conn.execute("DELETE FROM scoring_feedback", [])
+        .map_err(|e| format!("Failed to clear scoring feedback: {}", e))?;
+
+    conn.execute("DELETE FROM rss_imports", [])
+        .map_err(|e| format!("Failed to clear rss imports: {}", e))?;
+
+    conn.execute("DELETE FROM golden_set_proposals", [])
+        .map_err(|e| format!("Failed to clear golden set proposals: {}", e))?;
+
+    conn.execute("DELETE FROM hook_strategies", [])
+        .map_err(|e| format!("Failed to clear hook strategies: {}", e))?;
+
+    conn.execute("DELETE FROM voice_profiles", [])
+        .map_err(|e| format!("Failed to clear voice profiles: {}", e))?;
+
+    conn.execute("DELETE FROM settings", [])
+        .map_err(|e| format!("Failed to clear settings: {}", e))?;
+
     conn.execute("DELETE FROM proposal_revisions", [])
         .map_err(|e| format!("Failed to clear revisions: {}", e))?;
 
@@ -67,29 +89,34 @@ pub async fn clear_test_data(database: State<'_, Database>) -> Result<(), String
 // Internal seeding functions
 
 fn seed_proposals_internal(conn: &mut Connection, count: usize) -> Result<(), String> {
+    let tx = conn.transaction().map_err(|e| format!("Transaction error: {}", e))?;
+
     for i in 0..count {
         let title = format!("Test Proposal {}", i + 1);
         let content = format!("This is test proposal content for benchmark #{}", i + 1);
         let job_text = format!("Test job description for proposal {}", i + 1);
 
-        conn.execute(
+        tx.execute(
             "INSERT INTO proposals (title, content, job_description, timestamp) VALUES (?, ?, ?, datetime('now', '-' || ? || ' hours'))",
             rusqlite::params![title, content, job_text, i % 720], // Spread over 30 days
         )
         .map_err(|e| format!("Failed to insert proposal {}: {}", i, e))?;
     }
 
+    tx.commit().map_err(|e| format!("Commit error: {}", e))?;
     Ok(())
 }
 
 fn seed_job_posts_internal(conn: &mut Connection, count: usize) -> Result<(), String> {
+    let tx = conn.transaction().map_err(|e| format!("Transaction error: {}", e))?;
+
     for i in 0..count {
         let title = format!("Test Job {}", i + 1);
         let description = format!("Test job description for benchmark #{}. Looking for skilled developer.", i + 1);
         let client_name = format!("Client{}", i % 50); // 50 unique clients
         let skills = format!("Rust,TypeScript,React");
 
-        conn.execute(
+        tx.execute(
             "INSERT INTO job_posts (title, description, url, client_name, key_skills, posted_at, imported_at)
              VALUES (?, ?, ?, ?, ?, datetime('now', '-' || ? || ' hours'), datetime('now'))",
             rusqlite::params![
@@ -104,6 +131,7 @@ fn seed_job_posts_internal(conn: &mut Connection, count: usize) -> Result<(), St
         .map_err(|e| format!("Failed to insert job post {}: {}", i, e))?;
     }
 
+    tx.commit().map_err(|e| format!("Commit error: {}", e))?;
     Ok(())
 }
 

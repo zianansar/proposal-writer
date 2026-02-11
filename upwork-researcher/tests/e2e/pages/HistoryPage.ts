@@ -131,13 +131,15 @@ export class HistoryPage {
 
   /**
    * Search proposals
+   * M3 FIX: Uses explicit element-based wait instead of unreliable networkidle
    */
   async searchProposals(query: string): Promise<void> {
     await this.searchInput.fill(query);
-    // Wait for search results to update (explicit condition)
-    await this.page.waitForLoadState('networkidle', { timeout: 3000 });
-    // Or wait for list to update
-    await expect(this.proposalList).toBeVisible();
+    // Wait for list to re-render with filtered results or empty state
+    await this.page.waitForSelector(
+      '[data-testid^="history-item-"], [data-testid="empty-state"], [data-testid="no-results"]',
+      { state: 'visible', timeout: 5000 }
+    );
   }
 
   /**

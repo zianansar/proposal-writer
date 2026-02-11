@@ -53,6 +53,7 @@
   --color-success: #10b981;
   --color-success-hover: #059669;
   --color-success-bg: #1a2e26;
+  --color-success-border: rgba(16, 185, 129, 0.3);
   --color-success-text: #10b981;
 
   /* Warning (Amber) - Caution states */

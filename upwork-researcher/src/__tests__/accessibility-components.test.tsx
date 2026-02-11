@@ -3,11 +3,13 @@
  * Story 8-11: Task 3 - Comprehensive audit of all pages/views
  *
  * This test suite audits each major component and view in the application.
+ * Includes Epic 5/6 components (M3) and VoiceLearningTimeline.
  */
 
+import React from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { runAxeAudit, assertNoViolations, generateAuditReport } from "../test/axe-utils";
 
 // Import components to audit
@@ -24,6 +26,123 @@ import EncryptionDetailsModal from "../components/EncryptionDetailsModal";
 import DraftRecoveryModal from "../components/DraftRecoveryModal";
 import Navigation from "../components/Navigation";
 import SkipLink from "../components/SkipLink";
+
+// Epic 5/6 component imports
+import { VoiceLearningTimeline } from "../features/voice-learning/VoiceLearningTimeline";
+
+// Mock TipTap editor for ProposalEditor and EditorToolbar tests
+vi.mock("@tiptap/react", () => {
+  const ReactImport = require("react");
+  return {
+    useEditor: () => ({
+      chain: () => ({
+        focus: () => ({
+          toggleBold: () => ({ run: vi.fn() }),
+          toggleItalic: () => ({ run: vi.fn() }),
+          toggleBulletList: () => ({ run: vi.fn() }),
+          toggleOrderedList: () => ({ run: vi.fn() }),
+          unsetAllMarks: () => ({
+            clearNodes: () => ({ run: vi.fn() }),
+          }),
+          undo: () => ({ run: vi.fn() }),
+          redo: () => ({ run: vi.fn() }),
+        }),
+      }),
+      can: () => ({
+        chain: () => ({
+          focus: () => ({
+            toggleBold: () => ({ run: () => true }),
+            toggleItalic: () => ({ run: () => true }),
+            toggleBulletList: () => ({ run: () => true }),
+            toggleOrderedList: () => ({ run: () => true }),
+            undo: () => ({ run: () => true }),
+            redo: () => ({ run: () => true }),
+          }),
+        }),
+      }),
+      isActive: () => false,
+      getHTML: () => "<p>Test content</p>",
+      getText: () => "Test content",
+      on: vi.fn(),
+      off: vi.fn(),
+      commands: {
+        setContent: vi.fn(),
+        focus: vi.fn(),
+      },
+    }),
+    EditorContent: ({ editor }: { editor: unknown }) => {
+      return ReactImport.createElement("div", {
+        "data-testid": "editor-content",
+        className: "proposal-editor-content",
+      });
+    },
+  };
+});
+
+// Mock useCanReportScore for ScoringBreakdown
+vi.mock("../features/scoring-feedback/hooks/useCanReportScore", () => ({
+  useCanReportScore: () => ({
+    data: { canReport: true },
+    isLoading: false,
+  }),
+}));
+
+// Mock ReportScoreModal for ScoringBreakdown
+vi.mock("../features/scoring-feedback/components/ReportScoreModal", () => ({
+  ReportScoreModal: () => null,
+}));
+
+// Mock useInfiniteJobQueue for JobQueuePage
+vi.mock("../features/job-queue/hooks/useInfiniteJobQueue", () => ({
+  useInfiniteJobQueue: () => ({
+    data: {
+      pages: [
+        {
+          jobs: [
+            { id: 1, title: "React Developer", clientName: "Test Client", score: 85, colorFlag: "green", createdAt: "2026-02-10" },
+          ],
+          totalCount: 1,
+          colorCounts: { green: 1, yellow: 0, red: 0, gray: 0 },
+        },
+      ],
+    },
+    isLoading: false,
+    error: null,
+    fetchNextPage: vi.fn(),
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    refetch: vi.fn(),
+  }),
+}));
+
+// Mock useInfiniteScroll for JobQueuePage
+vi.mock("../features/job-queue/hooks/useInfiniteScroll", () => ({
+  useInfiniteScroll: () => ({ current: null }),
+}));
+
+// Mock VirtualizedJobList to avoid virtualization complexity
+vi.mock("../features/job-queue/components/VirtualizedJobList", () => ({
+  default: ({ jobs }: { jobs: unknown[] }) => {
+    const ReactImport = require("react");
+    return ReactImport.createElement("div", { "data-testid": "virtualized-job-list", role: "list" },
+      ReactImport.createElement("div", { role: "listitem" }, "Job item")
+    );
+  },
+}));
+
+// Mock JobQueueControls to avoid complex child dependencies
+vi.mock("../features/job-queue/components/JobQueueControls", () => ({
+  default: () => {
+    const ReactImport = require("react");
+    return ReactImport.createElement("div", { "data-testid": "job-queue-controls" }, "Controls");
+  },
+}));
+
+// Import components after mocks are set up
+import ProposalEditor from "../components/ProposalEditor";
+import EditorToolbar from "../components/EditorToolbar";
+import ScoringBreakdownCard from "../components/ScoringBreakdown";
+import JobQueuePage from "../features/job-queue/components/JobQueuePage";
 
 describe("Component-Specific Accessibility Audits", () => {
   beforeEach(() => {
@@ -341,6 +460,139 @@ describe("Component-Specific Accessibility Audits", () => {
 
       if (results.violations.length > 0) {
         console.log("\n[SkipLink] Audit Report:");
+        console.log(generateAuditReport(results));
+      }
+
+      assertNoViolations(results);
+    });
+  });
+
+  describe("Epic 5/6 Components - Proposal Editor", () => {
+    it("should pass accessibility audit for ProposalEditor", async () => {
+      const { container } = render(
+        <ProposalEditor content="<p>Test proposal content</p>" proposalId={1} />
+      );
+
+      const results = await runAxeAudit(container);
+
+      if (results.violations.length > 0) {
+        console.log("\n[ProposalEditor] Audit Report:");
+        console.log(generateAuditReport(results));
+      }
+
+      assertNoViolations(results);
+    });
+
+    it("should pass accessibility audit for EditorToolbar", async () => {
+      // Create a mock editor object that matches TipTap Editor interface
+      const mockEditor = {
+        chain: () => ({
+          focus: () => ({
+            toggleBold: () => ({ run: vi.fn() }),
+            toggleItalic: () => ({ run: vi.fn() }),
+            toggleBulletList: () => ({ run: vi.fn() }),
+            toggleOrderedList: () => ({ run: vi.fn() }),
+            unsetAllMarks: () => ({
+              clearNodes: () => ({ run: vi.fn() }),
+            }),
+            undo: () => ({ run: vi.fn() }),
+            redo: () => ({ run: vi.fn() }),
+          }),
+        }),
+        can: () => ({
+          chain: () => ({
+            focus: () => ({
+              toggleBold: () => ({ run: () => true }),
+              toggleItalic: () => ({ run: () => true }),
+              toggleBulletList: () => ({ run: () => true }),
+              toggleOrderedList: () => ({ run: () => true }),
+              undo: () => ({ run: () => true }),
+              redo: () => ({ run: () => true }),
+            }),
+          }),
+        }),
+        isActive: () => false,
+      };
+
+      const { container } = render(
+        <EditorToolbar editor={mockEditor as any} onViewHistory={vi.fn()} />
+      );
+
+      const results = await runAxeAudit(container);
+
+      if (results.violations.length > 0) {
+        console.log("\n[EditorToolbar] Audit Report:");
+        console.log(generateAuditReport(results));
+      }
+
+      assertNoViolations(results);
+    });
+  });
+
+  describe("Epic 5/6 Components - Scoring and Job Queue", () => {
+    it("should pass accessibility audit for ScoringBreakdown", async () => {
+      const mockBreakdown = {
+        overallScore: 85,
+        colorFlag: "green",
+        skillsMatchPct: 90,
+        skillsMatchedCount: 9,
+        skillsTotalCount: 10,
+        skillsMatchedList: ["React", "TypeScript", "Node.js"],
+        skillsMissingList: ["Go"],
+        clientQualityScore: 80,
+        clientQualitySignals: "Verified payment, 4.8 rating, 50+ hires",
+        budgetAlignmentPct: 100,
+        budgetDisplay: "$50-80/hr (matches your rate)",
+        budgetType: "hourly",
+        recommendation: "Strong match - apply with confidence",
+      };
+
+      const { container } = render(
+        <ScoringBreakdownCard
+          breakdown={mockBreakdown}
+          isExpanded={true}
+          jobPostId={1}
+        />
+      );
+
+      const results = await runAxeAudit(container);
+
+      if (results.violations.length > 0) {
+        console.log("\n[ScoringBreakdown] Audit Report:");
+        console.log(generateAuditReport(results));
+      }
+
+      assertNoViolations(results);
+    });
+
+    it("should pass accessibility audit for JobQueuePage", async () => {
+      const { container } = render(
+        <MemoryRouter initialEntries={["/?sort=score&filter=all"]}>
+          <JobQueuePage />
+        </MemoryRouter>
+      );
+
+      const results = await runAxeAudit(container);
+
+      if (results.violations.length > 0) {
+        console.log("\n[JobQueuePage] Audit Report:");
+        console.log(generateAuditReport(results));
+      }
+
+      assertNoViolations(results);
+    });
+  });
+
+  describe("Voice Learning Components", () => {
+    it("should pass accessibility audit for VoiceLearningTimeline", async () => {
+      const { container } = render(
+        <VoiceLearningTimeline />
+      );
+
+      const results = await runAxeAudit(container);
+
+      if (results.violations.length > 0) {
+        console.log("\n[VoiceLearningTimeline] Audit Report:");
         console.log(generateAuditReport(results));
       }
 
