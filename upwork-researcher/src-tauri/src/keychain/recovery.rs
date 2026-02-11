@@ -251,6 +251,128 @@ pub fn validate_recovery_key(recovery_key: &str) -> Result<(), RecoveryError> {
     Ok(())
 }
 
+/// Wrap (encrypt) a database encryption key with the recovery key.
+///
+/// Uses AES-256-GCM to encrypt the DB key, deriving the encryption key
+/// from the recovery key using Argon2id. This allows the DB to be unlocked
+/// using just the recovery key (without the passphrase).
+///
+/// # Arguments
+/// * `db_key` - 32-byte database encryption key to wrap
+/// * `recovery_key` - 32-char alphanumeric recovery key
+///
+/// # Returns
+/// * `Ok(String)` - Format: "salt:base64(nonce || ciphertext || tag)"
+/// * `Err(RecoveryError)` - Wrapping failed
+///
+/// # Story 2-7b: Enables recovery flow to actually unlock database
+pub fn wrap_db_key(db_key: &[u8], recovery_key: &str) -> Result<String, RecoveryError> {
+    validate_recovery_key(recovery_key)?;
+
+    if db_key.len() != 32 {
+        return Err(RecoveryError::EncryptionFailed(
+            format!("DB key must be 32 bytes, got {}", db_key.len())
+        ));
+    }
+
+    // Generate random salt for Argon2id
+    let salt = SaltString::generate(&mut OsRng);
+
+    // Derive 32-byte encryption key from recovery key using Argon2id
+    let encryption_key = derive_encryption_key(recovery_key, &salt)?;
+
+    // Generate random 96-bit nonce for AES-256-GCM
+    let mut nonce_bytes = [0u8; NONCE_LENGTH];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+
+    // Encrypt using AES-256-GCM
+    let cipher = Aes256Gcm::new_from_slice(&encryption_key)
+        .map_err(|e| RecoveryError::EncryptionFailed(format!("AES key init failed: {}", e)))?;
+
+    let ciphertext = cipher
+        .encrypt(nonce, db_key)
+        .map_err(|e| RecoveryError::EncryptionFailed(format!("AES-256-GCM encrypt failed: {}", e)))?;
+
+    // Combine nonce + ciphertext (tag is appended by aes-gcm)
+    let mut combined = Vec::with_capacity(NONCE_LENGTH + ciphertext.len());
+    combined.extend_from_slice(&nonce_bytes);
+    combined.extend_from_slice(&ciphertext);
+
+    // Format: "salt:base64(nonce || ciphertext || tag)"
+    let salt_str = salt.as_str();
+    let encrypted_b64 = BASE64_STANDARD.encode(&combined);
+    let result = format!("{}:{}", salt_str, encrypted_b64);
+
+    tracing::info!("DB key wrapped with recovery key (AES-256-GCM)");
+
+    Ok(result)
+}
+
+/// Unwrap (decrypt) a database encryption key using the recovery key.
+///
+/// Reverses wrap_db_key: derives key from recovery key, decrypts DB key.
+///
+/// # Arguments
+/// * `wrapped_key` - Format: "salt:base64(nonce || ciphertext || tag)"
+/// * `recovery_key` - 32-char alphanumeric recovery key
+///
+/// # Returns
+/// * `Ok(Vec<u8>)` - 32-byte database encryption key
+/// * `Err(RecoveryError)` - Unwrapping failed (wrong key or corrupted)
+///
+/// # Story 2-7b: Enables recovery flow to actually unlock database
+pub fn unwrap_db_key(wrapped_key: &str, recovery_key: &str) -> Result<Vec<u8>, RecoveryError> {
+    validate_recovery_key(recovery_key)?;
+
+    // Parse salt and encrypted data: "salt:base64(nonce || ciphertext || tag)"
+    let parts: Vec<&str> = wrapped_key.splitn(2, ':').collect();
+    if parts.len() != 2 {
+        return Err(RecoveryError::DecryptionFailed(
+            "Invalid wrapped key format (expected salt:encrypted)".to_string()
+        ));
+    }
+
+    let salt = SaltString::from_b64(parts[0])
+        .map_err(|e| RecoveryError::DecryptionFailed(format!("Invalid salt: {}", e)))?;
+
+    let combined = BASE64_STANDARD.decode(parts[1])
+        .map_err(|e| RecoveryError::DecryptionFailed(format!("Invalid base64: {}", e)))?;
+
+    if combined.len() < NONCE_LENGTH + 16 {
+        return Err(RecoveryError::DecryptionFailed(
+            "Wrapped key data too short".to_string()
+        ));
+    }
+
+    // Derive encryption key from recovery key
+    let encryption_key = derive_encryption_key(recovery_key, &salt)?;
+
+    // Split nonce and ciphertext
+    let (nonce_bytes, ciphertext) = combined.split_at(NONCE_LENGTH);
+    let nonce = Nonce::from_slice(nonce_bytes);
+
+    // Decrypt using AES-256-GCM (also verifies authentication tag)
+    let cipher = Aes256Gcm::new_from_slice(&encryption_key)
+        .map_err(|e| RecoveryError::DecryptionFailed(format!("AES key init failed: {}", e)))?;
+
+    let db_key = cipher
+        .decrypt(nonce, ciphertext)
+        .map_err(|_| RecoveryError::DecryptionFailed(
+            "Unwrap failed (wrong recovery key or corrupted data)".to_string()
+        ))?;
+
+    if db_key.len() != 32 {
+        return Err(RecoveryError::DecryptionFailed(
+            format!("Unwrapped key length {} != 32", db_key.len())
+        ));
+    }
+
+    tracing::info!("DB key unwrapped successfully");
+
+    Ok(db_key)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -25,7 +25,7 @@ pub mod encryption_spike;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 /// Shared state for tracking current draft proposal during generation
@@ -158,11 +158,22 @@ impl BlockedRequestsState {
             timestamp: chrono::Utc::now().to_rfc3339(),
         };
 
+        const MAX_BLOCKED_ENTRIES: usize = 100;
+
         match self.requests.lock() {
-            Ok(mut guard) => guard.push(blocked_request),
+            Ok(mut guard) => {
+                if guard.len() >= MAX_BLOCKED_ENTRIES {
+                    guard.remove(0); // Evict oldest entry
+                }
+                guard.push(blocked_request);
+            }
             Err(poisoned) => {
                 tracing::warn!("BlockedRequestsState mutex poisoned, recovering");
-                poisoned.into_inner().push(blocked_request);
+                let guard = poisoned.into_inner();
+                if guard.len() >= MAX_BLOCKED_ENTRIES {
+                    guard.remove(0);
+                }
+                guard.push(blocked_request);
             }
         }
     }
@@ -223,9 +234,10 @@ async fn generate_proposal(
     job_content: String,
     app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     cooldown: State<'_, CooldownState>,
 ) -> Result<String, String> {
+    let database = database.get()?;
     // Story 3.8: Check cooldown FIRST — before any API call (FR-12)
     let remaining = cooldown.remaining_seconds();
     if remaining > 0 {
@@ -266,11 +278,12 @@ async fn generate_proposal_streaming(
     strategy_id: Option<i64>,
     app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     draft_state: State<'_, DraftState>,
     cooldown: State<'_, CooldownState>,
     voice_cache: State<'_, VoiceCache>, // Story 5.8 Subtask 4.1: Voice cache state
 ) -> Result<String, String> {
+    let database = database.get()?;
     // Story 3.8: Check cooldown FIRST — before any API call (FR-12)
     let remaining = cooldown.remaining_seconds();
     if remaining > 0 {
@@ -372,10 +385,11 @@ async fn regenerate_with_humanization(
     attempt_count: u32,
     app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     draft_state: State<'_, DraftState>,
     cooldown: State<'_, CooldownState>,
 ) -> Result<serde_json::Value, String> {
+    let database = database.get()?;
     // Story 3.8: Check cooldown FIRST — before any API call (FR-12)
     let remaining = cooldown.remaining_seconds();
     if remaining > 0 {
@@ -472,7 +486,8 @@ fn invalidate_voice_cache(voice_cache: State<VoiceCache>) {
 
 /// Database health check - returns database path and status
 #[tauri::command]
-fn check_database(database: State<db::Database>) -> Result<serde_json::Value, String> {
+fn check_database(database: State<'_, db::AppDatabase>) -> Result<serde_json::Value, String> {
+    let database = database.get()?;
     let is_healthy = database.health_check()?;
     let path = database.get_path().to_string_lossy().to_string();
 
@@ -486,10 +501,11 @@ fn check_database(database: State<db::Database>) -> Result<serde_json::Value, St
 /// Returns the ID of the saved proposal
 #[tauri::command]
 fn save_proposal(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     job_content: String,
     generated_text: String,
 ) -> Result<serde_json::Value, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -508,8 +524,9 @@ fn save_proposal(
 /// Returns proposals ordered by created_at DESC, limited to 100
 #[tauri::command]
 fn get_proposals(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<Vec<db::queries::proposals::ProposalSummary>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -528,9 +545,10 @@ fn get_proposals(
 /// - safety_overrides: Orphaned (acceptable - historical data)
 #[tauri::command]
 fn delete_proposal(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
 ) -> Result<serde_json::Value, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -558,10 +576,11 @@ fn delete_proposal(
 /// Updates both content and updated_at timestamp
 #[tauri::command]
 fn update_proposal_content(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
     content: String,
 ) -> Result<(), String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -580,11 +599,12 @@ fn update_proposal_content(
 /// Triggers archiving if revision count exceeds threshold (Story 6.7)
 #[tauri::command]
 async fn create_revision(
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
     content: String,
     revision_type: Option<String>,
 ) -> Result<i64, String> {
+    let database = database.get()?;
     let mut conn = database
         .conn
         .lock()
@@ -613,9 +633,10 @@ async fn create_revision(
 /// Get revision summaries for history panel (Story 6.3)
 #[tauri::command]
 fn get_proposal_revisions(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
 ) -> Result<Vec<db::queries::revisions::RevisionSummary>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -628,9 +649,10 @@ fn get_proposal_revisions(
 /// Get full revision content for preview (Story 6.3)
 #[tauri::command]
 fn get_revision_content(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     revision_id: i64,
 ) -> Result<db::queries::revisions::ProposalRevision, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -645,10 +667,11 @@ fn get_revision_content(
 /// Triggers archiving if revision count exceeds threshold (Story 6.7 fix)
 #[tauri::command]
 fn restore_revision(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
     source_revision_id: i64,
 ) -> Result<i64, String> {
+    let database = database.get()?;
     let mut conn = database
         .conn
         .lock()
@@ -698,9 +721,10 @@ fn restore_revision(
 /// Get archived revisions for a proposal (Story 6.7)
 #[tauri::command]
 async fn get_archived_revisions(
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
 ) -> Result<Vec<archive::ArchivedRevision>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -713,9 +737,10 @@ async fn get_archived_revisions(
 /// Get count of archived revisions (Story 6.7)
 #[tauri::command]
 async fn get_archived_revision_count(
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
 ) -> Result<i64, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -730,10 +755,11 @@ async fn get_archived_revision_count(
 /// Triggers archiving if revision count exceeds threshold (AC1 fix)
 #[tauri::command]
 async fn restore_archived_revision(
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
     archived_index: usize,
 ) -> Result<i64, String> {
+    let database = database.get()?;
     let (new_revision_id, content) = {
         let mut conn = database
             .conn
@@ -795,8 +821,9 @@ async fn restore_archived_revision(
 /// Returns the latest draft if exists, None otherwise
 #[tauri::command]
 fn check_for_draft(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<Option<db::queries::proposals::SavedProposal>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -810,10 +837,11 @@ fn check_for_draft(
 /// Used to mark drafts as completed or discard them
 #[tauri::command]
 fn update_proposal_status(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     proposal_id: i64,
     status: String,
 ) -> Result<serde_json::Value, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -832,11 +860,12 @@ fn update_proposal_status(
 /// Story 4a.2: Now accepts client_name from job analysis (AC-3)
 #[tauri::command]
 fn save_job_post(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     job_content: String,
     url: Option<String>,
     client_name: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -869,9 +898,10 @@ fn save_job_post(
 async fn analyze_job_post(
     raw_content: String,
     job_post_id: Option<i64>,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
     config_state: State<'_, config::ConfigState>,
 ) -> Result<analysis::JobAnalysis, String> {
+    let database = database.get()?;
     // AC-5: Retrieve API key from keychain (follows existing pattern)
     let api_key = config_state.get_api_key()?;
 
@@ -1116,7 +1146,8 @@ fn clear_api_key(config_state: State<config::ConfigState>) -> Result<(), String>
 /// Get a setting value by key
 /// Returns None if the setting doesn't exist
 #[tauri::command]
-fn get_setting(database: State<db::Database>, key: String) -> Result<Option<String>, String> {
+fn get_setting(database: State<'_, db::AppDatabase>, key: String) -> Result<Option<String>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1131,10 +1162,11 @@ fn get_setting(database: State<db::Database>, key: String) -> Result<Option<Stri
 /// Valid values: ERROR, WARN, INFO, DEBUG
 #[tauri::command]
 fn set_log_level(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     config_state: State<config::ConfigState>,
     level: String,
 ) -> Result<(), String> {
+    let database = database.get()?;
     // Validate log level
     let level_upper = level.to_uppercase();
     if !["ERROR", "WARN", "INFO", "DEBUG"].contains(&level_upper.as_str()) {
@@ -1169,7 +1201,8 @@ fn set_log_level(
 /// Set a setting value (insert or update)
 /// Uses UPSERT pattern for atomic operation
 #[tauri::command]
-fn set_setting(database: State<db::Database>, key: String, value: String) -> Result<(), String> {
+fn set_setting(database: State<'_, db::AppDatabase>, key: String, value: String) -> Result<(), String> {
+    let database = database.get()?;
     // Validate key
     let key = key.trim();
     if key.is_empty() {
@@ -1208,8 +1241,9 @@ fn set_setting(database: State<db::Database>, key: String, value: String) -> Res
 /// Returns all settings ordered by key
 #[tauri::command]
 fn get_all_settings(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<Vec<db::queries::settings::Setting>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1300,7 +1334,8 @@ fn get_skill_suggestions(query: String) -> Result<Vec<String>, String> {
 /// Returns skill ID on success, error if duplicate (case-insensitive)
 /// Story 4b.5 Task 5.1: Triggers recalculation of all job scores
 #[tauri::command]
-fn add_user_skill(database: State<db::Database>, skill: String) -> Result<i64, String> {
+fn add_user_skill(database: State<'_, db::AppDatabase>, skill: String) -> Result<i64, String> {
+    let database = database.get()?;
     let skill_id = {
         let conn = database
             .conn
@@ -1320,7 +1355,8 @@ fn add_user_skill(database: State<db::Database>, skill: String) -> Result<i64, S
 /// Remove a skill from user's profile (Story 4b.1)
 /// Story 4b.5 Task 5.1: Triggers recalculation of all job scores
 #[tauri::command]
-fn remove_user_skill(database: State<db::Database>, skill_id: i64) -> Result<(), String> {
+fn remove_user_skill(database: State<'_, db::AppDatabase>, skill_id: i64) -> Result<(), String> {
+    let database = database.get()?;
     {
         let conn = database
             .conn
@@ -1340,8 +1376,9 @@ fn remove_user_skill(database: State<db::Database>, skill_id: i64) -> Result<(),
 /// Get all user skills ordered by added_at DESC (Story 4b.1)
 #[tauri::command]
 fn get_user_skills(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<Vec<db::queries::user_skills::UserSkill>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1367,7 +1404,8 @@ pub struct RateConfig {
 /// Get user rate configuration from settings (Story 4b.4, Task 2)
 /// Returns hourly rate and minimum project rate (null if not configured)
 #[tauri::command]
-fn get_user_rate_config(database: State<db::Database>) -> Result<RateConfig, String> {
+fn get_user_rate_config(database: State<'_, db::AppDatabase>) -> Result<RateConfig, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1396,7 +1434,8 @@ fn get_user_rate_config(database: State<db::Database>) -> Result<RateConfig, Str
 /// Validates: must be positive, max 6 digits
 /// Story 4b.5 Task 5.2: Triggers recalculation of all job scores
 #[tauri::command]
-fn set_user_hourly_rate(database: State<db::Database>, rate: f64) -> Result<(), String> {
+fn set_user_hourly_rate(database: State<'_, db::AppDatabase>, rate: f64) -> Result<(), String> {
+    let database = database.get()?;
     // Validate rate
     if rate <= 0.0 {
         return Err("Hourly rate must be positive".to_string());
@@ -1429,7 +1468,8 @@ fn set_user_hourly_rate(database: State<db::Database>, rate: f64) -> Result<(), 
 /// Validates: must be positive, max 6 digits
 /// Story 4b.5 Task 5.2: Triggers recalculation of all job scores
 #[tauri::command]
-fn set_user_project_rate_min(database: State<db::Database>, rate: f64) -> Result<(), String> {
+fn set_user_project_rate_min(database: State<'_, db::AppDatabase>, rate: f64) -> Result<(), String> {
+    let database = database.get()?;
     // Validate rate
     if rate <= 0.0 {
         return Err("Project rate must be positive".to_string());
@@ -1466,9 +1506,10 @@ fn set_user_project_rate_min(database: State<db::Database>, rate: f64) -> Result
 /// Returns the calculated percentage or null if edge case (AC-3)
 #[tauri::command]
 fn calculate_and_store_skills_match(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     job_post_id: i64,
 ) -> Result<Option<f64>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1484,9 +1525,10 @@ fn calculate_and_store_skills_match(
 /// Retrieve stored job score for a job post (Task 4)
 #[tauri::command]
 fn get_job_score(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     job_post_id: i64,
 ) -> Result<Option<db::queries::scoring::JobScore>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1499,9 +1541,10 @@ fn get_job_score(
 /// Returns all component scores, matched/missing skills, and recommendation text
 #[tauri::command]
 fn get_scoring_breakdown(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     job_post_id: i64,
 ) -> Result<scoring::ScoringBreakdown, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1514,9 +1557,10 @@ fn get_scoring_breakdown(
 /// Orchestrates: read component scores → calculate weighted score → store → return
 #[tauri::command]
 fn calculate_overall_job_score(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     job_post_id: i64,
 ) -> Result<scoring::ScoringResult, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1551,7 +1595,8 @@ fn calculate_overall_job_score(
 /// Recalculate all job scores (Story 4b.5 Task 3.2)
 /// Bulk recalculation when user updates skills or rate configuration
 #[tauri::command]
-fn recalculate_all_scores(database: State<db::Database>) -> Result<usize, String> {
+fn recalculate_all_scores(database: State<'_, db::AppDatabase>) -> Result<usize, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1623,7 +1668,8 @@ fn get_safety_threshold_internal(database: &db::Database) -> Result<i32, String>
 
 /// Tauri command wrapper for get_safety_threshold
 #[tauri::command]
-fn get_safety_threshold(database: State<db::Database>) -> Result<i32, String> {
+fn get_safety_threshold(database: State<'_, db::AppDatabase>) -> Result<i32, String> {
+    let database = database.get()?;
     get_safety_threshold_internal(&database)
 }
 
@@ -1634,7 +1680,8 @@ fn get_safety_threshold(database: State<db::Database>) -> Result<i32, String> {
 /// Get the current proposals edited count for voice learning progress.
 /// Returns 0 if not yet tracked (code-level default).
 #[tauri::command]
-fn get_proposals_edited_count(database: State<db::Database>) -> Result<i32, String> {
+fn get_proposals_edited_count(database: State<'_, db::AppDatabase>) -> Result<i32, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1648,7 +1695,8 @@ fn get_proposals_edited_count(database: State<db::Database>) -> Result<i32, Stri
 /// Called after user copies a proposal (indicating they edited it).
 /// Returns the new count after incrementing.
 #[tauri::command]
-fn increment_proposals_edited(database: State<db::Database>) -> Result<i32, String> {
+fn increment_proposals_edited(database: State<'_, db::AppDatabase>) -> Result<i32, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1666,7 +1714,8 @@ fn increment_proposals_edited(database: State<db::Database>) -> Result<i32, Stri
 /// Returns the intensity level: "off", "light", "medium", or "heavy".
 /// Defaults to "medium" for new users (AC6).
 #[tauri::command]
-fn get_humanization_intensity(database: State<db::Database>) -> Result<String, String> {
+fn get_humanization_intensity(database: State<'_, db::AppDatabase>) -> Result<String, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -1683,9 +1732,10 @@ fn get_humanization_intensity(database: State<db::Database>) -> Result<String, S
 /// Valid values: "off", "light", "medium", "heavy" (AC6).
 #[tauri::command]
 fn set_humanization_intensity(
-    database: State<db::Database>,
+    database: State<'_, db::AppDatabase>,
     intensity: String,
 ) -> Result<(), String> {
+    let database = database.get()?;
     // Validate intensity value
     if !humanization::HumanizationIntensity::is_valid(&intensity) {
         return Err(format!(
@@ -1748,8 +1798,9 @@ struct ExportData {
 #[tauri::command]
 async fn export_proposals_to_json(
     app_handle: AppHandle,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<ExportResult, String> {
+    let database = database.get()?;
     // Get all proposals from database
     let proposals = {
         let conn = database
@@ -1867,21 +1918,20 @@ struct VerifyPassphraseResult {
     show_recovery: bool,
 }
 
-/// Verify passphrase and unlock encrypted database on app restart (Story 2.7)
+/// Verify passphrase and unlock encrypted database on app restart (Story 2-7b)
 ///
-/// Task 3: Tauri command for passphrase verification on restart
 /// - Calls open_encrypted_database() with passphrase
-/// - Stores database in Tauri state if successful
+/// - Stores Database instance in AppDatabase state via OnceLock
+/// - Runs deferred database-dependent initialization
 /// - Tracks failed attempts (in-memory, resets on restart)
 /// - Shows recovery options after 5 failures
-///
-/// NOTE: This is a simplified implementation. Full Story 2.7 requires refactoring
-/// database state to Mutex<Option<Database>> to support lazy initialization after
-/// passphrase entry. Current implementation assumes database is already initialized.
+/// - Emits database-ready event on success for frontend state transition
 #[tauri::command]
 async fn verify_passphrase_on_restart(
     app_handle: AppHandle,
     passphrase: String,
+    app_database: State<'_, db::AppDatabase>,
+    config_state: State<'_, config::ConfigState>,
 ) -> Result<VerifyPassphraseResult, String> {
     use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -1893,21 +1943,28 @@ async fn verify_passphrase_on_restart(
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
-    // Task 3.2: Call open_encrypted_database() with passphrase
+    // Call open_encrypted_database() with passphrase
     match db::open_encrypted_database(&app_data_dir, &passphrase) {
-        Ok(_database) => {
-            // Task 3.3: Store Database instance in Tauri state
-            // NOTE: This requires state refactoring to Mutex<Option<Database>>
-            // For now, database is already initialized during app setup
+        Ok(database) => {
+            // Story 2-7b: Store Database instance in AppDatabase via OnceLock
+            app_database.set(database)
+                .map_err(|_| "Database already initialized".to_string())?;
 
-            // Task 3.4: Migrations already run in Database::new()
+            // Run deferred initialization (log level migration, override cleanup)
+            let log_level = config_state.get_log_level()
+                .unwrap_or_else(|_| "INFO".to_string());
+            if let Err(e) = run_deferred_db_init(&app_database, &config_state, &log_level) {
+                tracing::warn!("Deferred init warning (non-fatal): {}", e);
+            }
 
             // Reset failed attempts on success
             FAILED_ATTEMPTS.store(0, Ordering::SeqCst);
 
             tracing::info!("Database unlocked successfully on restart");
 
-            // Task 3.5: Return success
+            // Emit database-ready event for frontend state transition
+            let _ = app_handle.emit("database-ready", ());
+
             Ok(VerifyPassphraseResult {
                 success: true,
                 message: "Database unlocked".to_string(),
@@ -1916,7 +1973,7 @@ async fn verify_passphrase_on_restart(
             })
         }
         Err(db::DatabaseError::IncorrectPassphrase) => {
-            // Task 4.2: Increment failed attempts counter (cap at 255 to prevent u8 overflow wrap)
+            // Increment failed attempts counter (cap at 255 to prevent u8 overflow wrap)
             let prev = FAILED_ATTEMPTS.load(Ordering::SeqCst);
             let attempts = if prev < 255 {
                 FAILED_ATTEMPTS.fetch_add(1, Ordering::SeqCst) + 1
@@ -1924,13 +1981,11 @@ async fn verify_passphrase_on_restart(
                 255
             };
 
-            // Task 4.5: Log failed attempts (no passphrase logged)
             tracing::warn!("Failed passphrase attempt {} (passphrase NOT logged)", attempts);
 
-            // Task 4.4: Show recovery after 5 failures
+            // Show recovery after 5 failures
             let show_recovery = attempts >= 5;
 
-            // Task 3.6: Return incorrect passphrase error
             Ok(VerifyPassphraseResult {
                 success: false,
                 message: "Incorrect passphrase. Try again.".to_string(),
@@ -1939,7 +1994,6 @@ async fn verify_passphrase_on_restart(
             })
         }
         Err(e) => {
-            // Other errors (salt missing, database corrupted)
             tracing::error!("Database unlock error: {}", e);
             Err(format!("Database unlock failed: {}", e))
         }
@@ -1976,8 +2030,9 @@ struct EncryptionStatus {
 #[tauri::command]
 async fn get_encryption_status(
     app_handle: AppHandle,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<EncryptionStatus, String> {
+    let database = database.get()?;
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
@@ -2045,11 +2100,19 @@ struct RecoveryKeyData {
 /// - Encrypted using Argon2id-derived key from passphrase
 /// - Plaintext key returned ONCE (user must save it)
 /// - Encrypted key stored in encryption_metadata table
+/// - Story 2-7b: Also stores recovery hash + wrapped DB key to external files for recovery flow
 #[tauri::command]
 async fn generate_recovery_key(
     passphrase: String,
-    database: State<'_, db::Database>,
+    app_handle: AppHandle,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<RecoveryKeyData, String> {
+    let database = database.get()?;
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
     // Task 1.1: Generate recovery key
     let recovery_key = keychain::recovery::generate_recovery_key()
         .map_err(|e| format!("Failed to generate recovery key: {}", e))?;
@@ -2070,6 +2133,25 @@ async fn generate_recovery_key(
             .map_err(|e| format!("Failed to hash recovery key: {}", e))?
             .to_string()
     };
+
+    // Story 2-7b: Derive DB encryption key from passphrase and wrap with recovery key
+    // This enables recovery flow to actually unlock the database
+    let db_key = passphrase::verify_passphrase(&passphrase, &app_data_dir)
+        .map_err(|e| format!("Failed to derive DB key: {}", e))?;
+    let wrapped_db_key = keychain::recovery::wrap_db_key(&db_key, &recovery_key)
+        .map_err(|e| format!("Failed to wrap DB key: {}", e))?;
+
+    // Story 2-7b: Store recovery hash and wrapped DB key to external files
+    // These are needed when database is locked (can't read from encrypted DB)
+    let recovery_hash_path = app_data_dir.join(".recovery_hash");
+    let wrapped_key_path = app_data_dir.join(".recovery_wrapped_key");
+
+    std::fs::write(&recovery_hash_path, &recovery_key_hash)
+        .map_err(|e| format!("Failed to write recovery hash file: {}", e))?;
+    std::fs::write(&wrapped_key_path, &wrapped_db_key)
+        .map_err(|e| format!("Failed to write wrapped key file: {}", e))?;
+
+    tracing::info!("Recovery data stored to external files for locked-DB recovery");
 
     // Task 1.3: Store encrypted key and hash in database (M3 fix: check affected rows)
     {
@@ -2105,86 +2187,105 @@ struct RecoveryUnlockResult {
     message: String,
 }
 
-/// Unlock database using recovery key (Story 2.9, Task 4.2)
+/// Unlock database using recovery key (Story 2.9 + Story 2-7b fix)
 ///
-/// Decrypts the stored recovery key to verify it matches, then uses it to
-/// confirm database access. On success, the user should be prompted to set
-/// a new passphrase.
+/// Reads recovery data from external files (not from the locked DB), verifies
+/// the recovery key, unwraps the DB encryption key, and fully unlocks the database.
+///
+/// # Story 2-7b Fix
+/// The original implementation called `database.get()` which fails when the DB is locked.
+/// Now reads from external files created during `generate_recovery_key`:
+/// - `.recovery_hash` - Argon2id hash for verification
+/// - `.recovery_wrapped_key` - DB encryption key wrapped with recovery key
 ///
 /// # Flow
-/// 1. Read encrypted recovery key from database
-/// 2. Try all possible passphrases... wait, we don't have the passphrase
-///
-/// Actually, the recovery key IS the alternative credential. The flow is:
-/// - Recovery key was encrypted WITH the passphrase (for storage verification)
-/// - But recovery key alone can't unlock the DB (DB is encrypted with passphrase-derived key)
-///
-/// For the current architecture (DB encrypted with passphrase-derived key), recovery
-/// requires a different approach: the recovery key must be able to derive/access the
-/// DB encryption key independently.
-///
-/// Implementation: Store the DB encryption key encrypted with BOTH the passphrase
-/// AND the recovery key. Recovery key decrypts the DB key directly.
-///
-/// For now (MVP), we validate the recovery key against the stored encrypted version
-/// by trying to decrypt it. The actual DB unlock uses a stored encrypted copy of the
-/// DB encryption key that was wrapped with the recovery key at generation time.
+/// 1. Read recovery hash from `.recovery_hash` file
+/// 2. Verify recovery key against hash (Argon2id)
+/// 3. Read wrapped DB key from `.recovery_wrapped_key` file
+/// 4. Unwrap DB key using recovery key (AES-256-GCM)
+/// 5. Open database with unwrapped key
+/// 6. Populate AppDatabase
+/// 7. Run deferred initialization
+/// 8. Emit database-ready event
 #[tauri::command]
 async fn unlock_with_recovery_key(
     recovery_key: String,
-    database: State<'_, db::Database>,
+    app_handle: AppHandle,
+    app_database: State<'_, db::AppDatabase>,
+    config_state: State<'_, config::ConfigState>,
 ) -> Result<RecoveryUnlockResult, String> {
-    // Validate recovery key format
+    // Validate recovery key format first
     keychain::recovery::validate_recovery_key(&recovery_key)
         .map_err(|e| format!("Invalid recovery key: {}", e))?;
 
-    // Read encrypted recovery key and hash from database in a single lock (M2 fix)
-    let (encrypted_recovery_key, stored_hash): (Option<String>, Option<String>) = {
-        let conn = database
-            .conn
-            .lock()
-            .map_err(|e| format!("Database lock error: {}", e))?;
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
-        conn.query_row(
-            "SELECT recovery_key_encrypted, recovery_key_hash FROM encryption_metadata WHERE id = 1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .map_err(|e| format!("Failed to read recovery key data: {}", e))?
-    };
+    // Story 2-7b: Read recovery data from external files (not locked DB)
+    let recovery_hash_path = app_data_dir.join(".recovery_hash");
+    let wrapped_key_path = app_data_dir.join(".recovery_wrapped_key");
 
-    // Verify the encrypted data exists (guard — we need at least one recovery method configured)
-    if encrypted_recovery_key.is_none() {
-        return Err("No recovery key configured. Set one up in recovery options.".to_string());
+    // Check if recovery files exist
+    if !recovery_hash_path.exists() || !wrapped_key_path.exists() {
+        return Err("No recovery key configured. Set one up in recovery options before locking yourself out.".to_string());
     }
 
-    tracing::info!("Recovery key unlock attempted (key NOT logged)");
+    // Read recovery hash from file
+    let stored_hash = std::fs::read_to_string(&recovery_hash_path)
+        .map_err(|e| format!("Failed to read recovery hash: {}", e))?;
 
-    // If we have a stored hash, verify against it
-    if let Some(stored_hash) = stored_hash {
-        // Verify using Argon2id
+    // Verify recovery key against stored hash using Argon2id
+    {
         use argon2::password_hash::PasswordHash;
         use argon2::{Argon2, PasswordVerifier};
 
-        let parsed_hash = PasswordHash::new(&stored_hash)
-            .map_err(|e| format!("Invalid stored hash: {}", e))?;
+        let parsed_hash = PasswordHash::new(stored_hash.trim())
+            .map_err(|e| format!("Invalid stored hash format: {}", e))?;
 
         Argon2::default()
             .verify_password(recovery_key.as_bytes(), &parsed_hash)
             .map_err(|_| "Invalid recovery key".to_string())?;
-
-        tracing::info!("Recovery key verified successfully");
-
-        Ok(RecoveryUnlockResult {
-            success: true,
-            message: "Recovery key verified. Please set a new passphrase.".to_string(),
-        })
-    } else {
-        // No hash stored — cannot verify recovery key without hash
-        tracing::error!("No recovery key hash found — cannot verify recovery key");
-
-        Err("No recovery key configured. Please set up a recovery key first.".to_string())
     }
+
+    tracing::info!("Recovery key verified against stored hash (key NOT logged)");
+
+    // Read wrapped DB key from file
+    let wrapped_db_key = std::fs::read_to_string(&wrapped_key_path)
+        .map_err(|e| format!("Failed to read wrapped key: {}", e))?;
+
+    // Unwrap DB key using recovery key
+    let db_key = keychain::recovery::unwrap_db_key(wrapped_db_key.trim(), &recovery_key)
+        .map_err(|e| format!("Failed to unwrap DB key: {}", e))?;
+
+    tracing::info!("DB key unwrapped successfully");
+
+    // Open encrypted database with unwrapped key
+    let db_path = app_data_dir.join("upwork-researcher.db");
+    let database = db::Database::new(db_path, Some(db_key))
+        .map_err(|e| format!("Failed to open database with recovery key: {}", e))?;
+
+    // Populate AppDatabase
+    app_database.set(database)
+        .map_err(|_| "Database already initialized".to_string())?;
+
+    // Run deferred initialization
+    let log_level = config_state.get_log_level()
+        .unwrap_or_else(|_| "INFO".to_string());
+    if let Err(e) = run_deferred_db_init(&app_database, &config_state, &log_level) {
+        tracing::warn!("Deferred init warning (non-fatal): {}", e);
+    }
+
+    tracing::info!("Database unlocked via recovery key");
+
+    // Emit database-ready event for frontend
+    let _ = app_handle.emit("database-ready", ());
+
+    Ok(RecoveryUnlockResult {
+        success: true,
+        message: "Database unlocked. You may want to set a new passphrase.".to_string(),
+    })
 }
 
 /// Set new passphrase after recovery key unlock (Story 2.9, Task 4.3)
@@ -2202,8 +2303,9 @@ async fn set_new_passphrase_after_recovery(
     new_passphrase: String,
     recovery_key: String,
     app_handle: AppHandle,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<(), String> {
+    let database = database.get()?;
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
@@ -2259,8 +2361,9 @@ struct BackupResult {
 #[tauri::command]
 async fn export_unencrypted_backup(
     app_handle: AppHandle,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<BackupResult, String> {
+    let database = database.get()?;
     // Show save dialog for user to pick location
     let file_path = app_handle
         .dialog()
@@ -2312,8 +2415,9 @@ async fn export_unencrypted_backup(
 #[tauri::command]
 async fn create_pre_migration_backup(
     app_handle: AppHandle,
-    database: tauri::State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<BackupResult, String> {
+    let database = database.get()?;
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
@@ -2406,8 +2510,9 @@ async fn migrate_database(
 #[tauri::command]
 async fn get_migration_verification(
     app_handle: AppHandle,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<migration::MigrationVerification, String> {
+    let database = database.get()?;
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
@@ -2423,6 +2528,88 @@ async fn get_migration_verification(
 async fn delete_old_database(old_db_path: String) -> Result<String, String> {
     migration::delete_old_database(&old_db_path)
         .map_err(|e| format!("Failed to delete old database: {}", e))
+}
+
+/// Story 2-7b: Run database-dependent initialization that must be deferred
+/// when the encrypted database hasn't been unlocked yet.
+/// Called during setup for unencrypted databases, or after passphrase unlock for encrypted ones.
+fn run_deferred_db_init(
+    app_database: &db::AppDatabase,
+    config_state: &config::ConfigState,
+    log_level: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let database = app_database.get().map_err(|e| format!("Database not ready: {}", e))?;
+
+    // Story 2.1, Task 8 (Subtask 8.6): One-time migration from database to config.json
+    if log_level == "INFO" {
+        let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+        if let Ok(Some(db_log_level)) = db::queries::settings::get_setting(&conn, "log_level") {
+            if db_log_level != "INFO" {
+                tracing::info!("Migrating log level from database to config.json: {}", db_log_level);
+                config_state.set_log_level(db_log_level.clone())
+                    .map_err(|e| format!("Failed to migrate log level: {}", e))?;
+            }
+        }
+        drop(conn);
+    }
+
+    tracing::info!("Config initialized successfully (log level: {})", log_level);
+
+    // Story 3.7: Auto-confirm successful overrides on startup (Task 3.1)
+    {
+        let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+
+        match db::queries::safety_overrides::get_pending_overrides_older_than_7_days(&conn) {
+            Ok(pending_overrides) => {
+                let mut successful_count = 0;
+                let mut unsuccessful_count = 0;
+
+                for override_record in pending_overrides {
+                    match db::queries::safety_overrides::proposal_exists(&conn, override_record.proposal_id) {
+                        Ok(true) => {
+                            if let Err(e) = db::queries::safety_overrides::update_override_status(
+                                &conn,
+                                override_record.id,
+                                db::queries::safety_overrides::STATUS_SUCCESSFUL,
+                            ) {
+                                tracing::warn!("Failed to update override {} to successful: {}", override_record.id, e);
+                            } else {
+                                successful_count += 1;
+                            }
+                        }
+                        Ok(false) => {
+                            if let Err(e) = db::queries::safety_overrides::update_override_status(
+                                &conn,
+                                override_record.id,
+                                db::queries::safety_overrides::STATUS_UNSUCCESSFUL,
+                            ) {
+                                tracing::warn!("Failed to update override {} to unsuccessful: {}", override_record.id, e);
+                            } else {
+                                unsuccessful_count += 1;
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to check proposal existence for override {}: {}", override_record.id, e);
+                        }
+                    }
+                }
+
+                if successful_count > 0 || unsuccessful_count > 0 {
+                    tracing::info!(
+                        "Auto-confirmed overrides: {} successful, {} unsuccessful",
+                        successful_count,
+                        unsuccessful_count
+                    );
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to query pending overrides (non-fatal): {}", e);
+            }
+        }
+    }
+
+    tracing::info!("Database-dependent initialization complete");
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -2494,32 +2681,17 @@ pub fn run() {
             // Subtask 8.3: Check for migration marker file
             let migration_complete = migration::is_migration_complete(&app_data_dir);
 
-            let database = if migration_complete {
-                // Subtask 8.4: Migration complete → open encrypted database
-                // NOTE: This flow requires passphrase from user (Story 2-7: Encrypted Database Access on Restart)
-                // For now, using None for backward compatibility until Story 2-7 is implemented
-                tracing::info!("Migration marker found - encrypted database detected");
-
-                // TODO (Story 2-7): Prompt user for passphrase, derive key, open encrypted DB
-                // For now, open unencrypted for backward compatibility
-                db::Database::new(db_path, None)
-                    .map_err(|e| {
-                        tracing::error!("Failed to open encrypted database: {}", e);
-                        format!("Failed to open encrypted database: {}", e)
-                    })?
+            // Story 2-7b: Use AppDatabase with OnceLock for lazy initialization
+            // Encrypted databases require passphrase before opening
+            let app_database = if migration_complete {
+                // Subtask 8.4: Migration complete → encrypted database detected
+                // Database cannot be opened until user provides passphrase
+                tracing::info!("Migration marker found - encrypted database requires passphrase unlock");
+                db::AppDatabase::new_empty()
             } else {
-                // Subtask 8.5: No migration marker → check if unencrypted DB exists
-                if db_path.exists() {
-                    tracing::info!("Unencrypted database exists - migration flow required");
-
-                    // Subtask 8.8: Emit Tauri event when migration needed
-                    // NOTE: Frontend (App.tsx) will detect this and trigger migration flow:
-                    //   1. PassphraseEntry UI (Story 2-1)
-                    //   2. Pre-migration backup (Story 2-2)
-                    //   3. Migration (Story 2-3)
-                    //   4. Verification (Story 2-4)
-
-                    // For now, open unencrypted database to allow app to function
+                // Subtask 8.5: No migration marker → open unencrypted database immediately
+                let database = if db_path.exists() {
+                    tracing::info!("Unencrypted database exists - opening directly");
                     db::Database::new(db_path, None)
                         .map_err(|e| {
                             tracing::error!("Failed to initialize database: {}", e);
@@ -2527,40 +2699,29 @@ pub fn run() {
                         })?
                 } else {
                     // New installation - create fresh unencrypted database
-                    // Migration will occur on first run after data is populated
                     tracing::info!("New installation - creating fresh database");
                     db::Database::new(db_path, None)
                         .map_err(|e| {
                             tracing::error!("Failed to create database: {}", e);
                             format!("Failed to create database: {}", e)
                         })?
-                }
+                };
+                db::AppDatabase::new_with(database)
             };
-
-            tracing::info!("Database initialized successfully");
 
             // Config already initialized early (for log level), reuse it
             let config_state = config_state_early;
 
-            // Story 2.1, Task 8 (Subtask 8.6): One-time migration from database to config.json
-            // If config.json has default log level but database has a custom one, migrate it
-            if log_level == "INFO" {
-                // Check if database has a different log level
-                let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
-                if let Ok(Some(db_log_level)) = db::queries::settings::get_setting(&conn, "log_level") {
-                    if db_log_level != "INFO" {
-                        tracing::info!("Migrating log level from database to config.json: {}", db_log_level);
-                        config_state.set_log_level(db_log_level.clone())
-                            .map_err(|e| format!("Failed to migrate log level: {}", e))?;
-                    }
-                }
-                drop(conn); // Release lock
+            // Story 2-7b: Database-dependent initialization runs only when DB is available
+            // For encrypted databases, this runs after passphrase unlock via run_deferred_db_init()
+            if app_database.is_ready() {
+                run_deferred_db_init(&app_database, &config_state, &log_level)?;
+            } else {
+                tracing::info!("Deferring database-dependent initialization until passphrase unlock");
             }
 
-            tracing::info!("Config initialized successfully (log level: {})", log_level);
-
             // Story 2.6: Auto-migrate API key from config.json to keychain (if needed)
-            // This runs once per app startup and is idempotent
+            // This runs once per app startup and is idempotent (no DB dependency)
             match config_state.migrate_api_key_to_keychain() {
                 Ok(true) => {
                     tracing::info!("API key auto-migrated from config.json to OS keychain");
@@ -2570,65 +2731,6 @@ pub fn run() {
                 }
                 Err(e) => {
                     tracing::warn!("API key migration failed (non-fatal): {}", e);
-                    // Non-fatal: app can still function with config.json fallback
-                }
-            }
-
-            // Story 3.7: Auto-confirm successful overrides on startup (Task 3.1)
-            // Check for pending overrides older than 7 days and mark them as successful/unsuccessful
-            {
-                let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
-
-                match db::queries::safety_overrides::get_pending_overrides_older_than_7_days(&conn) {
-                    Ok(pending_overrides) => {
-                        let mut successful_count = 0;
-                        let mut unsuccessful_count = 0;
-
-                        for override_record in pending_overrides {
-                            // Check if the proposal still exists
-                            match db::queries::safety_overrides::proposal_exists(&conn, override_record.proposal_id) {
-                                Ok(true) => {
-                                    // Proposal exists, mark as successful
-                                    if let Err(e) = db::queries::safety_overrides::update_override_status(
-                                        &conn,
-                                        override_record.id,
-                                        db::queries::safety_overrides::STATUS_SUCCESSFUL,
-                                    ) {
-                                        tracing::warn!("Failed to update override {} to successful: {}", override_record.id, e);
-                                    } else {
-                                        successful_count += 1;
-                                    }
-                                }
-                                Ok(false) => {
-                                    // Proposal deleted, mark as unsuccessful
-                                    if let Err(e) = db::queries::safety_overrides::update_override_status(
-                                        &conn,
-                                        override_record.id,
-                                        db::queries::safety_overrides::STATUS_UNSUCCESSFUL,
-                                    ) {
-                                        tracing::warn!("Failed to update override {} to unsuccessful: {}", override_record.id, e);
-                                    } else {
-                                        unsuccessful_count += 1;
-                                    }
-                                }
-                                Err(e) => {
-                                    tracing::warn!("Failed to check proposal existence for override {}: {}", override_record.id, e);
-                                }
-                            }
-                        }
-
-                        if successful_count > 0 || unsuccessful_count > 0 {
-                            tracing::info!(
-                                "Auto-confirmed overrides: {} successful, {} unsuccessful",
-                                successful_count,
-                                unsuccessful_count
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to query pending overrides (non-fatal): {}", e);
-                        // Non-fatal: app can continue without this cleanup
-                    }
                 }
             }
 
@@ -2647,12 +2749,23 @@ pub fn run() {
             let blocked_requests_state = BlockedRequestsState::new();
 
             // Store in managed state
-            app.manage(database);
+            app.manage(app_database);
             app.manage(config_state);
             app.manage(draft_state);
             app.manage(cooldown_state);
             app.manage(voice_cache);
             app.manage(blocked_requests_state);
+
+            // Story 2-7b: Emit passphrase-required event after state is registered
+            if migration_complete {
+                let handle = app.handle().clone();
+                // Brief delay to ensure frontend is ready to listen
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    let _ = handle.emit("passphrase-required", ());
+                    tracing::info!("Emitted passphrase-required event to frontend");
+                });
+            }
 
             Ok(())
         })
@@ -2843,8 +2956,9 @@ async fn log_safety_override_internal(
 async fn log_safety_override(
     score: f32,
     threshold: f32,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<(), String> {
+    let database = database.get()?;
     log_safety_override_internal(score, threshold, &database).await
 }
 
@@ -2901,8 +3015,9 @@ async fn record_safety_override(
     proposal_id: i64,
     ai_score: f32,
     threshold: f32,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<i64, String> {
+    let database = database.get()?;
     record_safety_override_internal(proposal_id, ai_score, threshold, &database).await
 }
 
@@ -2942,8 +3057,9 @@ const INACTIVITY_DAYS: i32 = 60; // Days without overrides to suggest decrease
 /// * `Ok(None)` - No adjustment needed
 #[tauri::command]
 async fn check_threshold_learning(
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<Option<ThresholdSuggestion>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -3048,8 +3164,9 @@ async fn check_threshold_learning(
 /// * `Ok(None)` - No decrease needed
 #[tauri::command]
 async fn check_threshold_decrease(
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<Option<ThresholdSuggestion>, String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()
@@ -3105,8 +3222,9 @@ async fn check_threshold_decrease(
 #[tauri::command]
 async fn apply_threshold_adjustment(
     new_threshold: i32,
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<(), String> {
+    let database = database.get()?;
     // Validate threshold range
     if new_threshold < 140 || new_threshold > THRESHOLD_MAX {
         return Err(format!("Threshold must be between 140 and {}", THRESHOLD_MAX));
@@ -3147,8 +3265,9 @@ async fn apply_threshold_adjustment(
 /// This effectively "resets the counter" per AC6.
 #[tauri::command]
 async fn dismiss_threshold_suggestion(
-    database: State<'_, db::Database>,
+    database: State<'_, db::AppDatabase>,
 ) -> Result<(), String> {
+    let database = database.get()?;
     let conn = database
         .conn
         .lock()

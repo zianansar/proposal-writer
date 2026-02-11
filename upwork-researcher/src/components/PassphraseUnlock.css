@@ -1,0 +1,190 @@
+/* PassphraseUnlock Component Styles - Story 2-7b */
+/* Uses design token system (tokens.css) for theme compatibility */
+
+.passphrase-unlock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  background-color: var(--color-bg-primary, #1a1a1a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg, 2rem);
+}
+
+.passphrase-unlock-modal {
+  max-width: 420px;
+  width: 100%;
+  background-color: var(--color-bg-secondary, #242424);
+  border-radius: var(--radius-lg, 12px);
+  padding: var(--spacing-2xl, 2.5rem);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+
+.passphrase-unlock-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md, 1rem);
+}
+
+.passphrase-unlock-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text-primary, #e0e0e0);
+}
+
+.passphrase-unlock-subtitle {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary, #a0a0a0);
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.passphrase-unlock-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 1rem);
+  text-align: left;
+}
+
+.passphrase-unlock-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.passphrase-unlock-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #a0a0a0);
+}
+
+.passphrase-unlock-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.passphrase-unlock-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-bg-tertiary, #2a2a2a);
+  border: 1px solid var(--color-border, #404040);
+  border-radius: var(--radius-md, 6px);
+  color: var(--color-text-primary, #e0e0e0);
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.passphrase-unlock-input-wrapper .passphrase-unlock-input {
+  padding-right: 4rem;
+}
+
+.passphrase-unlock-input:focus {
+  outline: none;
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.passphrase-unlock-input::placeholder {
+  color: var(--color-text-muted, #666);
+}
+
+.passphrase-unlock-input:disabled {
+  opacity: 0.6;
+}
+
+.passphrase-unlock-toggle {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--color-text-secondary, #a0a0a0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.passphrase-unlock-toggle:hover {
+  color: var(--color-text-primary, #e0e0e0);
+  border-color: var(--color-border, #404040);
+}
+
+.passphrase-unlock-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #666);
+  text-align: right;
+}
+
+.passphrase-unlock-error {
+  padding: 0.75rem 1rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--color-error, #ef4444);
+  border-radius: var(--radius-md, 6px);
+  color: var(--color-error, #ef4444);
+  font-size: 0.875rem;
+}
+
+.passphrase-unlock-counter {
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #a0a0a0);
+  font-weight: 500;
+}
+
+/* Buttons */
+.passphrase-unlock-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md, 6px);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.passphrase-unlock-btn-primary {
+  background-color: var(--color-primary, #3b82f6);
+  color: white;
+}
+
+.passphrase-unlock-btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover, #2563eb);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.passphrase-unlock-btn-primary:disabled {
+  background-color: var(--color-bg-tertiary, #404040);
+  color: var(--color-text-muted, #666);
+  cursor: not-allowed;
+}
+
+.passphrase-unlock-btn-full {
+  width: 100%;
+}
+
+.passphrase-unlock-btn-secondary {
+  background-color: var(--color-bg-tertiary, #2a2a2a);
+  color: var(--color-text-primary, #e0e0e0);
+  border: 1px solid var(--color-border, #404040);
+}
+
+.passphrase-unlock-btn-secondary:hover {
+  background-color: #333;
+  border-color: #555;
+}
+
+.passphrase-unlock-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.passphrase-unlock-actions .passphrase-unlock-btn {
+  flex: 1;
+}
+
