@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSettingsStore, getHumanizationIntensity, type HumanizationIntensity } from "../stores/useSettingsStore";
 import { useOnboardingStore } from "../stores/useOnboardingStore";
 import UserSkillsConfig from "./UserSkillsConfig";
 import { VoiceSettings } from "./VoiceSettings";
+import { ImportArchiveDialog } from "../features/proposal-history/ImportArchiveDialog";
+import { DatabaseExportButton } from "../features/proposal-history/DatabaseExportButton";
 
 /** Story 4b.4: Rate configuration for budget alignment */
 interface RateConfig {
@@ -19,6 +22,7 @@ const INTENSITY_OPTIONS: { value: HumanizationIntensity; label: string; descript
 ];
 
 function SettingsPanel() {
+  const queryClient = useQueryClient();
   const { getSetting, setSetting } = useSettingsStore();
   const humanizationIntensity = useSettingsStore(getHumanizationIntensity);
   const { setShowOnboarding } = useOnboardingStore();
@@ -49,6 +53,9 @@ function SettingsPanel() {
   const [rateMessage, setRateMessage] = useState<string | null>(null);
   const hourlyTimeoutRef = useRef<number | null>(null);
   const projectTimeoutRef = useRef<number | null>(null);
+
+  // Story 7.7: Import archive dialog state
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   useEffect(() => {
     // Load current log level from settings
@@ -500,6 +507,35 @@ function SettingsPanel() {
       <section className="settings-section">
         <VoiceSettings />
       </section>
+
+      {/* Story 7.6 & 7.7: Data Management - Export/Import */}
+      <section className="settings-section">
+        <h3>Data Management</h3>
+        <div className="data-management-buttons">
+          <DatabaseExportButton />
+          <button
+            className="button-secondary import-archive-button"
+            onClick={() => setShowImportDialog(true)}
+            aria-label="Import from encrypted archive"
+          >
+            Import from Archive
+          </button>
+        </div>
+        <p className="settings-help">
+          Export your data to an encrypted .urb file for backup or transfer to another device. Import to restore from a previous backup.
+        </p>
+      </section>
+
+      {/* Story 7.7: Import Archive Dialog */}
+      {showImportDialog && (
+        <ImportArchiveDialog
+          onClose={() => setShowImportDialog(false)}
+          onImportComplete={() => {
+            // AC-6: Invalidate all TanStack Query caches so UI reflects imported data
+            queryClient.invalidateQueries();
+          }}
+        />
+      )}
     </div>
   );
 }

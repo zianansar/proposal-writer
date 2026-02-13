@@ -35,7 +35,7 @@
 .hook-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border-color: #3a3a3a;
+  border-color: var(--color-bg-tertiary, #3a3a3a);
 }
 
 /* AC-3: Selected state - orange border, checkmark visible */

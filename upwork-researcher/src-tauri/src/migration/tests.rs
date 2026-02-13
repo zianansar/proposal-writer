@@ -168,9 +168,9 @@ fn test_attach_database_encryption_boundary() {
     passphrase::store_salt(&salt, app_data_dir).unwrap();
 
     let passphrase = "test_passphrase_123!";
-    let encryption_key = passphrase::verify_passphrase(passphrase, app_data_dir).unwrap();
+    let mut encryption_key = passphrase::verify_passphrase(passphrase, app_data_dir).unwrap();
 
-    let new_db = Database::new(new_db_path.clone(), Some(encryption_key)).unwrap();
+    let new_db = Database::new(new_db_path.clone(), Some(std::mem::take(&mut *encryption_key))).unwrap();
     let new_conn = new_db.conn.lock().unwrap();
 
     // Test ATTACH works from encrypted to unencrypted (requires KEY clause for SQLCipher)

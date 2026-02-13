@@ -2,7 +2,9 @@
 //!
 //! Organizes all Tauri commands by feature area.
 
+pub mod export;
 pub mod hooks;
+pub mod import;
 pub mod job_queue;
 pub mod proposals;
 pub mod scoring_feedback;

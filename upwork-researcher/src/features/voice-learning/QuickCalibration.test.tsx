@@ -185,7 +185,7 @@ describe('QuickCalibration', () => {
       expect(screen.getByRole('button', { name: /Start Writing/i })).toBeInTheDocument();
     });
 
-    it('calls save_voice_profile with correct parameters', async () => {
+    it('calls quick_calibrate with answers (TD-5 AC-2: backend is source of truth)', async () => {
       vi.mocked(tauriApi.invoke).mockResolvedValue(undefined);
 
       renderComponent();
@@ -211,15 +211,14 @@ describe('QuickCalibration', () => {
       fireEvent.click(screen.getByRole('button', { name: /Finish/i }));
 
       await waitFor(() => {
-        expect(tauriApi.invoke).toHaveBeenCalledWith('save_voice_profile', {
-          profile: expect.objectContaining({
-            tone_score: 9,
-            avg_sentence_length: 10,
-            technical_depth: 9,
-            structure_preference: { paragraphs_pct: 20, bullets_pct: 80 },
-            calibration_source: 'QuickCalibration',
-            sample_count: 0,
-          }),
+        expect(tauriApi.invoke).toHaveBeenCalledWith('quick_calibrate', {
+          answers: {
+            tone: 'formal',
+            length: 'brief',
+            technicalDepth: 'expert',
+            structure: 'bullets',
+            callToAction: 'direct',
+          },
         });
       });
     });

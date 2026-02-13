@@ -637,7 +637,7 @@ h1 {
 @media (prefers-color-scheme: light) {
   :root {
     color: #0f0f0f;
-    background-color: #f6f6f6;
+    background-color: var(--color-text-primary, #f6f6f6);
   }
 
   .navigation {
@@ -669,7 +669,7 @@ h1 {
   }
 
   .history-item {
-    background-color: #fff;
+    background-color: var(--color-primary-text, #fff);
     border-color: #ccc;
   }
 
@@ -682,7 +682,7 @@ h1 {
   }
 
   .job-input textarea {
-    background-color: #fff;
+    background-color: var(--color-primary-text, #fff);
     color: #0f0f0f;
     border-color: #ccc;
   }
@@ -704,7 +704,7 @@ h1 {
   }
 
   .generate-button {
-    color: #fff;
+    color: var(--color-primary-text, #fff);
     background-color: #396cd8;
   }
 
@@ -714,7 +714,7 @@ h1 {
 
   .generate-button:disabled {
     background-color: #999;
-    color: #fff;
+    color: var(--color-primary-text, #fff);
   }
 
   .generate-button.cooldown {
@@ -739,12 +739,12 @@ h1 {
   }
 
   .saved-indicator {
-    color: #28a745;
+    color: var(--color-button-success-bg, #28a745);
     background-color: rgba(40, 167, 69, 0.1);
   }
 
   .proposal-text {
-    background-color: #fff;
+    background-color: var(--color-primary-text, #fff);
     color: #0f0f0f;
     border-color: #ccc;
   }
@@ -778,7 +778,7 @@ h1 {
 
   .copy-button:hover:not(:disabled) {
     background-color: #396cd8;
-    color: #fff;
+    color: var(--color-primary-text, #fff);
   }
 
   .copy-button:disabled {
@@ -792,7 +792,7 @@ h1 {
 
   /* API Key Setup light mode */
   .api-key-setup {
-    background-color: #fff;
+    background-color: var(--color-primary-text, #fff);
     border-color: #ccc;
   }
 
@@ -805,7 +805,7 @@ h1 {
   }
 
   .api-key-setup__current {
-    background-color: #f6f6f6;
+    background-color: var(--color-text-primary, #f6f6f6);
   }
 
   .api-key-setup__current code {
@@ -813,7 +813,7 @@ h1 {
   }
 
   .api-key-setup__field input {
-    background-color: #fff;
+    background-color: var(--color-primary-text, #fff);
     color: #0f0f0f;
     border-color: #ccc;
   }
@@ -840,7 +840,7 @@ h1 {
   }
 
   .api-key-setup__submit {
-    color: #fff;
+    color: var(--color-primary-text, #fff);
     background-color: #396cd8;
   }
 
@@ -850,12 +850,12 @@ h1 {
 
   .api-key-setup__submit:disabled {
     background-color: #999;
-    color: #fff;
+    color: var(--color-primary-text, #fff);
   }
 
   /* Settings Section light mode */
   .settings-section {
-    background-color: #fff;
+    background-color: var(--color-primary-text, #fff);
     border-color: #ccc;
   }
 
@@ -870,11 +870,11 @@ h1 {
 
   .export-button:hover:not(:disabled) {
     background-color: #396cd8;
-    color: #fff;
+    color: var(--color-primary-text, #fff);
   }
 
   .export-result--success {
-    color: #28a745;
+    color: var(--color-button-success-bg, #28a745);
     background-color: rgba(40, 167, 69, 0.1);
   }
 
@@ -903,7 +903,7 @@ h1 {
 
 .error-actions .button--primary {
   background-color: #396cd8;
-  color: #fff;
+  color: var(--color-primary-text, #fff);
   border-color: #396cd8;
 }
 
@@ -919,7 +919,7 @@ h1 {
 
 .error-actions .button--secondary:hover {
   background-color: #666;
-  color: #fff;
+  color: var(--color-primary-text, #fff);
 }
 
 /* Dark mode adjustments */
@@ -930,8 +930,8 @@ h1 {
   }
 
   .error-actions .button--secondary:hover {
-    background-color: #555;
-    color: #fff;
+    background-color: var(--color-border, #555);
+    color: var(--color-primary-text, #fff);
   }
 }
 
@@ -1226,7 +1226,7 @@ h1 {
   }
 
   .humanization-option__badge {
-    color: #fff;
+    color: var(--color-primary-text, #fff);
     background-color: #396cd8;
   }
 

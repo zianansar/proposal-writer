@@ -152,11 +152,12 @@ pub fn migrate_to_encrypted_database(
 
     // Subtask 1.4: Create new SQLCipher database with derived Argon2id key
     // Use verify_passphrase which loads salt and derives key
-    let encryption_key = passphrase::verify_passphrase(passphrase, app_data_dir)
+    // TD-3: Key wrapped in Zeroizing — extract via std::mem::take, Database::new re-wraps
+    let mut encryption_key = passphrase::verify_passphrase(passphrase, app_data_dir)
         .map_err(|e| MigrationError::KeyDerivationFailed(e.to_string()))?;
 
     // Create new encrypted database with key
-    let new_db = Database::new(new_db_path.clone(), Some(encryption_key))
+    let new_db = Database::new(new_db_path.clone(), Some(std::mem::take(&mut *encryption_key)))
         .map_err(|e| MigrationError::NewDatabaseCreationFailed(e.to_string()))?;
 
     // Lock new database connection for migration

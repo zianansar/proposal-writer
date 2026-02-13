@@ -27,8 +27,8 @@
 }
 
 .report-score-modal {
-  background: #1a1a1a;
-  border: 1px solid #555;
+  background: var(--color-bg-primary, #1a1a1a);
+  border: 1px solid var(--color-border, #555);
   border-radius: 12px;
   padding: 24px;
   max-width: 480px;
@@ -56,7 +56,7 @@
 .report-score-modal__close {
   background: none;
   border: none;
-  color: #888;
+  color: var(--color-text-muted, #888);
   font-size: 24px;
   cursor: pointer;
   padding: 0;
@@ -73,7 +73,7 @@
 }
 
 .report-score-modal__score-summary {
-  background: #262626;
+  background: var(--color-bg-dark, #262626);
   border-radius: 8px;
   padding: 12px 16px;
   margin-bottom: 20px;
@@ -98,12 +98,12 @@
 }
 
 .score-color-red {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
   font-weight: 600;
 }
 
 .score-color-gray {
-  color: #888;
+  color: var(--color-text-muted, #888);
   font-weight: 600;
 }
 
@@ -157,7 +157,7 @@
 .report-score-modal__textarea {
   width: 100%;
   min-height: 80px;
-  background: #262626;
+  background: var(--color-bg-dark, #262626);
   border: 1px solid #444;
   border-radius: 6px;
   color: #e5e5e5;
@@ -169,29 +169,29 @@
 
 .report-score-modal__textarea:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-primary, #3b82f6);
 }
 
 .report-score-modal__char-count {
   text-align: right;
   font-size: 12px;
-  color: #888;
+  color: var(--color-text-muted, #888);
   margin-top: 4px;
 }
 
 .report-score-modal__error {
   padding: 12px;
   background: #3f1a1a;
-  border: 1px solid #ef4444;
+  border: 1px solid var(--color-error, #ef4444);
   border-radius: 6px;
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
   font-size: 14px;
 }
 
 .report-score-modal__submit {
   width: 100%;
   padding: 12px;
-  background: #3b82f6;
+  background: var(--color-primary, #3b82f6);
   color: white;
   border: none;
   border-radius: 8px;
@@ -202,11 +202,11 @@
 }
 
 .report-score-modal__submit:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--color-primary-hover, #2563eb);
 }
 
 .report-score-modal__submit:disabled {
-  background: #374151;
+  background: var(--color-border-gray, #374151);
   color: #6b7280;
   cursor: not-allowed;
 }

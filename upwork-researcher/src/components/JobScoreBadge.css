@@ -46,8 +46,8 @@
 /* Yellow: Medium priority (skills 50-74 OR quality 60-79) */
 .job-score-badge--yellow {
   background-color: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  border-color: #f59e0b;
+  color: var(--color-warning, #f59e0b);
+  border-color: var(--color-warning, #f59e0b);
 }
 
 .job-score-badge--yellow:hover {
@@ -57,8 +57,8 @@
 /* Red: Low priority (skills <50 OR quality <60 OR 0-hire client) */
 .job-score-badge--red {
   background-color: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border-color: #ef4444;
+  color: var(--color-error, #ef4444);
+  border-color: var(--color-error, #ef4444);
 }
 
 .job-score-badge--red:hover {

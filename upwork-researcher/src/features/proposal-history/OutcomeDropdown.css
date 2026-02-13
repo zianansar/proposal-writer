@@ -1,0 +1,42 @@
+/* OutcomeDropdown styles (Story 7.2) */
+
+.outcome-dropdown {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  min-width: 160px;
+  background-color: var(--color-bg-elevated, #262626);
+  border: 1px solid var(--color-border, #404040);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  outline: none;
+  overflow-y: auto;
+  max-height: 280px;
+}
+
+.outcome-dropdown__option {
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--color-text-secondary, #a3a3a3);
+}
+
+.outcome-dropdown__option--focused {
+  background-color: var(--color-bg-dark, #333);
+  color: var(--color-text-primary, #fafafa);
+}
+
+.outcome-dropdown__option--current {
+  font-weight: 600;
+  color: var(--color-text-primary, #fafafa);
+}
+
+/* Status-specific accent on current */
+.outcome-dropdown__option--current.outcome-dropdown__option--pending { color: #737373; }
+.outcome-dropdown__option--current.outcome-dropdown__option--submitted { color: #93c5fd; }
+.outcome-dropdown__option--current.outcome-dropdown__option--response_received { color: #bef264; }
+.outcome-dropdown__option--current.outcome-dropdown__option--interview { color: #c4b5fd; }
+.outcome-dropdown__option--current.outcome-dropdown__option--hired { color: #4ade80; }
+.outcome-dropdown__option--current.outcome-dropdown__option--no_response { color: #525252; }
+.outcome-dropdown__option--current.outcome-dropdown__option--rejected { color: #fca5a5; }

@@ -6,7 +6,7 @@
   align-items: center;
   min-height: 100vh;
   padding: 2rem;
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-primary, #1a1a1a);
 }
 
 .recovery-options-content {
@@ -28,7 +28,7 @@
 
 .recovery-warning {
   background: rgba(245, 158, 11, 0.15);
-  border: 2px solid #f59e0b;
+  border: 2px solid var(--color-warning, #f59e0b);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 2rem;
@@ -45,7 +45,7 @@
 }
 
 .recovery-option-card {
-  border: 2px solid #404040;
+  border: 2px solid var(--color-bg-hover, #404040);
   border-radius: 10px;
   padding: 1.5rem;
   transition: all 0.2s;
@@ -53,12 +53,12 @@
 }
 
 .recovery-option-card:hover {
-  border-color: #3b82f6;
+  border-color: var(--color-primary, #3b82f6);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
 }
 
 .recovery-option-card.selected {
-  border-color: #3b82f6;
+  border-color: var(--color-primary, #3b82f6);
   background: rgba(59, 130, 246, 0.1);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
@@ -78,7 +78,7 @@
 
 .backup-warning {
   background: rgba(239, 68, 68, 0.1);
-  border: 1px solid #ef4444;
+  border: 1px solid var(--color-error, #ef4444);
   border-radius: 6px;
   padding: 0.75rem;
   margin-bottom: 1rem;
@@ -88,7 +88,7 @@
 
 .backup-success {
   background: rgba(16, 185, 129, 0.1);
-  border: 1px solid #10b981;
+  border: 1px solid var(--color-success, #10b981);
   border-radius: 6px;
   padding: 0.75rem;
   color: #34d399;
@@ -113,30 +113,30 @@
 }
 
 .option-btn.primary {
-  background: #3b82f6;
+  background: var(--color-primary, #3b82f6);
   color: white;
 }
 
 .option-btn.primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--color-primary-hover, #2563eb);
 }
 
 .option-btn.secondary {
-  background: #10b981;
+  background: var(--color-success, #10b981);
   color: white;
 }
 
 .option-btn.secondary:hover:not(:disabled) {
-  background: #059669;
+  background: var(--color-success-hover, #059669);
 }
 
 .option-btn.warning {
-  background: #f59e0b;
+  background: var(--color-warning, #f59e0b);
   color: white;
 }
 
 .option-btn.warning:hover:not(:disabled) {
-  background: #d97706;
+  background: var(--color-warning-hover, #d97706);
 }
 
 .option-btn:disabled {
@@ -145,8 +145,8 @@
 }
 
 .recovery-key-display {
-  background: #1a1a1a;
-  border: 2px solid #3b82f6;
+  background: var(--color-bg-primary, #1a1a1a);
+  border: 2px solid var(--color-primary, #3b82f6);
   border-radius: 8px;
   padding: 1.5rem;
   margin-top: 1rem;
@@ -176,7 +176,7 @@
   flex: 1;
   padding: 0.5rem 1rem;
   border-radius: 6px;
-  border: 1px solid #404040;
+  border: 1px solid var(--color-bg-hover, #404040);
   background: #2a2a2a;
   color: #e0e0e0;
   font-weight: 600;
@@ -186,18 +186,18 @@
 
 .action-btn:hover {
   background: #333;
-  border-color: #555;
+  border-color: var(--color-border, #555);
 }
 
 .action-btn.copied {
   background: rgba(16, 185, 129, 0.2);
-  border-color: #10b981;
+  border-color: var(--color-success, #10b981);
   color: #34d399;
 }
 
 .recovery-key-instructions {
   background: rgba(245, 158, 11, 0.15);
-  border: 1px solid #f59e0b;
+  border: 1px solid var(--color-warning, #f59e0b);
   border-radius: 6px;
   padding: 0.75rem;
   color: #fbbf24;
@@ -219,12 +219,12 @@
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: #3b82f6;
+  accent-color: var(--color-primary, #3b82f6);
 }
 
 .error-message {
   background: rgba(239, 68, 68, 0.1);
-  border: 2px solid #ef4444;
+  border: 2px solid var(--color-error, #ef4444);
   border-radius: 8px;
   padding: 1rem;
   color: #f87171;
@@ -243,7 +243,7 @@
   padding: 0.875rem 2.5rem;
   border-radius: 8px;
   border: none;
-  background: #10b981;
+  background: var(--color-success, #10b981);
   color: white;
   font-weight: 700;
   font-size: 1.125rem;
@@ -252,7 +252,7 @@
 }
 
 .continue-btn:hover:not(:disabled) {
-  background: #059669;
+  background: var(--color-success-hover, #059669);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
@@ -316,21 +316,21 @@
 }
 
 .modal-btn.primary {
-  background: #3b82f6;
+  background: var(--color-primary, #3b82f6);
   color: white;
 }
 
 .modal-btn.primary:hover {
-  background: #2563eb;
+  background: var(--color-primary-hover, #2563eb);
 }
 
 .modal-btn.destructive {
-  background: #ef4444;
+  background: var(--color-error, #ef4444);
   color: white;
 }
 
 .modal-btn.destructive:hover {
-  background: #dc2626;
+  background: var(--color-error-hover, #dc2626);
 }
 
 /* Print Styles (M2 fix: don't hide grid parent, hide individual children instead) */

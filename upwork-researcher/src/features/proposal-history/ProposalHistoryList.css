@@ -26,3 +26,35 @@
   text-align: center;
   color: #a3a3a3;
 }
+
+/* Story 7.2: Toast notification for outcome updates */
+.outcome-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 9998;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.outcome-toast--success {
+  background-color: #14532d;
+  color: #4ade80;
+}
+
+.outcome-toast--error {
+  background-color: #450a0a;
+  color: #fca5a5;
+}
+
+
+/* Story 7.6: Toolbar for export button */
+.history-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  background-color: var(--color-bg-dark, #262626);
+  border-bottom: 1px solid #333;
+}

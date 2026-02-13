@@ -11,8 +11,8 @@
   margin-top: 1rem;
   margin-bottom: 1rem;
   padding: 1.25rem;
-  background-color: #1a1a1a;
-  border: 1px solid #555;
+  background-color: var(--color-bg-primary, #1a1a1a);
+  border: 1px solid var(--color-border, #555);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -80,7 +80,7 @@
   color: #e0e0e0; /* Primary text for content */
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
-  border-left: 3px solid #24c8db;
+  border-left: 3px solid var(--color-accent, #24c8db);
 }
 
 /* ===========================================
@@ -98,8 +98,8 @@
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  color: #1a1a1a;
-  background-color: #24c8db;
+  color: var(--color-text-inverse, #1a1a1a);
+  background-color: var(--color-accent, #24c8db);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -111,13 +111,13 @@
 }
 
 .generate-proposal-cta:disabled {
-  background-color: #555;
-  color: #888;
+  background-color: var(--color-border, #555);
+  color: var(--color-text-muted, #888);
   cursor: not-allowed;
 }
 
 .generate-proposal-cta:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary, #3b82f6);
   outline-offset: 2px;
 }
 
@@ -128,7 +128,7 @@
 @media (prefers-color-scheme: light) {
   .job-analysis-panel {
     background-color: #f9fafb;
-    border-color: #d1d5db;
+    border-color: var(--color-text-gray, #d1d5db);
   }
 
   .job-analysis-section__header {
@@ -150,7 +150,7 @@
   }
 
   .generate-proposal-cta {
-    color: #fff;
+    color: var(--color-primary-text, #fff);
     background-color: #396cd8;
   }
 
@@ -159,7 +159,7 @@
   }
 
   .generate-proposal-cta:disabled {
-    background-color: #9ca3af;
-    color: #d1d5db;
+    background-color: var(--color-text-gray-muted, #9ca3af);
+    color: var(--color-text-gray, #d1d5db);
   }
 }

@@ -348,3 +348,77 @@ fn test_verify_passphrase_key_derivation_correctness() {
     let similar_key = verify_passphrase_and_derive_key("CorrectPass124!", dir.path()).unwrap();
     assert_ne!(original_key, similar_key, "Similar passphrase must produce different key");
 }
+
+// ====================
+// TD-3 Tests: Zeroize Behavior Verification
+// ====================
+
+#[test]
+fn test_derive_key_returns_zeroizing_wrapper() {
+    // TD-3 AC-1: Verify derive_key returns Zeroizing<Vec<u8>> that zeroes on call
+    use zeroize::Zeroize;
+
+    let passphrase = "MySecurePass123!";
+    let salt = [0u8; 16];
+
+    let mut key = derive_key(passphrase, &salt).unwrap();
+
+    // Verify the key is valid and wrapped in Zeroizing (type system enforces this)
+    assert_eq!(key.len(), KEY_LENGTH);
+    // Key should contain non-zero bytes (actual cryptographic output)
+    assert!(key.iter().any(|&b| b != 0), "Key should have non-zero bytes before zeroize");
+
+    // Explicitly zeroize while buffer is still alive (safe — no use-after-free)
+    key.zeroize();
+
+    // Verify all bytes are now zero — buffer is still allocated so this is safe
+    assert!(
+        key.iter().all(|&b| b == 0),
+        "Key bytes should be zeroed after zeroize()"
+    );
+}
+
+#[test]
+fn test_set_passphrase_returns_zeroizing_wrapper() {
+    // TD-3 AC-1: Verify set_passphrase returns Zeroizing<Vec<u8>>
+    use zeroize::Zeroize;
+
+    let dir = tempdir().unwrap();
+    let passphrase = "MySecurePass123!";
+
+    let mut key = set_passphrase(passphrase, dir.path()).unwrap();
+
+    // Verify key is valid
+    assert_eq!(key.len(), KEY_LENGTH);
+    assert!(key.iter().any(|&b| b != 0), "Key should have non-zero bytes before zeroize");
+
+    // Explicitly zeroize while buffer is still alive (safe — no use-after-free)
+    key.zeroize();
+
+    // Verify all bytes are now zero
+    assert!(
+        key.iter().all(|&b| b == 0),
+        "Key bytes should be zeroed after zeroize() (set_passphrase)"
+    );
+}
+
+#[test]
+fn test_zeroizing_string_zeroes_passphrase() {
+    // TD-3 AC-3: Verify Zeroizing<String> zeroes passphrase from memory after use
+    use zeroize::{Zeroize, Zeroizing};
+
+    let mut passphrase = Zeroizing::new("TestPassphrase123!".to_string());
+
+    // Verify passphrase is accessible while alive
+    assert_eq!(passphrase.len(), 18);
+    assert!(passphrase.as_bytes().iter().any(|&b| b != 0), "Passphrase should have non-zero bytes");
+
+    // Explicitly zeroize while buffer is still alive (safe — no use-after-free)
+    passphrase.zeroize();
+
+    // Verify all bytes are now zero
+    assert!(
+        passphrase.as_bytes().iter().all(|&b| b == 0),
+        "Passphrase string bytes should be zeroed after zeroize()"
+    );
+}

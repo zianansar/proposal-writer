@@ -18,6 +18,10 @@ export default defineConfig(async () => ({
     environment: "jsdom",
     globals: false,
     setupFiles: ["./src/test/setup.ts"],
+    alias: {
+      // Stub for packages not installed on disk but imported by source files
+      "@tauri-apps/plugin-dialog": path.resolve(__dirname, "./src/test/__mocks__/tauri-plugin-dialog.ts"),
+    },
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import SettingsPanel from "./SettingsPanel";
+import { createSettingsMockInvoke } from "../test/settingsPanelMocks";
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -39,27 +40,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
     // Use fake timers with shouldAdvanceTime to prevent waitFor timeouts
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    // Default mock: get_safety_threshold returns 180
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "set_setting") {
-        return Promise.resolve();
-      }
-      if (command === "set_log_level") {
-        return Promise.resolve();
-      }
-      // Story 4b.5 Review Fix: Return proper RateConfig object instead of null
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      }
-      // Story 4b.5 Review Fix: Return empty skills array for UserSkillsConfig
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke());
   });
 
   afterEach(() => {
@@ -196,23 +177,9 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   // Story 3.5: Test slider reverts on save error
   it("reverts slider value on save error", async () => {
     // Mock set_setting to fail
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "set_setting") {
-        return Promise.reject(new Error("Database error"));
-      }
-      // Story 4b.5 Review Fix: Include rate config mock
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      }
-      // Story 4b.5 Review Fix: Include user skills mock
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      set_setting: () => Promise.reject(new Error("Database error")),
+    }));
 
     await act(async () => {
       render(<SettingsPanel />);
@@ -307,32 +274,10 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    // Default mock: return rates config and safety threshold
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      }
-      if (command === "set_user_hourly_rate") {
-        return Promise.resolve();
-      }
-      if (command === "set_user_project_rate_min") {
-        return Promise.resolve();
-      }
-      if (command === "set_setting") {
-        return Promise.resolve();
-      }
-      if (command === "set_log_level") {
-        return Promise.resolve();
-      }
-      // Story 4b.5 Review Fix: Include user skills mock
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      set_user_hourly_rate: () => Promise.resolve(),
+      set_user_project_rate_min: () => Promise.resolve(),
+    }));
   });
 
   afterEach(() => {
@@ -374,19 +319,9 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
 
   // Subtask 9.4: Test rates load on mount
   it("loads configured rates on mount", async () => {
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: 75.0, project_rate_min: 2000.0 });
-      }
-      // Story 4b.5 Review Fix: Include user skills mock
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      get_user_rate_config: () => Promise.resolve({ hourly_rate: 75.0, project_rate_min: 2000.0 }),
+    }));
 
     await act(async () => {
       render(<SettingsPanel />);
@@ -467,24 +402,11 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
   it("shows 'Saving...' indicator during hourly rate save", async () => {
     // Make the invoke hang for a bit so we can see the saving state
     let resolveInvoke: (() => void) | null = null;
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      }
-      if (command === "set_user_hourly_rate") {
-        return new Promise<void>((resolve) => {
-          resolveInvoke = resolve;
-        });
-      }
-      // Story 4b.5 Review Fix: Include user skills mock
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      set_user_hourly_rate: () => new Promise<void>((resolve) => {
+        resolveInvoke = resolve;
+      }),
+    }));
 
     await act(async () => {
       render(<SettingsPanel />);
@@ -558,22 +480,10 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
 
   // Subtask 9.4: Test empty value doesn't trigger save
   it("does not save empty hourly rate value", async () => {
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: 75.0, project_rate_min: null });
-      }
-      if (command === "set_user_hourly_rate") {
-        return Promise.resolve();
-      }
-      // Story 4b.5 Review Fix: Include user skills mock
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      get_user_rate_config: () => Promise.resolve({ hourly_rate: 75.0, project_rate_min: null }),
+      set_user_hourly_rate: () => Promise.resolve(),
+    }));
 
     await act(async () => {
       render(<SettingsPanel />);
@@ -636,25 +546,10 @@ describe("SettingsPanel - VoiceSettings Integration (Story 6.2)", () => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      }
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      // VoiceSettings calls
-      if (command === "get_voice_profile") {
-        return Promise.resolve(null);
-      }
-      if (command === "update_voice_parameters") {
-        return Promise.resolve();
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      get_voice_profile: () => Promise.resolve(null),
+      update_voice_parameters: () => Promise.resolve(),
+    }));
   });
 
   afterEach(() => {
@@ -712,29 +607,9 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    // Default mocks
-    mockInvoke.mockImplementation((command: string, args?: any) => {
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "get_setting") {
-        // Story 8.14: crash_reporting_enabled defaults to null (not set)
-        if (args?.key === "crash_reporting_enabled") {
-          return Promise.resolve(null);
-        }
-        return Promise.resolve(null);
-      }
-      if (command === "set_setting") {
-        return Promise.resolve();
-      }
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      }
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      get_setting: () => Promise.resolve(null),
+    }));
   });
 
   afterEach(() => {
@@ -779,21 +654,10 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
   });
 
   it("crash reporting toggle shows OFF when setting is 'false'", async () => {
-    mockInvoke.mockImplementation((command: string, args?: any) => {
-      if (command === "get_setting" && args?.key === "crash_reporting_enabled") {
-        return Promise.resolve("false");
-      }
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      }
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      get_setting: (args?: any) =>
+        Promise.resolve(args?.key === "crash_reporting_enabled" ? "false" : null),
+    }));
 
     await act(async () => {
       render(<SettingsPanel />);
@@ -839,24 +703,10 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
 
   it("persists crash reporting toggle to settings when disabled", async () => {
     // Start with crash reporting enabled
-    mockInvoke.mockImplementation((command: string, args?: any) => {
-      if (command === "get_setting" && args?.key === "crash_reporting_enabled") {
-        return Promise.resolve("true");
-      }
-      if (command === "set_setting") {
-        return Promise.resolve();
-      }
-      if (command === "get_safety_threshold") {
-        return Promise.resolve(180);
-      }
-      if (command === "get_user_rate_config") {
-        return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      }
-      if (command === "get_user_skills") {
-        return Promise.resolve([]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      get_setting: (args?: any) =>
+        Promise.resolve(args?.key === "crash_reporting_enabled" ? "true" : null),
+    }));
 
     await act(async () => {
       render(<SettingsPanel />);
@@ -934,15 +784,10 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
     expect(checkbox).not.toBeChecked();
 
     // Make set_setting fail
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "set_setting") {
-        return Promise.reject(new Error("Database write failed"));
-      }
-      if (command === "get_safety_threshold") return Promise.resolve(180);
-      if (command === "get_user_rate_config") return Promise.resolve({ hourly_rate: null, project_rate_min: null });
-      if (command === "get_user_skills") return Promise.resolve([]);
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      get_setting: () => Promise.resolve(null),
+      set_setting: () => Promise.reject(new Error("Database write failed")),
+    }));
 
     // Try to enable - should fail and revert
     await act(async () => {
@@ -979,12 +824,10 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
       resolveSave = resolve;
     });
 
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "set_setting") {
-        return savePromise;
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createSettingsMockInvoke({
+      get_setting: () => Promise.resolve(null),
+      set_setting: () => savePromise,
+    }));
 
     // Click checkbox
     await act(async () => {

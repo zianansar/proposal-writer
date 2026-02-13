@@ -1,5 +1,7 @@
 pub mod analysis;
 pub mod archive;
+pub mod archive_export;
+pub mod archive_import;
 pub mod backup;
 pub mod claude;
 pub mod commands;
@@ -360,6 +362,7 @@ async fn generate_proposal_streaming(
         &database,
         &draft_state,
         &intensity,
+        None, // rehumanization_attempt (Story TD-1)
     )
     .await?;
 
@@ -432,6 +435,7 @@ async fn regenerate_with_humanization(
         &database,
         &draft_state,
         &escalated_str,
+        None, // rehumanization_attempt (Story TD-1)
     )
     .await?;
 
@@ -2767,6 +2771,14 @@ pub fn run() {
             app.manage(voice_cache);
             app.manage(blocked_requests_state);
 
+            // Story 7.6: Export rate limiting state (AC-6: 60s cooldown)
+            app.manage(commands::export::ExportRateLimitState::new());
+
+            // Story 7.7: Clean up orphaned import temp files from previous crashes
+            if let Err(e) = commands::import::cleanup_import_temp_files() {
+                tracing::warn!("Failed to cleanup orphaned import temp files: {}", e);
+            }
+
             // Story 2-7b: Emit passphrase-required event after state is registered
             if migration_complete {
                 let handle = app.handle().clone();
@@ -2792,6 +2804,10 @@ pub fn run() {
             save_proposal,
             get_proposals,
             commands::proposals::get_proposal_history, // Story 8.7: Memory Optimization
+            commands::proposals::search_proposals, // Story 7.3: Search & Filter
+            commands::proposals::get_distinct_hook_strategies, // Story 7.3: Hook strategy filter
+            commands::proposals::get_proposal_detail, // Story 7.4: Full proposal detail view
+            commands::proposals::update_proposal_outcome, // Story 7.1/7.2: Outcome status mutation
             delete_proposal, // Story 6.8: Delete Proposal & All Revisions
             update_proposal_content, // Story 6.1: TipTap Editor auto-save
             // Revision commands (Story 6.3: Proposal Revision History)
@@ -2875,6 +2891,7 @@ pub fn run() {
             regenerate_with_humanization,
             // Export commands (Story 1.10)
             export_proposals_to_json,
+            commands::export::export_encrypted_archive, // Story 7.6: Encrypted archive export
             // Draft recovery commands (Story 1.14)
             check_for_draft,
             update_proposal_status,
@@ -2903,7 +2920,16 @@ pub fn run() {
             // Test data seeding commands (Story 8.10)
             commands::test_data::seed_proposals,
             commands::test_data::seed_job_posts,
-            commands::test_data::clear_test_data
+            commands::test_data::clear_test_data,
+            // Analytics commands (Story 7.5)
+            commands::proposals::get_proposal_analytics_summary,
+            commands::proposals::get_outcome_distribution,
+            commands::proposals::get_response_rate_by_strategy,
+            commands::proposals::get_weekly_activity,
+            // Import commands (Story 7.7)
+            commands::import::read_archive_metadata,
+            commands::import::decrypt_archive,
+            commands::import::execute_import
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -7,7 +7,7 @@
   padding: 0 16px;
   height: 72px;
   cursor: pointer;
-  border-bottom: 1px solid #262626;
+  border-bottom: 1px solid var(--color-bg-dark, #262626);
   background-color: #171717;
   transition: background-color 0.15s ease;
   box-sizing: border-box;
@@ -15,17 +15,17 @@
 }
 
 .proposal-history-card:hover {
-  background-color: #262626;
+  background-color: var(--color-bg-dark, #262626);
 }
 
 .proposal-history-card:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary, #3b82f6);
   outline-offset: -2px;
-  background-color: #262626;
+  background-color: var(--color-bg-dark, #262626);
 }
 
 .proposal-history-card:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary, #3b82f6);
   outline-offset: -2px;
 }
 
@@ -41,6 +41,14 @@
   box-sizing: border-box;
 }
 
+/* Story 7.1: Header row with job excerpt and outcome badge */
+.proposal-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .proposal-job-excerpt {
   font-size: 14px;
   font-weight: 500;
@@ -49,6 +57,62 @@
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Story 7.2: Outcome status badge (button for interactive dropdown) */
+.proposal-outcome-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  /* Button reset for Story 7.2 */
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.proposal-outcome-badge:focus-visible {
+  outline: 2px solid var(--color-primary, #3b82f6);
+  outline-offset: 1px;
+}
+
+.proposal-outcome-badge--pending {
+  background-color: var(--color-bg-dark, #262626);
+  color: #737373;
+}
+
+.proposal-outcome-badge--submitted {
+  background-color: #1e3a5f;
+  color: #93c5fd;
+}
+
+.proposal-outcome-badge--response_received {
+  background-color: #365314;
+  color: #bef264;
+}
+
+.proposal-outcome-badge--interview {
+  background-color: #4a1d96;
+  color: #c4b5fd;
+}
+
+.proposal-outcome-badge--hired {
+  background-color: #14532d;
+  color: #4ade80;
+}
+
+.proposal-outcome-badge--no_response {
+  background-color: var(--color-bg-dark, #262626);
+  color: #525252;
+}
+
+.proposal-outcome-badge--rejected {
+  background-color: #450a0a;
+  color: #fca5a5;
 }
 
 .proposal-preview {

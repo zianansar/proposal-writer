@@ -101,12 +101,14 @@ pub struct PerplexityAnalysis {
     pub flagged_sentences: Vec<FlaggedSentence>,
 }
 
-pub const SYSTEM_PROMPT: &str = r#"You are an expert Upwork proposal writer. Generate a 3-paragraph proposal:
-1. Hook: Open with a specific insight about the client's problem that shows you read the job post
-2. Bridge: Explain your relevant experience and approach to solving their problem
-3. CTA: End with a clear call to action and availability
+/// TD-1: Rewritten to remove formulaic structure that triggers AI detection.
+/// Research shows numbered paragraph templates are a strong detection signal.
+pub const SYSTEM_PROMPT: &str = r#"You are writing an Upwork proposal on behalf of a freelancer. The proposal should:
+- Open by showing you understand the client's specific problem (reference details from their job post)
+- Briefly mention relevant experience and your approach
+- End with availability and a clear next step
 
-Keep the total length under 200 words. Write in a professional but conversational tone."#;
+Keep it under 200 words. Write like a real freelancer — direct, confident, conversational."#;
 
 /// Get API key from environment variable or provided value.
 fn resolve_api_key(provided_key: Option<&str>) -> Result<String, String> {
@@ -245,6 +247,7 @@ pub async fn generate_proposal_streaming(
 /// Uses async queue to prevent race conditions in draft saving (Code Review Fix).
 /// Story 3.3: Humanization instructions injected via system prompt (zero latency overhead).
 /// Story 4a.9: Input sanitization with prompt injection defense (AR-13, AC-1, AC-2, AC-3).
+/// TD-1: Added rehumanization_attempt for boost prompts on regeneration.
 pub async fn generate_proposal_streaming_with_key(
     job_content: &str,
     app_handle: AppHandle,
@@ -252,6 +255,7 @@ pub async fn generate_proposal_streaming_with_key(
     database: &db::Database,
     draft_state: &DraftState,
     humanization_intensity: &str,
+    rehumanization_attempt: Option<u32>,
 ) -> Result<String, String> {
     let api_key = resolve_api_key(api_key)?;
 
@@ -268,11 +272,15 @@ pub async fn generate_proposal_streaming_with_key(
         );
     }
 
-    // Story 3.3: Build system prompt with humanization (single API call, zero latency overhead)
-    let system_prompt = humanization::build_system_prompt(SYSTEM_PROMPT, humanization_intensity);
+    // Story 3.3 + TD-1: Build system prompt with humanization (single API call, zero latency overhead)
+    // TD-1: Use rehumanization boost on retry attempts for stronger anti-detection
+    let system_prompt = match rehumanization_attempt {
+        Some(attempt) => humanization::build_rehumanization_prompt(SYSTEM_PROMPT, humanization_intensity, attempt),
+        None => humanization::build_system_prompt(SYSTEM_PROMPT, humanization_intensity),
+    };
 
     // AR-16: Log intensity, not prompt content
-    tracing::info!(intensity = %humanization_intensity, "Generating streaming proposal with humanization");
+    tracing::info!(intensity = %humanization_intensity, attempt = ?rehumanization_attempt, "Generating streaming proposal with humanization");
 
     let client = Client::builder()
         .timeout(Duration::from_secs(60)) // Longer timeout for streaming

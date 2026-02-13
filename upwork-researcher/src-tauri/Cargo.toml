@@ -30,7 +30,8 @@ tauri-specta = { version = "2.0.0-rc.19", features = ["typescript"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
 tokio = { version = "1", features = ["rt", "sync", "time"] }
 futures = "0.3"
-rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl"] }
+# TD-5 AC-4: rusqlite uses platform-conditional SQLCipher features.
+# See [target] sections below and .cargo/config.toml for full setup docs.
 refinery = { version = "0.8", features = ["rusqlite"] }
 chrono = { version = "0.4", features = ["serde"] }
 
@@ -44,6 +45,7 @@ hex = "0.4" # For encoding encryption keys
 base64 = "0.21" # For salt encoding/decoding
 aes-gcm = "0.10" # AES-256-GCM authenticated encryption (Story 2.9 recovery key)
 thiserror = "1.0" # For custom error types
+zeroize = { version = "1.8", features = ["derive"] } # Secure memory zeroing (TD-3)
 
 # Logging infrastructure (Story 1.16)
 tracing = "0.1"
@@ -52,6 +54,11 @@ tracing-appender = "0.2"
 
 # Compression for archived revisions (Story 6.7)
 flate2 = "1.0"
+
+# Archive import utilities (Story 7.7)
+scopeguard = "1.2"
+uuid = { version = "1.7", features = ["v4"] }
+fs2 = "0.4"
 
 # Input sanitization (Story 4a.9)
 unicode-normalization = "0.1"
@@ -69,6 +76,15 @@ pdf-extract = "0.7"
 
 # Performance monitoring (Story 8.10)
 sysinfo = "0.30"
+
+# TD-5 AC-4: Platform-conditional SQLCipher / OpenSSL configuration
+# - Windows: bundled-sqlcipher links against system/vcpkg OpenSSL (no Perl/NASM needed)
+# - macOS/Linux: bundled-sqlcipher-vendored-openssl compiles OpenSSL from source (just works)
+[target.'cfg(target_os = "windows")'.dependencies]
+rusqlite = { version = "0.32", features = ["bundled-sqlcipher"] }
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl"] }
 
 [dev-dependencies]
 tempfile = "3"

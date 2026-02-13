@@ -62,13 +62,13 @@
   padding: 1rem;
   background-color: #d4edda;
   border-radius: 4px;
-  border: 1px solid #28a745;
+  border: 1px solid var(--color-button-success-bg, #28a745);
   color: #155724;
 }
 
 .voice-calibration .checkmark {
   font-size: 1.5rem;
-  color: #28a745;
+  color: var(--color-button-success-bg, #28a745);
 }
 
 .voice-calibration .error {

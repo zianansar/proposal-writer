@@ -42,8 +42,8 @@
 /* Red: skills_match < 50 OR client_quality < 60 OR zero-hire client */
 .score-red {
   background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 2px solid #ef4444;
+  color: var(--color-error, #ef4444);
+  border: 2px solid var(--color-error, #ef4444);
 }
 
 /* Gray: not yet scored */

@@ -14,8 +14,8 @@
 }
 
 .encryption-modal {
-  background-color: #1a1a1a;
-  border: 1px solid #555;
+  background-color: var(--color-bg-primary, #1a1a1a);
+  border: 1px solid var(--color-border, #555);
   border-radius: 8px;
   padding: 1.5rem;
   max-width: 420px;
@@ -69,26 +69,26 @@
   font-size: 0.95rem;
   font-weight: 500;
   color: #e0e0e0;
-  background-color: #3a3a3a;
-  border: 1px solid #555;
+  background-color: var(--color-bg-tertiary, #3a3a3a);
+  border: 1px solid var(--color-border, #555);
   border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .encryption-modal__close:hover {
-  background-color: #4a4a4a;
+  background-color: var(--color-cooldown-bg, #4a4a4a);
 }
 
 .encryption-modal__close:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary, #3b82f6);
   outline-offset: 2px;
 }
 
 /* Light mode */
 @media (prefers-color-scheme: light) {
   .encryption-modal {
-    background-color: #fff;
+    background-color: var(--color-primary-text, #fff);
     border-color: #ccc;
   }
 

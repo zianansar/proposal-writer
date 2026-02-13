@@ -3,22 +3,14 @@
 //! Provides Tauri commands for querying proposal history with pagination and virtualization support.
 
 use crate::db::AppDatabase;
+use crate::db::queries::proposals::ProposalListItem;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use tracing::info;
 
-/// Lightweight proposal list item (AC-6: excludes heavy columns)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProposalListItem {
-    pub id: i64,
-    pub job_excerpt: String,   // First 100 chars of job_content
-    pub preview_text: String,   // First 200 chars of generated_text
-    pub created_at: String,
-}
-
 /// Paginated response with metadata (AC-4, AC-5)
+/// CR L-3: ProposalListItem now defined in db::queries::proposals (single source of truth)
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalHistoryResponse {
@@ -44,12 +36,15 @@ fn query_proposal_history_internal(
     // AC-6: Select ONLY lightweight columns (NOT generated_text, full_job_content, revision_history)
     // AC-4: Use indexed created_at column with DESC order
     // Secondary sort by id DESC for deterministic ordering when timestamps are identical
+    // Story 7.1 AC-4: Include outcome_status and hook_strategy_id
     let query = "
         SELECT
             id,
             SUBSTR(COALESCE(job_content, ''), 1, 100) as job_excerpt,
             SUBSTR(COALESCE(generated_text, ''), 1, 200) as preview_text,
-            created_at
+            created_at,
+            outcome_status,
+            hook_strategy_id
         FROM proposals
         ORDER BY created_at DESC, id DESC
         LIMIT ? OFFSET ?
@@ -66,6 +61,8 @@ fn query_proposal_history_internal(
                 job_excerpt: row.get(1)?,
                 preview_text: row.get(2)?,
                 created_at: row.get(3)?,
+                outcome_status: row.get(4)?,
+                hook_strategy_id: row.get(5)?,
             })
         })
         .map_err(|e| format!("Failed to execute proposal history query: {}", e))?;
@@ -135,10 +132,212 @@ pub async fn get_proposal_history(
     Ok(response)
 }
 
+/// Search proposals with filters and pagination (Story 7.3)
+///
+/// Supports text search (job content + proposal text), outcome status filter,
+/// date range filter, and hook strategy filter. All filters are AND-combined.
+///
+/// Returns same ProposalHistoryResponse shape as get_proposal_history.
+#[tauri::command]
+pub async fn search_proposals(
+    db: State<'_, AppDatabase>,
+    search_text: Option<String>,
+    outcome_status: Option<String>,
+    date_range_days: Option<u32>,
+    hook_strategy: Option<String>,
+    limit: u32,
+    offset: u32,
+) -> Result<ProposalHistoryResponse, String> {
+    let db = db.get()?;
+    let start = std::time::Instant::now();
+    // CR R2 M-1: Cap limit to prevent unbounded result sets
+    let limit = limit.min(500);
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    let result = crate::db::queries::proposals::search_proposals(
+        &conn_guard,
+        search_text.as_deref(),
+        outcome_status.as_deref(),
+        date_range_days,
+        hook_strategy.as_deref(),
+        limit,
+        offset,
+    )
+    .map_err(|e| format!("Failed to search proposals: {}", e))?;
+
+    let elapsed = start.elapsed();
+    info!(
+        "Proposal search query: {:?} ({} results, {} total)",
+        elapsed,
+        result.proposals.len(),
+        result.total_count
+    );
+
+    // CR L-3: No mapping needed — both use ProposalListItem from db::queries::proposals
+    Ok(ProposalHistoryResponse {
+        proposals: result.proposals,
+        total_count: result.total_count,
+        has_more: result.has_more,
+    })
+}
+
+/// Get full proposal detail by ID (Story 7.4 AC-1)
+///
+/// Returns all proposal fields including outcome tracking, hook strategy,
+/// linked job title (via LEFT JOIN), and revision count.
+#[tauri::command]
+pub async fn get_proposal_detail(
+    db: State<'_, AppDatabase>,
+    id: i64,
+) -> Result<crate::db::queries::proposals::ProposalDetail, String> {
+    let db = db.get()?;
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    crate::db::queries::proposals::get_proposal_detail(&conn_guard, id)
+        .map_err(|e| format!("Failed to get proposal detail: {}", e))?
+        .ok_or_else(|| format!("Proposal not found: {}", id))
+}
+
+/// Get distinct hook strategy IDs from proposals (Story 7.3)
+///
+/// Returns list of strategy IDs that exist in the user's proposal data,
+/// for populating the hook strategy filter dropdown.
+#[tauri::command]
+pub async fn get_distinct_hook_strategies(
+    db: State<'_, AppDatabase>,
+) -> Result<Vec<String>, String> {
+    let db = db.get()?;
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    crate::db::queries::proposals::get_distinct_hook_strategies(&conn_guard)
+        .map_err(|e| format!("Failed to get hook strategies: {}", e))
+}
+
+/// Update proposal outcome status (Story 7.1 AC-1, Story 7.2 AC-2)
+///
+/// Validates status against VALID_OUTCOME_STATUSES, updates DB, returns success.
+/// Called from OutcomeDropdown in both list and detail views.
+#[tauri::command]
+pub async fn update_proposal_outcome(
+    db: State<'_, AppDatabase>,
+    proposal_id: i64,
+    outcome_status: String,
+) -> Result<bool, String> {
+    let db = db.get()?;
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    crate::db::queries::proposals::update_proposal_outcome(&conn_guard, proposal_id, &outcome_status)
+        .map_err(|e| format!("Failed to update proposal outcome: {}", e))
+}
+
+// =========================================================================
+// Story 7.5: Analytics Dashboard Commands
+// =========================================================================
+
+/// Get proposal analytics summary (Story 7.5 AC-1)
+///
+/// Returns aggregate metrics including total proposals, response rate,
+/// best performing hook strategy, and proposals created this month.
+///
+/// Excludes draft proposals from all calculations.
+#[tauri::command]
+pub async fn get_proposal_analytics_summary(
+    db: State<'_, AppDatabase>,
+) -> Result<crate::db::queries::proposals::AnalyticsSummary, String> {
+    let db = db.get()?;
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    crate::db::queries::proposals::get_proposal_analytics_summary(&conn_guard)
+        .map_err(|e| format!("Failed to get analytics summary: {}", e))
+}
+
+/// Get outcome distribution for bar chart (Story 7.5 AC-2)
+///
+/// Returns count of proposals per outcome status.
+/// Used to render the outcome distribution chart in the analytics dashboard.
+#[tauri::command]
+pub async fn get_outcome_distribution(
+    db: State<'_, AppDatabase>,
+) -> Result<Vec<crate::db::queries::proposals::OutcomeCount>, String> {
+    let db = db.get()?;
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    crate::db::queries::proposals::get_outcome_distribution(&conn_guard)
+        .map_err(|e| format!("Failed to get outcome distribution: {}", e))
+}
+
+/// Get response rate by hook strategy (Story 7.5 AC-3)
+///
+/// Returns performance metrics per hook strategy, sorted by response rate descending.
+/// Includes strategies with no hook (strategy = "none").
+/// Used for the hook strategy performance chart.
+#[tauri::command]
+pub async fn get_response_rate_by_strategy(
+    db: State<'_, AppDatabase>,
+) -> Result<Vec<crate::db::queries::proposals::StrategyPerformance>, String> {
+    let db = db.get()?;
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    crate::db::queries::proposals::get_response_rate_by_strategy(&conn_guard)
+        .map_err(|e| format!("Failed to get response rate by strategy: {}", e))
+}
+
+/// Get weekly proposal activity (Story 7.5 AC-4)
+///
+/// Returns proposal count and response rate per week for the last N weeks.
+/// Default: last 12 weeks.
+///
+/// # Arguments
+/// * `weeks` - Number of weeks to look back (default 12)
+#[tauri::command]
+pub async fn get_weekly_activity(
+    db: State<'_, AppDatabase>,
+    weeks: Option<u32>,
+) -> Result<Vec<crate::db::queries::proposals::WeeklyActivity>, String> {
+    let db = db.get()?;
+    let weeks = weeks.unwrap_or(12);
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    crate::db::queries::proposals::get_weekly_activity(&conn_guard, weeks)
+        .map_err(|e| format!("Failed to get weekly activity: {}", e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::queries::proposals::insert_proposal;
+    use crate::db::queries::proposals::{insert_proposal, insert_proposal_with_context};
     use tempfile::tempdir;
 
     fn create_test_db() -> crate::db::Database {
@@ -302,5 +501,72 @@ mod tests {
         assert_eq!(result.proposals.len(), 1);
         assert_eq!(result.proposals[0].job_excerpt, ""); // Empty string truncation
         assert_eq!(result.proposals[0].preview_text, "Test generated text");
+    }
+
+    // =========================================================================
+    // Story 7.1 AC-4: Verify new fields in proposal history response
+    // =========================================================================
+
+    #[test]
+    fn test_proposal_history_includes_outcome_status() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // Insert proposal (default outcome_status = 'pending')
+        insert_proposal(&conn, "Test job", "Test text", None).unwrap();
+
+        let result = query_proposal_history_internal(&conn, 50, 0).unwrap();
+
+        assert_eq!(result.proposals.len(), 1);
+        assert_eq!(
+            result.proposals[0].outcome_status, "pending",
+            "AC-4: outcome_status should be included in response"
+        );
+    }
+
+    #[test]
+    fn test_proposal_history_includes_hook_strategy_id() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // Insert proposal with hook strategy key (AC-2: stored as snake_case key)
+        insert_proposal_with_context(
+            &conn,
+            "Test job",
+            "Test text",
+            None,
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
+
+        // Insert proposal without hook strategy
+        insert_proposal(&conn, "Job 2", "Text 2", None).unwrap();
+
+        let result = query_proposal_history_internal(&conn, 50, 0).unwrap();
+
+        assert_eq!(result.proposals.len(), 2);
+
+        // Find the proposal with strategy (order is DESC by created_at, so last inserted first)
+        let with_strategy = result
+            .proposals
+            .iter()
+            .find(|p| p.hook_strategy_id.is_some())
+            .expect("Should find proposal with hook strategy");
+        assert_eq!(
+            with_strategy.hook_strategy_id.as_deref(),
+            Some("social_proof"),
+            "AC-4: hook_strategy_id should be included in response"
+        );
+
+        let without_strategy = result
+            .proposals
+            .iter()
+            .find(|p| p.hook_strategy_id.is_none())
+            .expect("Should find proposal without hook strategy");
+        assert!(
+            without_strategy.hook_strategy_id.is_none(),
+            "hook_strategy_id should be null when not set"
+        );
     }
 }

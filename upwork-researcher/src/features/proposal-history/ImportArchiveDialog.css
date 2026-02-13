@@ -1,0 +1,492 @@
+/* ImportArchiveDialog — Multi-step import wizard styles (Story 7.7) */
+
+.import-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.import-dialog {
+  background: var(--color-bg-dark, #262626);
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.import-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #333;
+}
+
+.import-dialog-header h2 {
+  margin: 0;
+  color: var(--color-primary, #3b82f6);
+  font-size: 20px;
+}
+
+.import-dialog-close {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.import-dialog-close:hover {
+  color: #fff;
+}
+
+/* Multi-step indicator */
+.import-steps-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid #333;
+}
+
+.step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #1e1e1e;
+  border: 2px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.step-circle.active {
+  background: var(--color-primary, #3b82f6);
+  border-color: var(--color-primary, #3b82f6);
+  color: white;
+}
+
+.step-circle.completed {
+  background: var(--color-success, #10b981);
+  border-color: var(--color-success, #10b981);
+  color: white;
+}
+
+.import-dialog-content {
+  padding: 24px;
+}
+
+.import-step h3 {
+  margin-top: 0;
+  color: #fff;
+  font-size: 18px;
+}
+
+.import-step p {
+  color: #ccc;
+  line-height: 1.5;
+}
+
+/* File selection */
+.select-archive-button {
+  background: var(--color-primary, #3b82f6);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.select-archive-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.select-archive-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Metadata display */
+.metadata-display {
+  background: #1e1e1e;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.metadata-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #333;
+}
+
+.metadata-row:last-child {
+  border-bottom: none;
+}
+
+.metadata-label {
+  color: #999;
+  font-size: 14px;
+}
+
+.metadata-value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.metadata-hint {
+  background: #2a2a2a;
+  padding: 12px;
+  margin: 8px 0;
+  border-left: 3px solid var(--color-primary, #3b82f6);
+}
+
+.metadata-section-title {
+  margin-top: 16px;
+  margin-bottom: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.metadata-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.count-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #2a2a2a;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.count-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--color-primary, #3b82f6);
+}
+
+.count-label {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* Passphrase input */
+.passphrase-hint-reminder {
+  background: #2a2a2a;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  border-left: 3px solid var(--color-primary, #3b82f6);
+  color: #ccc;
+}
+
+.passphrase-input-group {
+  margin-bottom: 16px;
+}
+
+.passphrase-input-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #ccc;
+  font-size: 14px;
+}
+
+.passphrase-input-wrapper {
+  position: relative;
+}
+
+.passphrase-input-wrapper input {
+  width: 100%;
+  padding: 12px;
+  padding-right: 48px;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: white;
+  font-size: 16px;
+}
+
+.passphrase-input-wrapper input:focus {
+  outline: none;
+  border-color: var(--color-primary, #3b82f6);
+}
+
+.toggle-passphrase {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px 8px;
+}
+
+/* Import modes */
+.import-modes {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.mode-card {
+  flex: 1;
+  background: #1e1e1e;
+  border: 2px solid #444;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.mode-card:hover {
+  border-color: #666;
+}
+
+.mode-card.selected {
+  border-color: var(--color-primary, #3b82f6);
+  background: #2a2a2a;
+}
+
+.mode-card input[type="radio"] {
+  display: none;
+}
+
+.mode-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.mode-title {
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.mode-description {
+  font-size: 13px;
+  color: #999;
+  line-height: 1.4;
+}
+
+/* Replace confirmation */
+.replace-confirmation {
+  background: #2a2a2a;
+  padding: 16px;
+  border-radius: 4px;
+  border-left: 3px solid var(--color-warning, #f59e0b);
+  margin-bottom: 16px;
+}
+
+.confirmation-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.confirmation-checkbox input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.warning-text {
+  color: var(--color-warning, #f59e0b);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.backup-note {
+  font-size: 13px;
+  color: #999;
+  margin: 8px 0 0 32px;
+}
+
+/* Compatibility warnings */
+.compatibility-warnings {
+  background: #2a2a2a;
+  border-left: 3px solid var(--color-warning, #f59e0b);
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.warning-item {
+  color: var(--color-warning, #f59e0b);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.warning-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Progress */
+.import-progress {
+  margin: 24px 0;
+}
+
+.progress-label {
+  color: #ccc;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--color-primary, #3b82f6);
+  transition: width 0.3s;
+}
+
+.progress-count {
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+}
+
+.progress-note {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+/* Summary */
+.import-summary {
+  background: #1e1e1e;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #333;
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.summary-label {
+  color: #999;
+  font-size: 14px;
+}
+
+.summary-value {
+  color: var(--color-success, #10b981);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Error state */
+.error-message {
+  background: #2a2a2a;
+  border-left: 3px solid var(--color-error, #ef4444);
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  color: var(--color-error, #ef4444);
+  font-size: 14px;
+}
+
+.error-note {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.success-title {
+  color: var(--color-success, #10b981) !important;
+}
+
+.error-title {
+  color: var(--color-error, #ef4444) !important;
+}
+
+/* Buttons */
+.import-button-primary {
+  background: var(--color-primary, #3b82f6);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.import-button-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.import-button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.import-button-secondary {
+  background: #444;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.import-button-secondary:hover {
+  background: #555;
+}

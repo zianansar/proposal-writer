@@ -17,7 +17,7 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  color: #3b82f6;
+  color: var(--color-primary, #3b82f6);
   transition: background-color 0.15s, color 0.15s;
 }
 
@@ -26,7 +26,7 @@
 }
 
 .encryption-indicator__button:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary, #3b82f6);
   outline-offset: 2px;
 }
 
@@ -52,7 +52,7 @@
 /* Light mode */
 @media (prefers-color-scheme: light) {
   .encryption-indicator__button {
-    color: #2563eb;
+    color: var(--color-primary-hover, #2563eb);
   }
 
   .encryption-indicator__button:hover {
@@ -60,11 +60,11 @@
   }
 
   .encryption-indicator__button:focus-visible {
-    outline-color: #2563eb;
+    outline-color: var(--color-primary-hover, #2563eb);
   }
 
   .encryption-indicator__tooltip {
-    color: #fff;
+    color: var(--color-primary-text, #fff);
     background-color: #333;
   }
 }

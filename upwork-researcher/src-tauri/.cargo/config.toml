@@ -1,8 +1,18 @@
 # Cargo configuration for Upwork Research Agent
-# Story 4b.7: vcpkg OpenSSL integration
-
-[env]
-# Use vcpkg-installed OpenSSL instead of building from source
-# Resolves Perl configuration errors with bundled-sqlcipher-vendored-openssl
-OPENSSL_DIR = "C:/vcpkg/installed/x64-windows-static-md"
-OPENSSL_NO_VENDOR = "1"
+# TD-5 AC-4: Cross-platform build configuration
+#
+# OpenSSL / SQLCipher setup:
+# ─────────────────────────
+# Platform-conditional rusqlite features are set in Cargo.toml:
+#   - Windows:    `bundled-sqlcipher`                   → links against system OpenSSL
+#   - macOS/Linux: `bundled-sqlcipher-vendored-openssl` → compiles OpenSSL from source
+#
+# WINDOWS SETUP:
+#   Install vcpkg and OpenSSL:
+#     1. vcpkg install openssl:x64-windows-static-md
+#     2. Set environment variables (system or shell profile):
+#        OPENSSL_DIR=C:\vcpkg\installed\x64-windows-static-md
+#        OPENSSL_NO_VENDOR=1
+#
+# macOS/Linux: No configuration needed. Vendored OpenSSL build works automatically.
+# CI: Set OPENSSL_DIR and OPENSSL_NO_VENDOR in your CI environment for Windows jobs.

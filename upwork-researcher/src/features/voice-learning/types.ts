@@ -16,6 +16,15 @@ export interface VoiceProfile {
   updated_at?: string;             // ISO timestamp
 }
 
+/** Quick calibration answers sent to backend (TD-5 AC-2: single source of truth) */
+export interface QuickCalibrationAnswers {
+  tone: 'formal' | 'professional' | 'conversational' | 'casual';
+  length: 'brief' | 'moderate' | 'detailed';
+  technicalDepth: 'simple' | 'technical' | 'expert';
+  structure: 'bullets' | 'paragraphs' | 'mixed';
+  callToAction: 'direct' | 'consultative' | 'question';
+}
+
 /** Progress event payload from Tauri backend (Story 5.4: AC-4) */
 export interface AnalysisProgress {
   current: number;  // Current proposal being analyzed (1-based)

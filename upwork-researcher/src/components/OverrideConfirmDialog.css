@@ -122,7 +122,7 @@
 
 .override-confirm__button.button--danger {
   background: var(--color-error); /* Red danger */
-  color: #ffffff;
+  color: var(--color-primary-text, #ffffff);
 }
 
 .override-confirm__button.button--danger:hover {

@@ -10,7 +10,9 @@ import HookStrategySelector from "./components/HookStrategySelector"; // Story 5
 import GenerateButton from "./components/GenerateButton";
 import ProposalOutput from "./components/ProposalOutput";
 import Navigation from "./components/Navigation";
-import HistoryList from "./components/HistoryList";
+// TODO: Old HistoryList replaced by ProposalHistoryList (Story 7.4 AC-7)
+// import HistoryList from "./components/HistoryList";
+import { ProposalHistoryList, ProposalDetailView, ProposalAnalyticsDashboard } from "./features/proposal-history";
 import ApiKeySetup from "./components/ApiKeySetup";
 import ExportButton from "./components/ExportButton";
 import DraftRecoveryModal from "./components/DraftRecoveryModal";
@@ -45,7 +47,7 @@ import { DEFAULT_PERPLEXITY_THRESHOLD } from "./types/perplexity";
 import "./styles/tokens.css";
 import "./App.css";
 
-type View = "generate" | "history" | "settings";
+type View = "generate" | "history" | "settings" | "proposal-detail" | "analytics";
 type MigrationPhase = "idle" | "recovery-options" | "backup" | "migration" | "verification" | "complete" | "failed";
 
 function AppContent() {
@@ -53,6 +55,8 @@ function AppContent() {
   const announce = useAnnounce();
 
   const [activeView, setActiveView] = useState<View>("generate");
+  // Story 7.4: Track selected proposal for detail view
+  const [selectedProposalId, setSelectedProposalId] = useState<number | null>(null);
   const [jobContent, setJobContent] = useState("");
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [checkingApiKey, setCheckingApiKey] = useState(true);
@@ -425,6 +429,13 @@ function AppContent() {
     setActiveView("generate");
   }, []);
 
+  // Story 7.4 CR R2 M-1: Stable callback for detail view back navigation
+  // Prevents Escape-key useEffect in ProposalDetailView from re-registering on every App render
+  const handleBackFromDetail = useCallback(() => {
+    setActiveView("history");
+    setSelectedProposalId(null);
+  }, []);
+
   // Story 3.7: Threshold adjustment handlers (AC5, AC6)
   const handleThresholdAccept = useCallback((newThreshold: number) => {
     setThresholdSuggestion(null);
@@ -556,6 +567,8 @@ function AppContent() {
           const result = await invoke<{ id: number; saved: boolean }>("save_proposal", {
             jobContent: jobContentRef.current,
             generatedText: fullText,
+            strategyId: selectedStrategyId, // Story 7.1 AC-2: Hook strategy used
+            jobPostId: jobPostId, // Story 7.1 AC-3: Originating job post
           });
           if (result.saved) {
             setSaved(result.id);
@@ -1185,6 +1198,8 @@ function AppContent() {
       </div>
 
       {/* Story 8.3: Tabpanel for history view */}
+      {/* Story 7.4 AC-7: ProposalHistoryList replaces old HistoryList */}
+      {/* H-1 CR fix: Panel stays mounted during detail view to preserve scroll position and filter state (AC-2) */}
       <div
         id="history-panel"
         role="tabpanel"
@@ -1192,7 +1207,33 @@ function AppContent() {
         hidden={activeView !== "history"}
       >
         <h2 className="sr-only">Proposal History</h2>
-        {activeView === "history" && <HistoryList />}
+        {(activeView === "history" || activeView === "proposal-detail") && (
+          <ProposalHistoryList
+            onProposalSelect={(id) => {
+              setSelectedProposalId(id);
+              setActiveView("proposal-detail");
+            }}
+          />
+        )}
+      </div>
+
+      {/* Story 7.4: Proposal detail view (sub-view of history) */}
+      {activeView === "proposal-detail" && selectedProposalId != null && (
+        <ProposalDetailView
+          proposalId={selectedProposalId}
+          onBack={handleBackFromDetail}
+        />
+      )}
+
+      {/* Story 7.5: Analytics dashboard view */}
+      <div
+        id="analytics-panel"
+        role="tabpanel"
+        aria-labelledby="analytics-tab"
+        hidden={activeView !== "analytics"}
+      >
+        <h2 className="sr-only">Proposal Analytics</h2>
+        {activeView === "analytics" && <ProposalAnalyticsDashboard />}
       </div>
 
       {/* Story 8.3: Tabpanel for settings view */}

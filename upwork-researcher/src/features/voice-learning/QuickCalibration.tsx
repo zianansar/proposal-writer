@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { QUICK_CALIBRATION_QUESTIONS } from './quickCalibrationQuestions';
-import { mapAnswersToProfile, type QuickCalibrationAnswers } from './quickCalibrationMapper';
+import type { QuickCalibrationAnswers } from './types';
 
 interface QuickCalibrationProps {
   existingAnswers?: Partial<QuickCalibrationAnswers>;
@@ -81,8 +81,8 @@ export function QuickCalibration({ existingAnswers, onComplete }: QuickCalibrati
       setIsSaving(true);
       setError(null);
       try {
-        const profile = mapAnswersToProfile(answers as QuickCalibrationAnswers);
-        await invoke('save_voice_profile', { profile });
+        // TD-5 AC-2: Backend is single source of truth for mapping
+        await invoke('quick_calibrate', { answers });
         setIsComplete(true);
       } catch (err) {
         // L1 fix: Show error to user instead of just console.error
@@ -107,20 +107,20 @@ export function QuickCalibration({ existingAnswers, onComplete }: QuickCalibrati
 
   if (isComplete) {
     return (
-      <Card className="bg-[#1e1e1e] border-[#2a2a2a] max-w-md mx-auto">
+      <Card className="bg-[var(--color-bg-primary)] border-[#2a2a2a] max-w-md mx-auto">
         <CardContent className="pt-8 pb-8 text-center">
           {/* L2 fix: Announce completion to screen readers */}
           <div className="sr-only" aria-live="assertive" aria-atomic="true">
             Voice calibration complete. Your writing style preferences are saved.
           </div>
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" aria-hidden="true" />
-          <h3 className="text-xl font-semibold text-[#fafafa] mb-2">
+          <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
             Voice Calibrated!
           </h3>
-          <p className="text-[#a3a3a3] mb-4">
+          <p className="text-[var(--color-text-secondary)] mb-4">
             Your writing style preferences are saved.
           </p>
-          <p className="text-sm text-[#a3a3a3] mb-6">
+          <p className="text-sm text-[var(--color-text-secondary)] mb-6">
             For better accuracy, you can upload 3-5 past proposals anytime from Settings.
           </p>
           <Button
@@ -137,15 +137,15 @@ export function QuickCalibration({ existingAnswers, onComplete }: QuickCalibrati
   return (
     <Card
       ref={dialogRef}
-      className="bg-[#1e1e1e] border-[#2a2a2a] max-w-md mx-auto"
+      className="bg-[var(--color-bg-primary)] border-[#2a2a2a] max-w-md mx-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="calibration-title"
     >
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle className="text-[#fafafa]" id="calibration-title">Quick Calibration</CardTitle>
-          <span className="text-[#a3a3a3] text-sm" aria-live="polite" aria-atomic="true">
+          <CardTitle className="text-[var(--color-text-primary)]" id="calibration-title">Quick Calibration</CardTitle>
+          <span className="text-[var(--color-text-secondary)] text-sm" aria-live="polite" aria-atomic="true">
             Question {currentStep + 1} of {totalSteps}
           </span>
         </div>
@@ -157,7 +157,7 @@ export function QuickCalibration({ existingAnswers, onComplete }: QuickCalibrati
           Question {currentStep + 1} of {totalSteps}: {currentQuestion.text}
         </div>
 
-        <p className="text-[#fafafa] font-medium" id={`question-${currentStep}`}>
+        <p className="text-[var(--color-text-primary)] font-medium" id={`question-${currentStep}`}>
           {currentQuestion.text}
         </p>
 
@@ -179,7 +179,7 @@ export function QuickCalibration({ existingAnswers, onComplete }: QuickCalibrati
           {currentQuestion.options.map(option => (
             <div
               key={option.value}
-              className="flex items-start space-x-3 p-3 rounded-lg border border-[#2a2a2a] hover:border-[#3a3a3a] cursor-pointer"
+              className="flex items-start space-x-3 p-3 rounded-lg border border-[#2a2a2a] hover:border-[var(--color-bg-tertiary)] cursor-pointer"
             >
               <RadioGroupItem
                 value={option.value}
@@ -188,8 +188,8 @@ export function QuickCalibration({ existingAnswers, onComplete }: QuickCalibrati
                 aria-label={`${option.label}: ${option.description}`}
               />
               <Label htmlFor={option.value} className="cursor-pointer flex-1">
-                <span className="text-[#fafafa] font-medium">{option.label}</span>
-                <span className="text-[#a3a3a3] text-sm block">
+                <span className="text-[var(--color-text-primary)] font-medium">{option.label}</span>
+                <span className="text-[var(--color-text-secondary)] text-sm block">
                   {option.description}
                 </span>
               </Label>

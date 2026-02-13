@@ -435,7 +435,7 @@ describe("PassphraseUnlock", () => {
     expect(screen.getByText("9/32 characters")).toBeInTheDocument();
   });
 
-  it("calls unlock_with_recovery_key when recovery key submitted", async () => {
+  it("calls unlock_with_recovery_key and transitions to new passphrase mode (TD-2)", async () => {
     mockInvoke
       .mockResolvedValueOnce({
         success: false,
@@ -472,8 +472,14 @@ describe("PassphraseUnlock", () => {
       expect(mockInvoke).toHaveBeenCalledWith("unlock_with_recovery_key", {
         recoveryKey: "abcdefghijklmnopqrstuvwxyz012345",
       });
-      expect(onUnlocked).toHaveBeenCalledOnce();
     });
+
+    // TD-2: Should transition to new passphrase mode, NOT call onUnlocked
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: /set new passphrase/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Set New Passphrase" })).toBeInTheDocument();
+    });
+    expect(onUnlocked).not.toHaveBeenCalled();
   });
 
   it("navigates back from recovery mode to passphrase mode", async () => {
@@ -550,5 +556,157 @@ describe("PassphraseUnlock", () => {
       );
     });
     expect(onUnlocked).not.toHaveBeenCalled();
+  });
+
+  // ====================
+  // Story TD-2 Tests: New passphrase after recovery
+  // ====================
+
+  // Helper: navigate to new passphrase mode
+  async function navigateToNewPassphraseMode() {
+    mockInvoke
+      .mockResolvedValueOnce({
+        success: false,
+        message: "Incorrect passphrase.",
+        failedAttempts: 5,
+        showRecovery: true,
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        message: "Unlocked via recovery key",
+      });
+
+    render(<PassphraseUnlock onUnlocked={onUnlocked} />);
+
+    await userEvent.type(screen.getByLabelText("Passphrase"), "wrong");
+    await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Restore from Backup" })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Restore from Backup" }));
+    await userEvent.type(screen.getByLabelText("Recovery Key"), "abcdefghijklmnopqrstuvwxyz012345");
+    await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Set New Passphrase" })).toBeInTheDocument();
+    });
+  }
+
+  it("TD-2: shows new passphrase form with strength meter", async () => {
+    await navigateToNewPassphraseMode();
+
+    expect(screen.getByLabelText(/minimum 12 characters/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirm Passphrase")).toBeInTheDocument();
+    expect(screen.getByText(/recovery successful/i)).toBeInTheDocument();
+  });
+
+  it("TD-2: submit button disabled until passphrase meets requirements", async () => {
+    await navigateToNewPassphraseMode();
+
+    const submitBtn = screen.getByRole("button", { name: "Set New Passphrase" });
+    expect(submitBtn).toBeDisabled();
+
+    const passphraseInput = screen.getByLabelText(/minimum 12 characters/i);
+    const confirmInput = screen.getByLabelText("Confirm Passphrase");
+
+    // Type short passphrase
+    await userEvent.type(passphraseInput, "short");
+    expect(submitBtn).toBeDisabled();
+
+    // Clear and type valid passphrase
+    await userEvent.clear(passphraseInput);
+    await userEvent.type(passphraseInput, "MyNewSecure123!");
+    expect(submitBtn).toBeDisabled(); // Still disabled — no confirmation
+
+    // Type matching confirmation
+    await userEvent.type(confirmInput, "MyNewSecure123!");
+    expect(submitBtn).toBeEnabled();
+  });
+
+  it("TD-2: shows mismatch error when passphrases differ", async () => {
+    await navigateToNewPassphraseMode();
+
+    await userEvent.type(screen.getByLabelText(/minimum 12 characters/i), "MyNewSecure123!");
+    await userEvent.type(screen.getByLabelText("Confirm Passphrase"), "DifferentPass1!");
+
+    expect(screen.getByText("Passphrases do not match")).toBeInTheDocument();
+  });
+
+  it("TD-2: shows strength meter when typing passphrase", async () => {
+    await navigateToNewPassphraseMode();
+
+    await userEvent.type(screen.getByLabelText(/minimum 12 characters/i), "MyNewSecure123!");
+
+    expect(screen.getByTestId("strength-meter")).toBeInTheDocument();
+    expect(screen.getByText("Strong")).toBeInTheDocument();
+  });
+
+  it("TD-2: calls set_new_passphrase_after_recovery on submit", async () => {
+    await navigateToNewPassphraseMode();
+
+    // Add mock for set_new_passphrase_after_recovery
+    mockInvoke.mockResolvedValueOnce(undefined);
+
+    await userEvent.type(screen.getByLabelText(/minimum 12 characters/i), "MyNewSecure123!");
+    await userEvent.type(screen.getByLabelText("Confirm Passphrase"), "MyNewSecure123!");
+    await userEvent.click(screen.getByRole("button", { name: "Set New Passphrase" }));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("set_new_passphrase_after_recovery", {
+        newPassphrase: "MyNewSecure123!",
+        recoveryKey: "abcdefghijklmnopqrstuvwxyz012345",
+      });
+    });
+  });
+
+  it("TD-2: shows success message after re-key completes", async () => {
+    await navigateToNewPassphraseMode();
+
+    mockInvoke.mockResolvedValueOnce(undefined);
+
+    await userEvent.type(screen.getByLabelText(/minimum 12 characters/i), "MyNewSecure123!");
+    await userEvent.type(screen.getByLabelText("Confirm Passphrase"), "MyNewSecure123!");
+    await userEvent.click(screen.getByRole("button", { name: "Set New Passphrase" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Passphrase Updated")).toBeInTheDocument();
+      expect(screen.getByText(/re-encrypted with the new passphrase/i)).toBeInTheDocument();
+    });
+
+    // Continue button transitions to app
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(onUnlocked).toHaveBeenCalledOnce();
+  });
+
+  it("TD-2: shows error and allows retry on re-key failure", async () => {
+    await navigateToNewPassphraseMode();
+
+    mockInvoke.mockRejectedValueOnce("Failed to re-key database: disk full");
+
+    await userEvent.type(screen.getByLabelText(/minimum 12 characters/i), "MyNewSecure123!");
+    await userEvent.type(screen.getByLabelText("Confirm Passphrase"), "MyNewSecure123!");
+    await userEvent.click(screen.getByRole("button", { name: "Set New Passphrase" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/disk full/i)).toBeInTheDocument();
+    });
+
+    // Submit button should still be available for retry
+    expect(screen.getByRole("button", { name: "Set New Passphrase" })).toBeEnabled();
+    expect(onUnlocked).not.toHaveBeenCalled();
+  });
+
+  it("TD-2: shows show/hide toggle in new passphrase mode", async () => {
+    await navigateToNewPassphraseMode();
+
+    const input = screen.getByLabelText(/minimum 12 characters/i);
+    expect(input).toHaveAttribute("type", "password");
+
+    await userEvent.click(screen.getByLabelText("Show passphrase"));
+    expect(input).toHaveAttribute("type", "text");
+
+    // Confirmation field also visible
+    expect(screen.getByLabelText("Confirm Passphrase")).toHaveAttribute("type", "text");
   });
 });

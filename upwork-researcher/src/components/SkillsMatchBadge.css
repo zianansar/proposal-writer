@@ -21,7 +21,7 @@
 }
 
 .skills-match:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary, #3b82f6);
   outline-offset: 2px;
 }
 
@@ -45,7 +45,7 @@
 }
 
 .skills-match--green .skills-match__value {
-  color: #10b981;
+  color: var(--color-success, #10b981);
 }
 
 /* Yellow (50-74%): #f59e0b — 8.1:1 contrast on #1a1a1a */
@@ -55,7 +55,7 @@
 }
 
 .skills-match--yellow .skills-match__value {
-  color: #f59e0b;
+  color: var(--color-warning, #f59e0b);
 }
 
 /* Red (<50%): #ef4444 — 5.8:1 contrast on #1a1a1a */
@@ -65,7 +65,7 @@
 }
 
 .skills-match--red .skills-match__value {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
 }
 
 /* ===========================================
@@ -79,7 +79,7 @@
 }
 
 .skills-match__message {
-  color: #888;
+  color: var(--color-text-muted, #888);
   font-size: 0.8125rem;
   font-weight: 400;
   font-style: italic;
@@ -91,7 +91,7 @@
 
 @media (prefers-color-scheme: light) {
   .skills-match__label {
-    color: #374151;
+    color: var(--color-border-gray, #374151);
   }
 
   .skills-match--green {
@@ -100,7 +100,7 @@
   }
 
   .skills-match--green .skills-match__value {
-    color: #059669;
+    color: var(--color-success-hover, #059669);
   }
 
   .skills-match--yellow {
@@ -109,7 +109,7 @@
   }
 
   .skills-match--yellow .skills-match__value {
-    color: #d97706;
+    color: var(--color-warning-hover, #d97706);
   }
 
   .skills-match--red {
@@ -118,7 +118,7 @@
   }
 
   .skills-match--red .skills-match__value {
-    color: #dc2626;
+    color: var(--color-error-hover, #dc2626);
   }
 
   .skills-match--null {

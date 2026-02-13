@@ -5,11 +5,11 @@
 
 :root {
   --status-bar-bg: #2a2a2a;
-  --status-bar-border: #555;
-  --status-bar-text: #888;
+  --status-bar-border: var(--color-border, #555);
+  --status-bar-text: var(--color-text-muted, #888);
   --status-bar-count: #ccc;
-  --status-bar-separator: #555;
-  --status-bar-warning: #f59e0b;
+  --status-bar-separator: var(--color-border, #555);
+  --status-bar-warning: var(--color-warning, #f59e0b);
 }
 
 .editor-status-bar {
@@ -61,8 +61,8 @@
     --status-bar-bg: #f0f0f0;
     --status-bar-border: #ccc;
     --status-bar-text: #666;
-    --status-bar-count: #555;
+    --status-bar-count: var(--color-border, #555);
     --status-bar-separator: #ccc;
-    --status-bar-warning: #d97706;
+    --status-bar-warning: var(--color-warning-hover, #d97706);
   }
 }

@@ -2,7 +2,7 @@
 
 .scoring-breakdown {
   background: #1e1e1e;
-  border: 1px solid #374151;
+  border: 1px solid var(--color-border-gray, #374151);
   border-radius: 8px;
   padding: 16px;
   margin-top: 8px;
@@ -58,11 +58,11 @@
 }
 
 .scoring-breakdown__label--yellow {
-  color: #f59e0b;
+  color: var(--color-warning, #f59e0b);
 }
 
 .scoring-breakdown__label--red {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
 }
 
 .scoring-breakdown__label--gray {
@@ -70,7 +70,7 @@
 }
 
 .scoring-breakdown__metric-detail {
-  color: #9ca3af;
+  color: var(--color-text-gray-muted, #9ca3af);
   font-size: 13px;
   line-height: 1.6;
   margin: 0;
@@ -82,12 +82,12 @@
 }
 
 .scoring-breakdown__skills-list strong {
-  color: #d1d5db;
+  color: var(--color-text-gray, #d1d5db);
 }
 
 .scoring-breakdown__recommendation {
   padding-top: 12px;
-  border-top: 1px solid #374151;
+  border-top: 1px solid var(--color-border-gray, #374151);
   color: #a3a3a3;
   font-size: 14px;
   line-height: 1.5;
@@ -114,7 +114,7 @@
 .scoring-breakdown__report-button {
   background: none;
   border: none;
-  color: #888;
+  color: var(--color-text-muted, #888);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 8px;
@@ -124,7 +124,7 @@
 }
 
 .scoring-breakdown__report-button:hover:not(:disabled) {
-  color: #aaa;
+  color: var(--color-text-secondary, #aaa);
 }
 
 .scoring-breakdown__report-button:disabled {
@@ -133,7 +133,7 @@
 }
 
 .scoring-breakdown__reported {
-  color: #888;
+  color: var(--color-text-muted, #888);
   font-size: 13px;
   font-style: italic;
 }

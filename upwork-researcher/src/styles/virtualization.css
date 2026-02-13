@@ -6,7 +6,7 @@
 }
 
 .skeleton-row {
-  background: linear-gradient(90deg, #262626 25%, #404040 50%, #262626 75%);
+  background: linear-gradient(90deg, var(--color-bg-dark, #262626) 25%, var(--color-bg-hover, #404040) 50%, var(--color-bg-dark, #262626) 75%);
   background-size: 200% 100%;
   animation: skeleton-pulse 1.5s ease-in-out infinite;
   border-radius: 4px;

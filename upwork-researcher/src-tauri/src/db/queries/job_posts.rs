@@ -296,6 +296,13 @@ pub fn save_job_analysis_atomic(
 
     // Attempt all operations - rollback on any failure
     let result = (|| {
+        // Verify job_post_id exists (inside transaction to prevent TOCTOU race)
+        conn.query_row(
+            "SELECT id FROM job_posts WHERE id = ?1",
+            params![job_post_id],
+            |_row| Ok(()),
+        )?;
+
         // 1. Update client_name
         conn.execute(
             "UPDATE job_posts SET client_name = ?1 WHERE id = ?2",
@@ -859,8 +866,9 @@ mod tests {
 
     #[test]
     fn test_save_job_analysis_atomic_rollback_on_failure() {
-        // Task 5.6: Test transaction rollback on error
-        // H1 Code Review Fix: Use FK constraint violation to trigger actual rollback
+        // H1 CR Fix: Test actual transaction rollback by forcing mid-transaction failure.
+        // Drop job_skills table so DELETE FROM job_skills fails AFTER client_name UPDATE succeeds,
+        // proving ROLLBACK undoes the partial UPDATE.
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let db = Database::new(db_path, None).unwrap();
@@ -868,30 +876,26 @@ mod tests {
 
         let job_id = insert_job_post(&conn, None, "Job", Some("Original")).unwrap();
 
-        // Insert initial skills to verify they remain after failed re-analysis
-        let initial_skills = vec!["InitialSkill".to_string()];
-        insert_job_skills(&conn, job_id, &initial_skills).unwrap();
-        assert_eq!(get_job_skills(&conn, job_id).unwrap().len(), 1);
+        // Drop job_skills to force failure inside the transaction closure.
+        // Flow: existence check ✓ → UPDATE client_name ✓ → DELETE FROM job_skills ✗ → ROLLBACK
+        conn.execute("DROP TABLE job_skills", []).unwrap();
 
-        // Attempt save with non-existent job_id AND skills to trigger FK constraint error
-        // The skills INSERT will fail due to foreign key constraint on job_post_id
-        let bad_skills = vec!["React".to_string(), "TypeScript".to_string()];
-        let result = save_job_analysis_atomic(&conn, 999999, Some("New"), &bad_skills, "[]");
+        let result = save_job_analysis_atomic(&conn, job_id, Some("New Name"), &[], "[]");
+        assert!(result.is_err(), "Expected error from missing job_skills table");
 
-        // Should fail due to FK constraint on job_skills INSERT
-        assert!(result.is_err(), "Expected FK constraint error but got success");
-
-        // Verify original job unchanged (rollback worked)
-        let client: Option<String> = conn.query_row(
-            "SELECT client_name FROM job_posts WHERE id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        ).unwrap();
-        assert_eq!(client, Some("Original".to_string()));
-
-        // Verify original skills still exist (rollback preserved them)
-        let skills = get_job_skills(&conn, job_id).unwrap();
-        assert_eq!(skills, initial_skills, "Original skills should be preserved after rollback");
+        // Verify client_name UPDATE was rolled back — must still be "Original"
+        let client: Option<String> = conn
+            .query_row(
+                "SELECT client_name FROM job_posts WHERE id = ?1",
+                params![job_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            client,
+            Some("Original".to_string()),
+            "client_name should be rolled back to Original"
+        );
     }
 
     #[test]
@@ -949,6 +953,23 @@ mod tests {
             |row| row.get(0),
         ).unwrap();
         assert!(client.is_none());
+    }
+
+    #[test]
+    fn test_save_job_analysis_atomic_nonexistent_job_post_id() {
+        // TD-4 Task 3: Verify error when job_post_id doesn't exist
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        let result = save_job_analysis_atomic(&conn, 999999, Some("Name"), &[], "[]");
+        assert!(result.is_err(), "Expected error for non-existent job_post_id");
+
+        match result.unwrap_err() {
+            rusqlite::Error::QueryReturnedNoRows => {} // Expected
+            other => panic!("Expected QueryReturnedNoRows, got: {other}"),
+        }
     }
 
     // ====================

@@ -21,7 +21,7 @@
 }
 
 .budget-alignment:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary, #3b82f6);
   outline-offset: 2px;
 }
 
@@ -71,11 +71,11 @@
 }
 
 .budget-alignment--red .budget-alignment__value {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
 }
 
 .budget-alignment--red .budget-alignment__warning {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
 }
 
 /* Gray (unknown/mismatch): #6b7280 — ~4.6:1 contrast on #1a1a1a (WCAG AA: 4.5:1 ✓) */
@@ -85,7 +85,7 @@
 }
 
 .budget-alignment--gray .budget-alignment__value {
-  color: #9ca3af;
+  color: var(--color-text-gray-muted, #9ca3af);
 }
 
 /* ===========================================
@@ -99,7 +99,7 @@
 }
 
 .budget-alignment__message {
-  color: #888;
+  color: var(--color-text-muted, #888);
   font-size: 0.8125rem;
   font-weight: 400;
   font-style: italic;
@@ -111,7 +111,7 @@
 
 @media (prefers-color-scheme: light) {
   .budget-alignment__label {
-    color: #374151;
+    color: var(--color-border-gray, #374151);
   }
 
   .budget-alignment--green {
@@ -138,11 +138,11 @@
   }
 
   .budget-alignment--red .budget-alignment__value {
-    color: #dc2626;
+    color: var(--color-error-hover, #dc2626);
   }
 
   .budget-alignment--red .budget-alignment__warning {
-    color: #dc2626;
+    color: var(--color-error-hover, #dc2626);
   }
 
   .budget-alignment--gray {

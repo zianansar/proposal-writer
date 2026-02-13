@@ -418,35 +418,30 @@ pub async fn update_voice_parameters(
 ///
 /// # Story 5.7: Subtask 3.2, AC-4
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QuickCalibrationAnswers {
     pub tone: String,            // formal, professional, conversational, casual
     pub length: String,          // brief, moderate, detailed
     pub technical_depth: String, // simple, technical, expert
     pub structure: String,       // bullets, paragraphs, mixed
+    // call_to_action is collected from the frontend questionnaire but not yet mapped
+    // to a VoiceProfile field. Reserved for future CTA-style personalization.
     pub call_to_action: String,  // direct, consultative, question
 }
 
-/// Tauri command: Quick calibrate voice from 5-question answers
+/// Map quick calibration answers to a VoiceProfile (pure function, no DB).
 ///
-/// # Story 5.7: AC-4, AC-5
-/// - Maps answers to VoiceProfile parameters
-/// - Saves profile via save_voice_profile
-/// - Returns created profile
-#[tauri::command]
-pub async fn quick_calibrate(
-    answers: QuickCalibrationAnswers,
-    database: State<'_, AppDatabase>,
-    voice_cache: State<'_, crate::VoiceCache>, // Story 5.8 Subtask 4.5: Cache invalidation
-) -> Result<crate::voice::VoiceProfile, String> {
+/// Single source of truth for answer-to-profile mapping (TD-5 AC-2).
+/// Frontend calls `quick_calibrate` Tauri command which uses this internally.
+pub fn map_answers_to_profile(answers: &QuickCalibrationAnswers) -> crate::voice::VoiceProfile {
     use crate::voice::{CalibrationSource, StructurePreference, VoiceProfile};
 
-    // Map answers to numeric values (Subtask 3.3)
     let tone_score = match answers.tone.as_str() {
         "formal" => 9.0,
         "professional" => 7.0,
         "conversational" => 5.0,
         "casual" => 3.0,
-        _ => 7.0, // default professional
+        _ => 7.0,
     };
 
     let avg_sentence_length = match answers.length.as_str() {
@@ -482,17 +477,36 @@ pub async fn quick_calibrate(
         },
     };
 
-    let profile = VoiceProfile {
+    VoiceProfile {
         tone_score,
         avg_sentence_length,
-        vocabulary_complexity: 8.0, // Default professional average
+        // Quick calibration doesn't assess vocabulary or length preference —
+        // these require actual proposal text analysis (Golden Set calibration).
+        // Defaults: ~college reading level, neutral length preference.
+        vocabulary_complexity: 8.0,
         structure_preference,
         technical_depth,
-        length_preference: 5.0, // Story 6.2: Manual adjustment, default to balanced
+        length_preference: 5.0,
         common_phrases: vec![],
         sample_count: 0,
         calibration_source: CalibrationSource::QuickCalibration,
-    };
+    }
+}
+
+/// Tauri command: Quick calibrate voice from 5-question answers
+///
+/// # Story 5.7: AC-4, AC-5
+/// - Maps answers to VoiceProfile parameters
+/// - Saves profile via save_voice_profile
+/// - Returns created profile
+#[tauri::command]
+pub async fn quick_calibrate(
+    answers: QuickCalibrationAnswers,
+    database: State<'_, AppDatabase>,
+    voice_cache: State<'_, crate::VoiceCache>, // Story 5.8 Subtask 4.5: Cache invalidation
+) -> Result<crate::voice::VoiceProfile, String> {
+    // TD-5 AC-2: Single source of truth — uses extracted map_answers_to_profile
+    let profile = map_answers_to_profile(&answers);
 
     // Save profile to database (Subtask 3.4)
     {
@@ -651,5 +665,117 @@ mod tests {
         // 6th should fail
         let result = golden_set::add_golden_proposal(&conn, &content, Some("6.txt"));
         assert!(result.is_err(), "Backend should reject 6th proposal");
+    }
+
+    // TD-5 AC-2: Tests for map_answers_to_profile (single source of truth)
+    #[test]
+    fn test_map_answers_tone_mapping() {
+        use super::{map_answers_to_profile, QuickCalibrationAnswers};
+        let make = |tone: &str| QuickCalibrationAnswers {
+            tone: tone.to_string(),
+            length: "moderate".to_string(),
+            technical_depth: "technical".to_string(),
+            structure: "mixed".to_string(),
+            call_to_action: "direct".to_string(),
+        };
+        assert_eq!(map_answers_to_profile(&make("formal")).tone_score, 9.0);
+        assert_eq!(map_answers_to_profile(&make("professional")).tone_score, 7.0);
+        assert_eq!(map_answers_to_profile(&make("conversational")).tone_score, 5.0);
+        assert_eq!(map_answers_to_profile(&make("casual")).tone_score, 3.0);
+        assert_eq!(map_answers_to_profile(&make("unknown")).tone_score, 7.0); // default
+    }
+
+    #[test]
+    fn test_map_answers_length_mapping() {
+        use super::{map_answers_to_profile, QuickCalibrationAnswers};
+        let make = |length: &str| QuickCalibrationAnswers {
+            tone: "professional".to_string(),
+            length: length.to_string(),
+            technical_depth: "technical".to_string(),
+            structure: "mixed".to_string(),
+            call_to_action: "direct".to_string(),
+        };
+        assert_eq!(map_answers_to_profile(&make("brief")).avg_sentence_length, 10.0);
+        assert_eq!(map_answers_to_profile(&make("moderate")).avg_sentence_length, 16.0);
+        assert_eq!(map_answers_to_profile(&make("detailed")).avg_sentence_length, 24.0);
+    }
+
+    #[test]
+    fn test_map_answers_technical_depth_mapping() {
+        use super::{map_answers_to_profile, QuickCalibrationAnswers};
+        let make = |depth: &str| QuickCalibrationAnswers {
+            tone: "professional".to_string(),
+            length: "moderate".to_string(),
+            technical_depth: depth.to_string(),
+            structure: "mixed".to_string(),
+            call_to_action: "direct".to_string(),
+        };
+        assert_eq!(map_answers_to_profile(&make("simple")).technical_depth, 3.0);
+        assert_eq!(map_answers_to_profile(&make("technical")).technical_depth, 6.0);
+        assert_eq!(map_answers_to_profile(&make("expert")).technical_depth, 9.0);
+    }
+
+    #[test]
+    fn test_map_answers_structure_mapping() {
+        use super::{map_answers_to_profile, QuickCalibrationAnswers};
+        let make = |structure: &str| QuickCalibrationAnswers {
+            tone: "professional".to_string(),
+            length: "moderate".to_string(),
+            technical_depth: "technical".to_string(),
+            structure: structure.to_string(),
+            call_to_action: "direct".to_string(),
+        };
+        let bullets = map_answers_to_profile(&make("bullets"));
+        assert_eq!(bullets.structure_preference.bullets_pct, 80);
+        assert_eq!(bullets.structure_preference.paragraphs_pct, 20);
+
+        let paragraphs = map_answers_to_profile(&make("paragraphs"));
+        assert_eq!(paragraphs.structure_preference.paragraphs_pct, 80);
+        assert_eq!(paragraphs.structure_preference.bullets_pct, 20);
+
+        let mixed = map_answers_to_profile(&make("mixed"));
+        assert_eq!(mixed.structure_preference.paragraphs_pct, 50);
+        assert_eq!(mixed.structure_preference.bullets_pct, 50);
+    }
+
+    #[test]
+    fn test_map_answers_defaults_and_metadata() {
+        use super::{map_answers_to_profile, QuickCalibrationAnswers};
+        let answers = QuickCalibrationAnswers {
+            tone: "professional".to_string(),
+            length: "moderate".to_string(),
+            technical_depth: "technical".to_string(),
+            structure: "mixed".to_string(),
+            call_to_action: "direct".to_string(),
+        };
+        let profile = map_answers_to_profile(&answers);
+        assert_eq!(profile.vocabulary_complexity, 8.0);
+        assert_eq!(profile.length_preference, 5.0);
+        assert_eq!(profile.sample_count, 0);
+        assert!(profile.common_phrases.is_empty());
+        assert!(matches!(profile.calibration_source, crate::voice::CalibrationSource::QuickCalibration));
+    }
+
+    #[test]
+    fn test_map_answers_call_to_action_does_not_affect_profile() {
+        // call_to_action is collected but intentionally not mapped to any profile field.
+        // Changing it should produce identical profiles. Reserved for future use.
+        use super::{map_answers_to_profile, QuickCalibrationAnswers};
+        let base = |cta: &str| QuickCalibrationAnswers {
+            tone: "professional".to_string(),
+            length: "moderate".to_string(),
+            technical_depth: "technical".to_string(),
+            structure: "mixed".to_string(),
+            call_to_action: cta.to_string(),
+        };
+        let direct = map_answers_to_profile(&base("direct"));
+        let consultative = map_answers_to_profile(&base("consultative"));
+        let question = map_answers_to_profile(&base("question"));
+
+        assert_eq!(direct.tone_score, consultative.tone_score);
+        assert_eq!(direct.tone_score, question.tone_score);
+        assert_eq!(direct.avg_sentence_length, consultative.avg_sentence_length);
+        assert_eq!(direct.technical_depth, question.technical_depth);
+        assert_eq!(direct.structure_preference.bullets_pct, consultative.structure_preference.bullets_pct);
     }
 }

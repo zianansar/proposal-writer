@@ -9,6 +9,7 @@ use refinery::embed_migrations;
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use zeroize::Zeroizing;
 
 // Embed migrations from the migrations directory
 embed_migrations!("migrations");
@@ -56,6 +57,9 @@ impl Database {
 
         // If encryption key provided, set up SQLCipher (Story 2.1, Epic 2)
         if let Some(key) = encryption_key {
+            // TD-3 AC-2: Wrap incoming key bytes in Zeroizing so they're zeroed on drop
+            let key = Zeroizing::new(key);
+
             // Validate key length (32 bytes for AES-256)
             if key.len() != 32 {
                 return Err(format!(
@@ -64,12 +68,15 @@ impl Database {
                 ));
             }
 
-            // Convert key to hex string for PRAGMA key
-            let key_hex = hex::encode(&key);
+            // Convert key to hex string for PRAGMA key — wrapped in Zeroizing
+            // so the hex string is zeroed from memory after PRAGMA executes (TD-3 AC-2)
+            let key_hex = Zeroizing::new(hex::encode(&*key));
 
             // Set encryption key (must be first operation after open)
-            conn.execute_batch(&format!("PRAGMA key = \"x'{}'\"", key_hex))
+            let pragma = Zeroizing::new(format!("PRAGMA key = \"x'{}'\"", &*key_hex));
+            conn.execute_batch(&pragma)
                 .map_err(|e| format!("Failed to set encryption key: {}", e))?;
+            // key, key_hex, and pragma are all zeroed on drop here
 
             // Set SQLCipher compatibility version (4.x)
             conn.execute_batch("PRAGMA cipher_compatibility = 4;")
@@ -128,6 +135,77 @@ impl Database {
             .query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0))
             .map_err(|e| format!("Query failed: {}", e))?;
         Ok(count)
+    }
+
+    /// Re-key the database with a new passphrase-derived encryption key (Story TD-2).
+    ///
+    /// Derives a new key from the passphrase, executes SQLCipher's `PRAGMA rekey`
+    /// to re-encrypt the database in-place, and atomically updates the salt file.
+    ///
+    /// # Arguments
+    /// * `new_passphrase` - New passphrase (must meet strength requirements, 12+ chars)
+    /// * `app_data_dir` - App data directory containing .salt file
+    ///
+    /// # Returns
+    /// * `Ok(Zeroizing<Vec<u8>>)` - 32-byte new encryption key in Zeroizing wrapper (caller needs it for recovery key re-wrapping)
+    /// * `Err(String)` - Re-key failed; database remains encrypted with old key (AC-4)
+    ///
+    /// # Safety
+    /// - Salt file updated atomically (write temp → rename) per AC-5
+    /// - On PRAGMA rekey failure, temp salt is cleaned up, old key remains valid
+    pub fn rekey_database(&self, new_passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing<Vec<u8>>, String> {
+        use crate::passphrase;
+        use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
+
+        // Backend passphrase strength validation (defense in depth — frontend also validates)
+        if new_passphrase.len() < 12 {
+            return Err("Passphrase must be at least 12 characters".to_string());
+        }
+
+        // Derive new 32-byte key from new passphrase using Argon2id (same params as Story 2-1)
+        // TD-3: Key is wrapped in Zeroizing — auto-zeroed on drop
+        let new_salt = passphrase::generate_random_salt()
+            .map_err(|e| format!("Failed to generate new salt: {}", e))?;
+        let mut new_key = passphrase::derive_key(new_passphrase, &new_salt)
+            .map_err(|e| format!("Failed to derive new key: {}", e))?;
+
+        // Write new salt to temp file (atomic update pattern — AC-5)
+        let salt_path = app_data_dir.join(".salt");
+        let salt_tmp_path = app_data_dir.join(".salt.tmp");
+        let salt_b64 = BASE64_STANDARD.encode(new_salt);
+        std::fs::write(&salt_tmp_path, &salt_b64)
+            .map_err(|e| format!("Failed to write temp salt: {}", e))?;
+
+        // Execute PRAGMA rekey on open connection (AC-1)
+        // Hex key and PRAGMA string are wrapped in Zeroizing for memory safety (TD-3 AC-2)
+        let key_hex = Zeroizing::new(hex::encode(&*new_key));
+        {
+            let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+
+            let pragma = Zeroizing::new(format!("PRAGMA rekey = \"x'{}'\"", &*key_hex));
+            conn.execute_batch(&pragma)
+                .map_err(|e| {
+                    let _ = std::fs::remove_file(&salt_tmp_path);
+                    format!("PRAGMA rekey failed: {}", e)
+                })?;
+            // pragma and key_hex zeroed on drop
+
+            // Verify database accessible with new key after rekey
+            conn.execute_batch("SELECT count(*) FROM sqlite_master;")
+                .map_err(|e| {
+                    let _ = std::fs::remove_file(&salt_tmp_path);
+                    format!("Database verification failed after rekey: {}", e)
+                })?;
+        }
+
+        // Rekey succeeded — atomically update salt file (AC-5)
+        std::fs::rename(&salt_tmp_path, &salt_path)
+            .map_err(|e| format!("Failed to update salt file: {}", e))?;
+
+        tracing::info!("Database re-keyed successfully with new passphrase");
+
+        // Return key in Zeroizing wrapper — caller's copy is auto-zeroed on drop (TD-3 review fix #2)
+        Ok(new_key)
     }
 
     /// Query job_posts count (Story 2.4)
@@ -215,16 +293,15 @@ pub fn open_encrypted_database(app_data_dir: &Path, passphrase: &str) -> Result<
     use crate::passphrase;
 
     // Subtask 2.2: Call verify_passphrase_and_derive_key() to get encryption key
-    let encryption_key = passphrase::verify_passphrase_and_derive_key(passphrase, app_data_dir)
+    // Key is wrapped in Zeroizing — raw bytes are zeroed when this binding drops (TD-3 AC-2)
+    let mut encryption_key = passphrase::verify_passphrase_and_derive_key(passphrase, app_data_dir)
         .map_err(|e| DatabaseError::PassphraseError(e.to_string()))?;
 
     // Subtask 2.3: Call Database::new() with derived key
-    // Subtask 2.4-2.5: Key validation happens implicitly — Database::new() runs PRAGMAs
-    // (journal_mode, foreign_keys) and migrations against the encrypted database.
-    // If the key is wrong, SQLCipher fails to decrypt the database header, causing
-    // "file is not a database" errors during these operations.
+    // std::mem::take moves bytes out; Zeroizing wrapper zeros the (now-empty) vec on drop.
+    // Database::new() re-wraps in Zeroizing internally for hex zeroing (TD-3 AC-2).
     let db_path = app_data_dir.join("upwork-researcher.db");
-    let db = Database::new(db_path, Some(encryption_key))
+    let db = Database::new(db_path, Some(std::mem::take(&mut *encryption_key)))
         .map_err(|e| {
             // Check for SQLCipher-specific errors indicating incorrect key
             if e.contains("file is not a database") || e.contains("database disk image is malformed") {
@@ -590,7 +667,7 @@ mod tests {
         // Create database with encryption
         let db_path = dir.path().join("upwork-researcher.db");
         let encryption_key = passphrase::verify_passphrase(passphrase, dir.path()).unwrap();
-        let _db = Database::new(db_path, Some(encryption_key)).unwrap();
+        let _db = Database::new(db_path, Some(encryption_key.to_vec())).unwrap();
 
         // Story 2.7: Open encrypted database on restart
         let result = open_encrypted_database(dir.path(), passphrase);
@@ -613,7 +690,7 @@ mod tests {
         let _key = passphrase::set_passphrase(correct_passphrase, dir.path()).unwrap();
         let db_path = dir.path().join("upwork-researcher.db");
         let encryption_key = passphrase::verify_passphrase(correct_passphrase, dir.path()).unwrap();
-        let _db = Database::new(db_path, Some(encryption_key)).unwrap();
+        let _db = Database::new(db_path, Some(encryption_key.to_vec())).unwrap();
 
         // Story 2.7: Try to open with wrong passphrase
         let result = open_encrypted_database(dir.path(), wrong_passphrase);
@@ -655,7 +732,7 @@ mod tests {
         let _key = passphrase::set_passphrase(passphrase, dir.path()).unwrap();
         let db_path = dir.path().join("upwork-researcher.db");
         let encryption_key = passphrase::verify_passphrase(passphrase, dir.path()).unwrap();
-        let _db = Database::new(db_path, Some(encryption_key)).unwrap();
+        let _db = Database::new(db_path, Some(encryption_key.to_vec())).unwrap();
 
         // Open and validate
         let result = open_encrypted_database(dir.path(), passphrase);
@@ -679,7 +756,7 @@ mod tests {
         let _key = passphrase::set_passphrase(correct_passphrase, dir.path()).unwrap();
         let db_path = dir.path().join("upwork-researcher.db");
         let encryption_key = passphrase::verify_passphrase(correct_passphrase, dir.path()).unwrap();
-        let _db = Database::new(db_path, Some(encryption_key)).unwrap();
+        let _db = Database::new(db_path, Some(encryption_key.to_vec())).unwrap();
 
         // Attempt 1: Wrong passphrase → should fail
         let result1 = open_encrypted_database(dir.path(), wrong_passphrase);
@@ -711,7 +788,7 @@ mod tests {
         let _key = passphrase::set_passphrase(passphrase, dir.path()).unwrap();
         let db_path = dir.path().join("upwork-researcher.db");
         let encryption_key = passphrase::verify_passphrase(passphrase, dir.path()).unwrap();
-        let _db = Database::new(db_path, Some(encryption_key)).unwrap();
+        let _db = Database::new(db_path, Some(encryption_key.to_vec())).unwrap();
 
         // Measure open time
         let start = Instant::now();
@@ -738,7 +815,7 @@ mod tests {
         let _key = passphrase::set_passphrase(passphrase, dir.path()).unwrap();
         let db_path = dir.path().join("upwork-researcher.db");
         let encryption_key = passphrase::verify_passphrase(passphrase, dir.path()).unwrap();
-        let _db = Database::new(db_path, Some(encryption_key)).unwrap();
+        let _db = Database::new(db_path, Some(encryption_key.to_vec())).unwrap();
 
         // Open encrypted database
         let db = open_encrypted_database(dir.path(), passphrase).unwrap();
@@ -1129,6 +1206,282 @@ mod tests {
     }
 
     // Story 5.1: Hook Strategies Seed Data Tests
+
+    // ====================
+    // Story TD-2 Tests: Database Re-key with PRAGMA rekey
+    // ====================
+
+    #[test]
+    fn test_rekey_database_success() {
+        // TD-2 AC-1: PRAGMA rekey re-encrypts database, data remains accessible
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+        let passphrase_b = "NewSecurePass456!";
+
+        // Setup: create encrypted DB with passphrase A
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        // Insert test data before rekey
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO proposals (job_content, generated_text) VALUES (?, ?)",
+                ["Test job", "Test proposal"],
+            )
+            .unwrap();
+        }
+
+        // Rekey with passphrase B
+        let new_key = db.rekey_database(passphrase_b, dir.path()).unwrap();
+        assert_eq!(new_key.len(), 32, "New key should be 32 bytes");
+
+        // Verify data still accessible after rekey
+        assert_eq!(db.query_proposals_count().unwrap(), 1);
+        assert!(db.health_check().is_ok());
+    }
+
+    #[test]
+    fn test_rekey_database_reopens_with_new_passphrase() {
+        // TD-2 AC-2: Database opens with new passphrase after restart
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+        let passphrase_b = "NewSecurePass456!";
+
+        // Setup encrypted DB
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        // Rekey
+        let _new_key = db.rekey_database(passphrase_b, dir.path()).unwrap();
+        drop(db);
+
+        // Reopen with new passphrase (simulates app restart)
+        let result = open_encrypted_database(dir.path(), passphrase_b);
+        assert!(result.is_ok(), "Should open with new passphrase after rekey");
+        result.unwrap().health_check().unwrap();
+    }
+
+    #[test]
+    fn test_rekey_database_old_passphrase_fails() {
+        // TD-2: Old passphrase no longer works after rekey
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+        let passphrase_b = "NewSecurePass456!";
+
+        // Setup encrypted DB with passphrase A
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        // Rekey with passphrase B
+        db.rekey_database(passphrase_b, dir.path()).unwrap();
+        drop(db);
+
+        // Old passphrase should fail (salt file now has new salt)
+        let result = open_encrypted_database(dir.path(), passphrase_a);
+        assert!(result.is_err(), "Old passphrase should fail after rekey");
+    }
+
+    #[test]
+    fn test_rekey_database_salt_updated() {
+        // TD-2 AC-5: Salt file updated with new passphrase's salt
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+        let passphrase_b = "NewSecurePass456!";
+
+        // Setup
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        // Read old salt
+        let old_salt = std::fs::read_to_string(dir.path().join(".salt")).unwrap();
+
+        // Rekey
+        db.rekey_database(passphrase_b, dir.path()).unwrap();
+
+        // Read new salt — should differ
+        let new_salt = std::fs::read_to_string(dir.path().join(".salt")).unwrap();
+        assert_ne!(old_salt, new_salt, "Salt should change after rekey");
+    }
+
+    #[test]
+    fn test_rekey_database_preserves_data() {
+        // TD-2: All existing data survives re-key
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+        let passphrase_b = "NewSecurePass456!";
+
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        // Insert multiple records
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO proposals (job_content, generated_text) VALUES (?, ?)",
+                ["Job 1", "Proposal 1"],
+            ).unwrap();
+            conn.execute(
+                "INSERT INTO proposals (job_content, generated_text) VALUES (?, ?)",
+                ["Job 2", "Proposal 2"],
+            ).unwrap();
+            conn.execute(
+                "INSERT INTO job_posts (raw_content) VALUES (?)",
+                ["Raw job post"],
+            ).unwrap();
+        }
+
+        // Rekey
+        db.rekey_database(passphrase_b, dir.path()).unwrap();
+        drop(db);
+
+        // Reopen with new passphrase and verify all data
+        let db2 = open_encrypted_database(dir.path(), passphrase_b).unwrap();
+        assert_eq!(db2.query_proposals_count().unwrap(), 2);
+        assert_eq!(db2.query_job_posts_count().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_rekey_database_recovery_key_roundtrip() {
+        // TD-2 AC-3/Task 4: Recovery key still works after re-encryption
+        use crate::keychain::recovery;
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+        let passphrase_b = "NewSecurePass456!";
+
+        // Setup encrypted DB
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        // Generate recovery key and wrap the original DB key
+        let recovery_key = recovery::generate_recovery_key().unwrap();
+        let wrapped_key = recovery::wrap_db_key(&key_a, &recovery_key).unwrap();
+
+        // Rekey the database
+        let new_db_key = db.rekey_database(passphrase_b, dir.path()).unwrap();
+        drop(db);
+
+        // Re-wrap with new key (as set_new_passphrase_after_recovery does)
+        let new_wrapped_key = recovery::wrap_db_key(&new_db_key, &recovery_key).unwrap();
+
+        // Unwrap with recovery key should return new DB key
+        let unwrapped_key = recovery::unwrap_db_key(&new_wrapped_key, &recovery_key).unwrap();
+        assert_eq!(unwrapped_key, *new_db_key, "Unwrapped key should match new DB key");
+
+        // Open DB with unwrapped key should work
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db2 = Database::new(db_path, Some(unwrapped_key)).unwrap();
+        assert!(db2.health_check().is_ok());
+
+        // Old wrapped key should NOT work (wrong DB key)
+        let old_unwrapped = recovery::unwrap_db_key(&wrapped_key, &recovery_key).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let result = Database::new(db_path, Some(old_unwrapped));
+        assert!(result.is_err(), "Old wrapped key should not open re-keyed database");
+    }
+
+    #[test]
+    fn test_rekey_database_no_temp_salt_on_success() {
+        // TD-2 AC-5: Temp salt file cleaned up after successful rekey
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+        let passphrase_b = "NewSecurePass456!";
+
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        db.rekey_database(passphrase_b, dir.path()).unwrap();
+
+        // .salt.tmp should not exist after successful rekey (renamed to .salt)
+        assert!(!dir.path().join(".salt.tmp").exists(), "Temp salt file should be cleaned up");
+        assert!(dir.path().join(".salt").exists(), "Salt file should exist");
+    }
+
+    #[test]
+    fn test_rekey_database_failure_preserves_original() {
+        // TD-2 AC-4: Failed rekey leaves database accessible with original key
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+        let passphrase_b = "NewSecurePass456!";
+
+        // Setup encrypted DB with passphrase A
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        // Insert test data
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO proposals (job_content, generated_text) VALUES (?, ?)",
+                ["Test job", "Test proposal"],
+            )
+            .unwrap();
+        }
+
+        // Read original salt
+        let original_salt = std::fs::read_to_string(dir.path().join(".salt")).unwrap();
+
+        // Attempt rekey with non-existent app_data_dir (forces temp salt write failure — before PRAGMA rekey)
+        let bad_dir = dir.path().join("nonexistent_subdir");
+        let result = db.rekey_database(passphrase_b, &bad_dir);
+        assert!(result.is_err(), "Rekey should fail with invalid app_data_dir");
+
+        // Verify database still accessible with original data (AC-4)
+        assert_eq!(db.query_proposals_count().unwrap(), 1);
+        assert!(db.health_check().is_ok());
+
+        // Verify salt file unchanged
+        let current_salt = std::fs::read_to_string(dir.path().join(".salt")).unwrap();
+        assert_eq!(original_salt, current_salt, "Salt should be unchanged after failed rekey");
+
+        // Verify no temp salt file left behind
+        assert!(!dir.path().join(".salt.tmp").exists(), "No temp salt should exist after failure");
+    }
+
+    #[test]
+    fn test_rekey_database_rejects_short_passphrase() {
+        // TD-2 Fix 4: Backend passphrase strength validation
+        use crate::passphrase;
+
+        let dir = tempdir().unwrap();
+        let passphrase_a = "OriginalPass123!";
+
+        let key_a = passphrase::set_passphrase(passphrase_a, dir.path()).unwrap();
+        let db_path = dir.path().join("upwork-researcher.db");
+        let db = Database::new(db_path, Some(key_a.to_vec())).unwrap();
+
+        // Attempt rekey with short passphrase (< 12 chars)
+        let result = db.rekey_database("short", dir.path());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("at least 12 characters"));
+
+        // DB should be unchanged
+        assert!(db.health_check().is_ok());
+    }
 
     #[test]
     fn test_hook_strategies_table_created() {

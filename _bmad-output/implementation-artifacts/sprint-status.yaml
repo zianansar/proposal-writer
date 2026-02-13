@@ -40,13 +40,13 @@ tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 
 development_status:
-  epic-0: in-progress
+  epic-0: done  # All stories complete. Story 0-5 done-with-exception: AC-2 failed both rounds (Round 1: 1/5, Round 2: 0/5).
   0-1-basic-job-input-ui: done
   0-2-claude-api-integration-for-basic-generation: done
   0-3-streaming-ui-display: done
   0-4-manual-copy-to-clipboard: done
-  0-5-validate-ai-detection-passing: in-progress
-  epic-0-retrospective: optional
+  0-5-validate-ai-detection-passing: done  # 2026-02-11: Round 2 complete. 0/5 passed with medium humanization. AC-2 FAILED. Done-with-exception.
+  epic-0-retrospective: done  # Completed 2026-02-11
 
   epic-1: done
   1-1-sqlite-database-setup: done
@@ -78,7 +78,7 @@ development_status:
   2-7b-encrypted-database-access-frontend: done  # Code review R2 2026-02-11: 5 fixes applied (M1+M3 post-unlock init, M2 file permissions, L1 subtitle, L3 CSS tokens). 1 deferred (L2 timing). 26 tests passing.
   2-8-encryption-status-indicator: done  # Code review 2026-02-06: 6 fixes applied (H1 focus trap, M1-M5), 20 tests passing
   2-9-passphrase-recovery-options: done  # Code review R2 2026-02-06: 7 more fixes (M1-M4, L1-L3), 194 Rust tests, 245 frontend tests. AC6 partial (DB re-key deferred).
-  epic-2-retrospective: optional
+  epic-2-retrospective: done  # Completed 2026-02-11
 
   epic-3: done  # All 9 stories complete, retrospective 2026-02-07
   3-1-pre-flight-perplexity-analysis: done  # Integrated into App.tsx (2026-02-05)
@@ -153,3 +153,31 @@ development_status:
   8-13-network-allowlist-enforcement: done  # 2026-02-11: CR R2 — all 10 issues fixed (3H 4M 3L). HTTPS enforced in validate_url, event emission in analyze_perplexity, frontend tests added, stale timer fixed, BlockedRequestsState capped at 100.
   8-14-disable-telemetry-analytics: done  # 2026-02-11: CR R2 — all 9 issues fixed (2H 4M 3L). alert() replaced with inline error, error revert test added, CSS design tokens, TODO for crash reporting toggle, auto-update constraint documented.
   epic-8-retrospective: done  # Completed 2026-02-11
+
+  # ═══════════════════════════════════════════════════════════
+  # TECH DEBT EPIC — Post-MVP Hardening
+  # Created: 2026-02-11 from consolidated retro debt inventory
+  # Priority order: TD-1 (CRITICAL) → TD-2 (HIGH) → TD-3-5 (MEDIUM)
+  # ═══════════════════════════════════════════════════════════
+  epic-td: done  # Tech Debt & Hardening — all 5 stories complete 2026-02-12
+  td-1-ai-detection-humanization-fix: done  # Code review R2 2026-02-12: All 7 issues fixed. Prompt sync, boost 3, AC-3 documented. 39/39 tests.
+  td-2-recovery-key-database-rekey: done  # Code review fixes 2026-02-12: All 7 issues fixed. 2 new tests, atomic writes, passphrase validation, state cleanup. 9+34 tests pass.
+  td-3-passphrase-security-hardening: done  # 2026-02-12: All 6 review follow-ups fixed (1H 3M 2L). Safe zeroize tests, Zeroizing return, db_key wrapping. 26+48+9 tests pass.
+  td-4-test-suite-health: done  # 2026-02-12: CR R2 passed. All R1 fixes verified. 3 LOW action items deferred. 10+29 tests pass.
+  td-5-code-quality-consolidation: done  # 2026-02-12: All 7 review follow-ups fixed (1H 3M 3L). build.rs, config docs, call_to_action, TSX tokens, CTA test. 14+17 tests pass.
+  epic-td-retrospective: done  # Completed 2026-02-12
+
+  # ═══════════════════════════════════════════════════════════
+  # EPIC 7 — Proposal History & Data Portability [POST-MVP]
+  # Created: 2026-02-12 from epics.md Post-MVP Priority 1
+  # FRs: FR-14 (history), FR-15 (export/backup). UX: UX-6 (response tracking)
+  # ═══════════════════════════════════════════════════════════
+  epic-7: in-progress  # Started 2026-02-12
+  7-1-proposal-outcome-tracking-schema: done  # Code review 2026-02-12: 7 issues fixed (1H 3M 3L). Strategy key format, ON DELETE SET NULL, warning log, guard removal. 47 Rust + 26 frontend tests pass.
+  7-2-response-tracking-ui: done  # Code review R2 2026-02-12: All 8 issues fixed (5M 3L). Full snapshot rollback, OutcomeStatus type, aria-activedescendant, stable mutate dep, scroll-close, viewport clamp, unified formatLabel. 61 tests pass.
+  7-3-proposal-search-and-filter: done  # CR R2 2026-02-13: All 3 issues fixed (1C 1M 1L). Commands registered in invoke_handler, limit capped at 500, useCallback removed. 54 frontend + 15 Rust tests pass.
+  7-4-full-proposal-detail-view: done  # 2026-02-13: CR R2 all 7 issues fixed (1C 2H 2M 2L). get_proposal_detail + update_proposal_outcome registered, Nav tab highlight fixed, handleBackFromDetail useCallback. 139 frontend + 98 Rust tests pass.
+  7-5-proposal-analytics-dashboard: review  # CR R1 2026-02-13: All 7 issues FIXED (1C 2H 2M 2L). Commands registered, Cell colors, 29 component tests, refetch, timezone fix, low-sample opacity. 59 tests total.
+  7-6-database-export-to-encrypted-archive: review  # CR R1 2026-02-13: All 8 issues FIXED (3C 2H 3M). invoke_handler + managed state registered, 13/13 frontend tests fixed, race condition resolved (lock held during file read), 3 integration tests added, tracing::warn on failures, AC-3 deviation documented. 33 total tests (13 unit + 20 integration + 16 Rust).
+  7-7-database-import-from-archive: review  # CR R1 2026-02-13: All 11 issues FIXED (4C 4H 3M). 10/11 already fixed during story dev (invoke_handler, PRAGMA key, camelCase, cleanup, rss_imports, skip counters, metadata reader, disk space, batched INSERTs, 14 frontend tests). H4 fixed in CR: queryClient.invalidateQueries() replaces window.location.reload().
+  epic-7-retrospective: optional

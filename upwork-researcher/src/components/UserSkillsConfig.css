@@ -31,7 +31,7 @@
 
 .skills-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-primary, #3b82f6);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
@@ -41,13 +41,13 @@
 }
 
 .skills-input::placeholder {
-  color: #888;
+  color: var(--color-text-muted, #888);
 }
 
 .saving-indicator {
   position: absolute;
   right: 1rem;
-  color: #3b82f6;
+  color: var(--color-primary, #3b82f6);
   font-size: 0.85rem;
   pointer-events: none;
 }
@@ -77,8 +77,8 @@
 
 .suggestion-item:hover,
 .suggestion-item--selected {
-  background: #3b82f6;
-  color: #ffffff;
+  background: var(--color-primary, #3b82f6);
+  color: var(--color-primary-text, #ffffff);
 }
 
 .suggestion-item:first-child {
@@ -110,7 +110,7 @@
 }
 
 .empty-state {
-  color: #888;
+  color: var(--color-text-muted, #888);
   font-size: 0.9rem;
   font-style: italic;
 }
@@ -121,15 +121,15 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: #3b82f6;
-  color: #ffffff;
+  background: var(--color-primary, #3b82f6);
+  color: var(--color-primary-text, #ffffff);
   border-radius: 20px;
   font-size: 0.9rem;
   transition: background-color 0.2s;
 }
 
 .skill-tag:hover {
-  background: #2563eb;
+  background: var(--color-primary-hover, #2563eb);
 }
 
 .skill-name {
@@ -146,7 +146,7 @@
   background: rgba(255, 255, 255, 0.2);
   border: none;
   border-radius: 50%;
-  color: #ffffff;
+  color: var(--color-primary-text, #ffffff);
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
@@ -163,7 +163,7 @@
 }
 
 .skill-remove-btn:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--color-primary-text, #ffffff);
   outline-offset: 2px;
 }
 
@@ -174,10 +174,10 @@
   }
 
   .skill-tag {
-    border: 2px solid #ffffff;
+    border: 2px solid var(--color-primary-text, #ffffff);
   }
 
   .suggestion-item:hover {
-    border: 2px solid #ffffff;
+    border: 2px solid var(--color-primary-text, #ffffff);
   }
 }

@@ -17,6 +17,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use rand::Rng;
 use std::fs;
 use std::path::{Path, PathBuf};
+use zeroize::Zeroizing;
 
 /// Minimum passphrase length (updated from 8 to 12 per Round 5 Security Audit)
 pub const MIN_PASSPHRASE_LENGTH: usize = 12;
@@ -122,7 +123,7 @@ pub fn load_salt(app_data_dir: &Path) -> Result<[u8; SALT_LENGTH], PassphraseErr
 /// - 3 iterations (OWASP minimum)
 /// - 4 parallelism (balances security and performance)
 /// - ~200ms derivation time (acceptable for startup)
-pub fn derive_key(passphrase: &str, salt: &[u8; SALT_LENGTH]) -> Result<Vec<u8>, PassphraseError> {
+pub fn derive_key(passphrase: &str, salt: &[u8; SALT_LENGTH]) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
     // Validate passphrase length
     if passphrase.len() < MIN_PASSPHRASE_LENGTH {
         return Err(PassphraseError::TooShort);
@@ -145,16 +146,23 @@ pub fn derive_key(passphrase: &str, salt: &[u8; SALT_LENGTH]) -> Result<Vec<u8>,
         .map_err(|e| PassphraseError::DerivationFailed(format!("Failed to encode salt: {}", e)))?;
 
     // Derive key
+    // KNOWN GAP (TD-3 review #4): `password_hash` holds a copy of the hash bytes via
+    // the argon2 crate's `PasswordHash` type, which does NOT implement Zeroize.
+    // When `password_hash` drops, its internal buffer is freed but not zeroed.
+    // The extracted key IS zeroed via Zeroizing below. This residual copy is an
+    // accepted limitation — zeroing PasswordHash would require upstream changes.
     let password_hash = argon2
         .hash_password(passphrase.as_bytes(), &salt_string)
         .map_err(|e| PassphraseError::DerivationFailed(format!("Argon2id derivation failed: {}", e)))?;
 
-    // Extract raw hash bytes
-    let key = password_hash
-        .hash
-        .ok_or_else(|| PassphraseError::DerivationFailed("No hash produced".to_string()))?
-        .as_bytes()
-        .to_vec();
+    // Extract raw hash bytes — wrapped in Zeroizing for automatic memory zeroing on drop
+    let key = Zeroizing::new(
+        password_hash
+            .hash
+            .ok_or_else(|| PassphraseError::DerivationFailed("No hash produced".to_string()))?
+            .as_bytes()
+            .to_vec()
+    );
 
     // Verify key length
     if key.len() != KEY_LENGTH {
@@ -177,11 +185,11 @@ pub fn derive_key(passphrase: &str, salt: &[u8; SALT_LENGTH]) -> Result<Vec<u8>,
 /// 4. Stores salt for future use
 ///
 /// Returns the derived key for immediate use in SQLCipher initialization.
-pub fn set_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Vec<u8>, PassphraseError> {
+pub fn set_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
     // Generate new salt
     let salt = generate_random_salt()?;
 
-    // Derive key from passphrase
+    // Derive key from passphrase — returned in Zeroizing wrapper, auto-zeroed on drop
     let key = derive_key(passphrase, &salt)?;
 
     // Store salt for future use (restart scenarios)
@@ -196,11 +204,11 @@ pub fn set_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Vec<u8>, 
 ///
 /// Used during app restart to unlock the encrypted database.
 /// Loads existing salt and derives key to verify correctness.
-pub fn verify_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Vec<u8>, PassphraseError> {
+pub fn verify_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
     // Load existing salt
     let salt = load_salt(app_data_dir)?;
 
-    // Derive key from passphrase
+    // Derive key from passphrase — returned in Zeroizing wrapper, auto-zeroed on drop
     let key = derive_key(passphrase, &salt)?;
 
     tracing::info!("Passphrase verified successfully");
@@ -218,7 +226,7 @@ pub fn verify_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Vec<u8
 /// - Argon2id derivation is constant-time by algorithm design
 /// - SQLCipher uses constant-time comparison during PRAGMA key
 /// - No stored key to compare — correctness verified by database unlock
-pub fn verify_passphrase_and_derive_key(passphrase: &str, app_data_dir: &Path) -> Result<Vec<u8>, PassphraseError> {
+pub fn verify_passphrase_and_derive_key(passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
     verify_passphrase(passphrase, app_data_dir)
 }
 

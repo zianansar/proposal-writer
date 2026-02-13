@@ -17,7 +17,7 @@
   gap: 0.25rem;
   padding: 0.5rem;
   background-color: #2a2a2a;
-  border: 1px solid #555;
+  border: 1px solid var(--color-border, #555);
   border-bottom: none;
   border-radius: 6px 6px 0 0;
 }
@@ -39,12 +39,12 @@
 }
 
 .toolbar-button:hover:not(:disabled) {
-  background-color: #3a3a3a;
-  color: #fff;
+  background-color: var(--color-bg-tertiary, #3a3a3a);
+  color: var(--color-primary-text, #fff);
 }
 
 .toolbar-button:focus-visible {
-  outline: 2px solid #24c8db;
+  outline: 2px solid var(--color-accent, #24c8db);
   outline-offset: 1px;
 }
 
@@ -54,9 +54,9 @@
 }
 
 .toolbar-button--active {
-  background-color: #24c8db;
-  color: #1a1a1a;
-  border-color: #24c8db;
+  background-color: var(--color-accent, #24c8db);
+  color: var(--color-text-inverse, #1a1a1a);
+  border-color: var(--color-accent, #24c8db);
 }
 
 .toolbar-button--active:hover:not(:disabled) {
@@ -67,22 +67,22 @@
   width: 1px;
   height: 20px;
   margin: 0 0.25rem;
-  background-color: #555;
+  background-color: var(--color-border, #555);
 }
 
 /* Editor wrapper - Story 6.4: Remove bottom border (status bar now below) */
 .proposal-editor-wrapper {
-  border: 1px solid #555;
+  border: 1px solid var(--color-border, #555);
   border-bottom: none;
   border-radius: 0;
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-primary, #1a1a1a);
   min-height: 200px;
 }
 
 /* TipTap editor content area */
 .proposal-editor-content {
   padding: 1rem;
-  color: #f6f6f6;
+  color: var(--color-text-primary, #f6f6f6);
   line-height: 1.6;
   min-height: 200px;
   outline: none;
@@ -141,7 +141,7 @@
 }
 
 .status-saving {
-  color: #aaa;
+  color: var(--color-text-secondary, #aaa);
 }
 
 .status-saved {
@@ -149,7 +149,7 @@
 }
 
 .status-error {
-  color: #f88;
+  color: var(--color-error-text, #f88);
 }
 
 /* ===========================================
@@ -163,7 +163,7 @@
   }
 
   .toolbar-button {
-    color: #555;
+    color: var(--color-border, #555);
   }
 
   .toolbar-button:hover:not(:disabled) {
@@ -177,7 +177,7 @@
 
   .toolbar-button--active {
     background-color: #396cd8;
-    color: #fff;
+    color: var(--color-primary-text, #fff);
     border-color: #396cd8;
   }
 
@@ -191,7 +191,7 @@
 
   .proposal-editor-wrapper {
     border-color: #ccc;
-    background-color: #fff;
+    background-color: var(--color-primary-text, #fff);
   }
 
   .proposal-editor-content {
@@ -207,7 +207,7 @@
   }
 
   .status-saved {
-    color: #28a745;
+    color: var(--color-button-success-bg, #28a745);
   }
 
   .status-error {

@@ -93,7 +93,8 @@ impl HumanizationIntensity {
 // ============================================================================
 
 /// Words that research identifies as strong AI-writing signals.
-/// These are flagged by detection tools (GPTZero, Perplexity, etc.)
+/// These are flagged by detection tools (GPTZero, ZeroGPT, Copyleaks, etc.)
+/// Expanded from 12 → 35 based on TD-1 Task 2 research (2026 detection landscape).
 pub const AI_TELLS: &[&str] = &[
     "delve",
     "leverage",
@@ -103,77 +104,145 @@ pub const AI_TELLS: &[&str] = &[
     "tapestry",
     "holistic",
     "nuanced",
-    "paradigm shift",
+    "paradigm",
     "game-changing",
     "transformative",
     "innovative",
+    "cutting-edge",
+    "state-of-the-art",
+    "comprehensive",
+    "seamless",
+    "streamline",
+    "optimize",
+    "spearheaded",
+    "synergy",
+    "ecosystem",
+    "landscape",
+    "realm",
+    "endeavor",
+    "keen",
+    "pivotal",
+    "elevate",
+    "foster",
+    "harness",
+    "facilitate",
+    "empower",
+    "cornerstone",
+    "testament",
+    "underscore",
+    "meticulous",
 ];
 
-/// AI hedging phrases to avoid.
+/// AI hedging phrases and formulaic openings to avoid.
+/// Expanded from 4 → 15 based on TD-1 Task 2 detection research.
 pub const AI_HEDGING_PHRASES: &[&str] = &[
     "it's important to note that",
     "it is worth mentioning",
     "in today's landscape",
     "in the ever-evolving",
+    "i am excited to",
+    "i am confident that",
+    "i would be happy to",
+    "i look forward to",
+    "rest assured",
+    "don't hesitate to",
+    "feel free to",
+    "my extensive experience",
+    "proven track record",
+    "i am well-versed in",
+    "i bring a wealth of",
 ];
 
 // ============================================================================
 // Prompt Templates
 // ============================================================================
 
-/// Quality preservation constraints appended to all non-off prompts.
-const QUALITY_CONSTRAINTS: &str = "\n\nQUALITY CONSTRAINTS (non-negotiable):
-- Maintain professional tone and confidence
-- No spelling or grammar errors (variations are stylistic, not errors)
-- Technical accuracy preserved
-- Message clarity not compromised
-- Still sounds competent and experienced";
+/// Lightweight guardrails appended to all non-off prompts.
+/// TD-1: Relaxed from the original "quality constraints" which fought humanization.
+const QUALITY_GUARDRAILS: &str = "\n\nQUALITY GUARDRAILS:
+- Stay professional — casual doesn't mean sloppy
+- Technical claims must be accurate
+- The message should be clear and actionable
+- Typos are NOT humanization — maintain correct spelling";
 
 /// Build the humanization prompt block for the given intensity.
 /// Returns `None` if intensity is Off (no humanization instructions needed).
+///
+/// TD-1 rewrite: Prompts now use specific, countable requirements targeting
+/// the statistical signals (burstiness, perplexity variation, structural
+/// unpredictability) that AI detection tools measure.
 pub fn get_humanization_prompt(intensity: &HumanizationIntensity) -> Option<String> {
     match intensity {
         HumanizationIntensity::Off => None,
 
         HumanizationIntensity::Light => Some(format!(
             r#"
-Write naturally. Occasionally use contractions and vary sentence structure slightly.
-Aim for about 0.5-1 subtle human touches per 100 words.
-AVOID AI tells: Don't use "delve", "leverage", "utilize", "robust", "multifaceted" unless truly contextually appropriate.{}"#,
-            QUALITY_CONSTRAINTS
+Write naturally with a conversational touch. About 0.5-1 subtle human elements per 100 words.
+
+GUIDELINES:
+- Use contractions where natural (I'm, you're, I've, that's, won't, can't)
+- Vary sentence length — mix short and long
+- Avoid overly formal or stilted language
+
+AVOID these AI-signaling words: "delve", "leverage", "utilize", "robust", "multifaceted", "innovative", "comprehensive", "seamless", "streamline", "cutting-edge", "holistic", "transformative", "facilitate", "optimize", "spearheaded"
+
+AVOID these phrases: "I am excited to", "I look forward to", "It's important to note", "proven track record", "I am confident that", "don't hesitate to"{}"#,
+            QUALITY_GUARDRAILS
         )),
 
         HumanizationIntensity::Medium => Some(format!(
             r#"
-Write this proposal naturally, as a human freelancer would. Include 1-2 subtle human touches per 100 words:
-- Occasional contractions (I'm, you're, we've) where natural
-- Informal transitions sometimes (So, Now, Plus, That said)
-- Vary sentence length (mix short punchy sentences with longer explanatory ones)
-- Minor stylistic variations (sentence fragment for emphasis is OK)
-- Minor repetition of a key phrase for emphasis, where natural
-- Conversational tone while maintaining professionalism
+CRITICAL: Write this as a real human freelancer would actually type it. This is a quick, confident message — NOT a formal cover letter.
 
-AVOID AI tells: Don't use "delve", "leverage", "utilize", "robust", "multifaceted" unless truly contextually appropriate.
+MANDATORY STRUCTURE (follow these exactly):
+- Do NOT write exactly 3 equal paragraphs. Use 2-4 paragraphs of varying length.
+- At least one paragraph must be only 1-2 sentences. Another must be 3+ sentences.
+- Include at least ONE sentence under 6 words (e.g. "Here's my take." or "Happy to chat.")
+- Include at least ONE sentence over 20 words.
+- Start at least one sentence with "And", "But", or "So".
+- Use at least one parenthetical aside (like this) or em-dash — for a natural break.
 
-The output should sound like a confident, competent professional writing naturally—not overly formal, not overly casual.{}"#,
-            QUALITY_CONSTRAINTS
+MANDATORY WORD CHOICE:
+- Use contractions everywhere: I'm, I've, you're, that's, won't, can't, I'd, we'll — minimum 6 per 200 words.
+- Reference ONE specific detail from past experience (a project type, a metric, a tool).
+- Include at least one casual expression: "happy to chat", "sounds like", "right up my alley", "pretty straightforward", "the short version", "quick note".
+- Replace formal verbs with casual ones: "utilize" → "use", "implement" → "build", "facilitate" → "help", "demonstrate" → "show".
+
+ABSOLUTELY FORBIDDEN (these instantly flag AI detection):
+Words: "delve", "leverage", "utilize", "robust", "multifaceted", "tapestry", "holistic", "nuanced", "paradigm", "game-changing", "transformative", "innovative", "cutting-edge", "state-of-the-art", "comprehensive", "seamless", "streamline", "optimize", "spearheaded", "synergy", "ecosystem", "landscape", "realm", "endeavor", "keen", "pivotal", "elevate", "foster", "harness", "empower", "facilitate", "cornerstone", "testament", "underscore", "meticulous"
+Phrases: "I am excited to", "I am confident that", "I would be happy to", "It's important to note", "It is worth mentioning", "In today's", "In the ever-evolving", "I look forward to", "rest assured", "don't hesitate to", "feel free to", "my extensive experience", "proven track record", "I am well-versed in", "I bring a wealth of"
+Patterns: Starting 3+ sentences the same way. Every paragraph being similar length. Using the same transition word twice.
+
+TONE: Imagine you're messaging a potential client about a project that genuinely interests you — confident but not salesy, direct but not blunt.{}"#,
+            QUALITY_GUARDRAILS
         )),
 
         HumanizationIntensity::Heavy => Some(format!(
             r#"
-Write conversationally, as a confident freelancer dashing off a well-considered reply. Include 2-3 natural human elements per 100 words:
-- Frequent contractions (I'm, you're, we've, I'd, that's)
-- Informal transitions (So, Now, Plus, That said, Anyway, Honestly)
-- Mix very short sentences with longer ones for rhythm
-- Occasional sentence fragments for emphasis
-- Conversational questions followed by answers ("Why does this matter? Because...")
-- Natural phrasing ("I've done this before" not "I have completed similar projects")
-- Minor repetition of a key phrase for emphasis
+CRITICAL: Write exactly as a busy, confident freelancer would — typing quickly, genuine interest. Think Slack message to a potential client, not cover letter.
 
-AVOID AI tells: Don't use "delve", "leverage", "utilize", "robust", "multifaceted", "tapestry", "holistic", "nuanced".
+MANDATORY STRUCTURE (follow these exactly):
+- Use 2-4 paragraphs of DRAMATICALLY different lengths. One short (1-2 sentences), one longer (3-4 sentences).
+- Include at least TWO sentences under 6 words. ("That's my jam." "Happy to jump in." "Quick background.")
+- Include ONE sentence over 25 words with a natural mid-sentence break (dash or parenthetical).
+- Start at least TWO sentences with "And", "But", "So", or "Plus".
+- Include one aside in parentheses or after a dash.
+- Break one expected pattern: use a rhetorical question, a self-correction ("well, actually..."), or an incomplete thought.
 
-Sound like a real person who happens to be great at their job—casual confidence, not corporate polish.{}"#,
-            QUALITY_CONSTRAINTS
+MANDATORY WORD CHOICE:
+- Contractions everywhere — minimum 8 per 200 words. Never write "I am" when "I'm" works.
+- Reference TWO specific details (project type + a metric, tool, or outcome from experience).
+- Include at least TWO casual expressions.
+- Include ONE thinking-aloud moment: "I'm thinking...", "The way I see it...", "Off the top of my head...".
+- One or two natural fillers: "pretty much", "honestly", "basically".
+
+ABSOLUTELY FORBIDDEN (these instantly flag AI detection):
+Words: "delve", "leverage", "utilize", "robust", "multifaceted", "tapestry", "holistic", "nuanced", "paradigm", "game-changing", "transformative", "innovative", "cutting-edge", "state-of-the-art", "comprehensive", "seamless", "streamline", "optimize", "spearheaded", "synergy", "ecosystem", "landscape", "realm", "endeavor", "keen", "pivotal", "elevate", "foster", "harness", "empower", "facilitate", "cornerstone", "testament", "underscore", "meticulous"
+Phrases: "I am excited to", "I am confident that", "I would be happy to", "It's important to note", "It is worth mentioning", "In today's", "In the ever-evolving", "I look forward to", "rest assured", "don't hesitate to", "feel free to", "my extensive experience", "proven track record", "I am well-versed in", "I bring a wealth of"
+Patterns: Starting 3+ sentences the same way. Every paragraph being similar length. Using the same transition word twice. Numbered lists in proposals.
+
+TONE: You just saw a job post that's exactly what you do, and you're genuinely stoked. Write like it.{}"#,
+            QUALITY_GUARDRAILS
         )),
     }
 }
@@ -196,6 +265,67 @@ pub fn build_system_prompt(base_prompt: &str, intensity: &str) -> String {
         Some(humanization_block) => format!("{}\n{}", base_prompt, humanization_block),
         None => base_prompt.to_string(),
     }
+}
+
+// ============================================================================
+// Re-humanization Boost (TD-1 Task 4)
+// ============================================================================
+
+/// Additional prompt appended during re-humanization attempts (Story 3.4 + TD-1).
+/// Targets specific AI detection signals more aggressively than the base prompts.
+/// This is appended AFTER the escalated intensity prompt for maximum effect.
+pub fn get_rehumanization_boost(attempt: u32) -> Option<String> {
+    match attempt {
+        1 => Some(
+            r#"
+
+IMPORTANT — PREVIOUS VERSION WAS FLAGGED AS AI-GENERATED. Apply these additional fixes:
+- Rewrite the opening sentence to be more specific and personal (reference a real-sounding detail)
+- Break up any paragraph longer than 3 sentences into two shorter ones
+- Add one conversational aside you wouldn't see in formal writing
+- Make sure no two consecutive sentences start the same way
+- Include at least one short reaction or opinion ("Neat.", "That's smart.", "Big fan of that approach.")"#
+                .to_string(),
+        ),
+        2 => Some(
+            r#"
+
+CRITICAL — SECOND ATTEMPT. The previous two versions were flagged as AI. Be MORE aggressive:
+- Write as if you're typing this on your phone during lunch — keep it casual and direct
+- Start with something unexpected (a question, a brief reaction, or a specific observation)
+- Cut any sentence that sounds like a template or could appear in any proposal
+- Use at least 2 sentence fragments (under 5 words) as standalone emphasis
+- Vary paragraph lengths dramatically — one paragraph should be a single sentence
+- Include ONE personal detail that sounds specific ("I just wrapped up a similar project for a SaaS startup last month")
+- Do NOT use formal proposal language — this should read like a genuine message from a real person"#
+                .to_string(),
+        ),
+        3 => Some(
+            r#"
+
+FINAL ATTEMPT — Every previous version was flagged. Throw out everything and start fresh:
+- Pretend you're voice-texting a reply while walking — raw, unpolished, genuine
+- Open with a specific observation or question about the job post (NOT a greeting)
+- Maximum 3 paragraphs. One must be a single sentence.
+- Use at least 3 sentence fragments. No sentence over 18 words.
+- Include a self-correction or mid-thought change ("actually, scratch that — ...")
+- Reference a hyper-specific past detail (client name style, dollar amount, timeline)
+- Zero transition words between paragraphs — just jump between ideas
+- If it sounds like it could be in a template, delete it"#
+                .to_string(),
+        ),
+        _ => None,
+    }
+}
+
+/// Build a system prompt with both humanization intensity AND re-humanization boost.
+/// Used by the regeneration flow when a proposal failed AI detection.
+pub fn build_rehumanization_prompt(base_prompt: &str, intensity: &str, attempt: u32) -> String {
+    let mut prompt = build_system_prompt(base_prompt, intensity);
+    if let Some(boost) = get_rehumanization_boost(attempt) {
+        prompt.push_str(&boost);
+    }
+    prompt
 }
 
 // ============================================================================
@@ -451,37 +581,35 @@ mod tests {
         let prompt = get_humanization_prompt(&HumanizationIntensity::Light).unwrap();
         assert!(prompt.contains("contraction"));
         assert!(prompt.contains("0.5-1"));
-        assert!(prompt.contains("AVOID AI tells"));
+        assert!(prompt.contains("AVOID"));
         assert!(prompt.contains("delve"));
-        assert!(prompt.contains("QUALITY CONSTRAINTS"));
+        assert!(prompt.contains("QUALITY GUARDRAILS"));
     }
 
     #[test]
     fn test_medium_prompt_contains_required_elements() {
         let prompt = get_humanization_prompt(&HumanizationIntensity::Medium).unwrap();
-        assert!(prompt.contains("1-2 subtle human touches"));
+        assert!(prompt.contains("MANDATORY STRUCTURE"));
         assert!(prompt.contains("contraction"));
-        assert!(prompt.contains("Informal transitions"));
-        assert!(prompt.contains("Vary sentence length"));
-        assert!(prompt.contains("AVOID AI tells"));
+        assert!(prompt.contains("MANDATORY WORD CHOICE"));
+        assert!(prompt.contains("under 6 words"));
+        assert!(prompt.contains("ABSOLUTELY FORBIDDEN"));
         assert!(prompt.contains("delve"));
         assert!(prompt.contains("leverage"));
-        assert!(prompt.contains("QUALITY CONSTRAINTS"));
-        assert!(prompt.contains("professional"));
-        assert!(prompt.contains("repetition")); // AC4: Minor repetition
+        assert!(prompt.contains("QUALITY GUARDRAILS"));
+        assert!(prompt.contains("casual expression"));
     }
 
     #[test]
     fn test_heavy_prompt_contains_required_elements() {
         let prompt = get_humanization_prompt(&HumanizationIntensity::Heavy).unwrap();
-        assert!(prompt.contains("2-3"));
-        assert!(prompt.contains("contraction"));
-        assert!(prompt.contains("Informal transitions"));
-        assert!(prompt.contains("sentence fragment"));
-        assert!(prompt.contains("Conversational questions"));
-        assert!(prompt.contains("AVOID AI tells"));
-        assert!(prompt.contains("QUALITY CONSTRAINTS"));
-        assert!(prompt.contains("repetition")); // AC4: Minor repetition
+        assert!(prompt.contains("MANDATORY STRUCTURE"));
+        assert!(prompt.contains("DRAMATICALLY different"));
+        assert!(prompt.contains("Contractions"));
+        assert!(prompt.contains("thinking-aloud"));
+        assert!(prompt.contains("rhetorical question"));
+        assert!(prompt.contains("ABSOLUTELY FORBIDDEN"));
+        assert!(prompt.contains("QUALITY GUARDRAILS"));
     }
 
     #[test]
@@ -497,14 +625,69 @@ mod tests {
         let result = build_system_prompt(base, "medium");
         assert!(result.starts_with(base));
         assert!(result.len() > base.len());
-        assert!(result.contains("1-2 subtle human touches"));
+        assert!(result.contains("MANDATORY STRUCTURE"));
     }
 
     #[test]
     fn test_build_system_prompt_invalid_defaults_to_medium() {
         let base = "You are a proposal writer.";
         let result = build_system_prompt(base, "invalid_value");
-        assert!(result.contains("1-2 subtle human touches"));
+        assert!(result.contains("MANDATORY STRUCTURE"));
+    }
+
+    // -- Re-humanization boost tests (TD-1 Task 4) --
+
+    #[test]
+    fn test_rehumanization_boost_attempt_1() {
+        let boost = get_rehumanization_boost(1);
+        assert!(boost.is_some());
+        let text = boost.unwrap();
+        assert!(text.contains("FLAGGED AS AI-GENERATED"));
+        assert!(text.contains("personal"));
+    }
+
+    #[test]
+    fn test_rehumanization_boost_attempt_2() {
+        let boost = get_rehumanization_boost(2);
+        assert!(boost.is_some());
+        let text = boost.unwrap();
+        assert!(text.contains("SECOND ATTEMPT"));
+        assert!(text.contains("sentence fragments"));
+    }
+
+    #[test]
+    fn test_rehumanization_boost_attempt_0_returns_none() {
+        assert!(get_rehumanization_boost(0).is_none());
+    }
+
+    #[test]
+    fn test_rehumanization_boost_attempt_3() {
+        let boost = get_rehumanization_boost(3);
+        assert!(boost.is_some());
+        let text = boost.unwrap();
+        assert!(text.contains("FINAL ATTEMPT"));
+        assert!(text.contains("voice-texting"));
+    }
+
+    #[test]
+    fn test_rehumanization_boost_attempt_4_returns_none() {
+        assert!(get_rehumanization_boost(4).is_none());
+    }
+
+    #[test]
+    fn test_build_rehumanization_prompt_includes_boost() {
+        let base = "You are a proposal writer.";
+        let result = build_rehumanization_prompt(base, "heavy", 1);
+        assert!(result.contains("MANDATORY STRUCTURE")); // Heavy prompt
+        assert!(result.contains("FLAGGED AS AI-GENERATED")); // Boost
+    }
+
+    #[test]
+    fn test_build_rehumanization_prompt_no_boost_at_attempt_0() {
+        let base = "You are a proposal writer.";
+        let result = build_rehumanization_prompt(base, "medium", 0);
+        assert!(result.contains("MANDATORY STRUCTURE")); // Medium prompt
+        assert!(!result.contains("FLAGGED AS AI-GENERATED")); // No boost
     }
 
     // -- Humanization analysis tests --
@@ -570,6 +753,73 @@ mod tests {
         let metrics = analyze_humanization(text);
         assert!(metrics.ai_tells_found.contains(&"it's important to note that".to_string()));
         assert!(metrics.ai_tells_found.contains(&"robust".to_string()));
+    }
+
+    #[test]
+    fn test_analyze_expanded_ai_tells() {
+        let text = "I will facilitate a comprehensive review to harness cutting-edge technology and foster innovation in this ecosystem.";
+        let metrics = analyze_humanization(text);
+        assert!(metrics.ai_tells_found.contains(&"facilitate".to_string()));
+        assert!(metrics.ai_tells_found.contains(&"comprehensive".to_string()));
+        assert!(metrics.ai_tells_found.contains(&"harness".to_string()));
+        assert!(metrics.ai_tells_found.contains(&"cutting-edge".to_string()));
+        assert!(metrics.ai_tells_found.contains(&"foster".to_string()));
+        assert!(metrics.ai_tells_found.contains(&"ecosystem".to_string()));
+    }
+
+    #[test]
+    fn test_analyze_expanded_hedging_phrases() {
+        let text = "I am excited to apply. I am confident that my extensive experience and proven track record make me well-suited.";
+        let metrics = analyze_humanization(text);
+        assert!(metrics.ai_tells_found.contains(&"i am excited to".to_string()));
+        assert!(metrics.ai_tells_found.contains(&"i am confident that".to_string()));
+        assert!(metrics.ai_tells_found.contains(&"proven track record".to_string()));
+    }
+
+    // -- Prompt/constant sync verification (Code Review H1 fix) --
+
+    #[test]
+    fn test_medium_prompt_contains_all_ai_tells() {
+        let prompt = get_humanization_prompt(&HumanizationIntensity::Medium).unwrap().to_lowercase();
+        for tell in AI_TELLS {
+            assert!(prompt.contains(tell), "Medium prompt missing AI_TELLS word: '{}'", tell);
+        }
+    }
+
+    #[test]
+    fn test_heavy_prompt_contains_all_ai_tells() {
+        let prompt = get_humanization_prompt(&HumanizationIntensity::Heavy).unwrap().to_lowercase();
+        for tell in AI_TELLS {
+            assert!(prompt.contains(tell), "Heavy prompt missing AI_TELLS word: '{}'", tell);
+        }
+    }
+
+    #[test]
+    fn test_medium_prompt_contains_all_hedging_phrases() {
+        let prompt = get_humanization_prompt(&HumanizationIntensity::Medium).unwrap().to_lowercase();
+        for phrase in AI_HEDGING_PHRASES {
+            // Prompt may use shortened prefix (e.g. "In today's" for "in today's landscape")
+            // Prompt may use shortened prefix (e.g. "In today's" for "in today's landscape")
+            let check = if phrase.split_whitespace().count() > 2 {
+                phrase.split_whitespace().take(2).collect::<Vec<_>>().join(" ")
+            } else {
+                phrase.to_string()
+            };
+            assert!(prompt.contains(&check), "Medium prompt missing hedging phrase (or prefix): '{}'", phrase);
+        }
+    }
+
+    #[test]
+    fn test_heavy_prompt_contains_all_hedging_phrases() {
+        let prompt = get_humanization_prompt(&HumanizationIntensity::Heavy).unwrap().to_lowercase();
+        for phrase in AI_HEDGING_PHRASES {
+            let check = if phrase.split_whitespace().count() > 2 {
+                phrase.split_whitespace().take(2).collect::<Vec<_>>().join(" ")
+            } else {
+                phrase.to_string()
+            };
+            assert!(prompt.contains(&check), "Heavy prompt missing hedging phrase (or prefix): '{}'", phrase);
+        }
     }
 
     #[test]

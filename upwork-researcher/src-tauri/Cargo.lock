@@ -1379,6 +1379,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "futf"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5702,6 +5712,7 @@ dependencies = [
  "chrono",
  "filetime",
  "flate2",
+ "fs2",
  "futures",
  "hex",
  "keyring",
@@ -5712,6 +5723,7 @@ dependencies = [
  "reqwest",
  "rss",
  "rusqlite",
+ "scopeguard",
  "scraper",
  "serde",
  "serde_json",
@@ -5731,6 +5743,8 @@ dependencies = [
  "tracing-subscriber",
  "unicode-normalization",
  "url",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -6843,6 +6857,20 @@ name = "zeroize"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
+dependencies = [
+ "zeroize_derive",
+]
+
+[[package]]
+name = "zeroize_derive"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85a5b4158499876c763cb03bc4e49185d3cccbabb15b33c627f7884f43db852e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
+]
 
 [[package]]
 name = "zerotrie"

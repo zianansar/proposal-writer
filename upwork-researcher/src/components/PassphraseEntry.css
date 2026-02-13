@@ -2,7 +2,7 @@
 
 .passphrase-entry-container {
   min-height: 100vh;
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-primary, #1a1a1a);
   color: #e0e0e0;
   display: flex;
   align-items: center;
@@ -62,7 +62,7 @@
   width: 100%;
   padding: 0.75rem 3rem 0.75rem 1rem;
   background-color: #2a2a2a;
-  border: 1px solid #404040;
+  border: 1px solid var(--color-bg-hover, #404040);
   border-radius: 6px;
   color: #e0e0e0;
   font-size: 1rem;
@@ -71,7 +71,7 @@
 
 .password-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-primary, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -103,13 +103,13 @@
   padding: 1rem;
   background-color: #2a2a2a;
   border-radius: 6px;
-  border: 1px solid #404040;
+  border: 1px solid var(--color-bg-hover, #404040);
 }
 
 .strength-bar-container {
   width: 100%;
   height: 8px;
-  background-color: #404040;
+  background-color: var(--color-bg-hover, #404040);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -144,7 +144,7 @@
 
 /* Error Text */
 .error-text {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
   font-size: 0.875rem;
   margin-top: 0.25rem;
 }
@@ -155,7 +155,7 @@
   gap: 1rem;
   padding: 1.5rem;
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
-  border: 2px solid #ef4444;
+  border: 2px solid var(--color-error, #ef4444);
   border-radius: 8px;
   align-items: flex-start;
 }
@@ -172,7 +172,7 @@
 .warning-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
   margin: 0 0 0.75rem 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -195,7 +195,7 @@
 }
 
 .warning-list li strong {
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
   font-weight: 700;
 }
 
@@ -211,7 +211,7 @@
   padding: 1rem;
   background-color: #2a2a2a;
   border-radius: 6px;
-  border: 1px solid #404040;
+  border: 1px solid var(--color-bg-hover, #404040);
 }
 
 .acknowledgment-label {
@@ -227,7 +227,7 @@
   flex-shrink: 0;
   margin-top: 0.125rem;
   cursor: pointer;
-  accent-color: #3b82f6;
+  accent-color: var(--color-primary, #3b82f6);
 }
 
 .acknowledgment-text {
@@ -240,9 +240,9 @@
 .error-banner {
   padding: 1rem;
   background-color: rgba(239, 68, 68, 0.1);
-  border: 1px solid #ef4444;
+  border: 1px solid var(--color-error, #ef4444);
   border-radius: 6px;
-  color: #ef4444;
+  color: var(--color-error, #ef4444);
   font-size: 0.9375rem;
 }
 
@@ -265,12 +265,12 @@
 }
 
 .btn-primary {
-  background-color: #3b82f6;
+  background-color: var(--color-primary, #3b82f6);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover, #2563eb);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
@@ -280,7 +280,7 @@
 }
 
 .btn-primary:disabled {
-  background-color: #404040;
+  background-color: var(--color-bg-hover, #404040);
   color: #666;
   cursor: not-allowed;
 }
@@ -288,12 +288,12 @@
 .btn-secondary {
   background-color: #2a2a2a;
   color: #e0e0e0;
-  border: 1px solid #404040;
+  border: 1px solid var(--color-bg-hover, #404040);
 }
 
 .btn-secondary:hover {
   background-color: #333;
-  border-color: #555;
+  border-color: var(--color-border, #555);
 }
 
 /* Recovery Key Link (Story 2.9, AC6) */
@@ -328,7 +328,7 @@
 .recovery-key-count {
   text-align: right;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-text-muted, #888);
   margin-top: 0.25rem;
 }
 

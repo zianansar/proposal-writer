@@ -7,7 +7,7 @@ export type { GoldenSetUploadProps } from './components/GoldenSetUpload';
 export { QuickCalibration } from './QuickCalibration';
 export { VoiceCalibrationOptions } from './VoiceCalibrationOptions';
 export type { VoiceCalibrationOptionsProps } from './VoiceCalibrationOptions';
-export { mapAnswersToProfile, type QuickCalibrationAnswers } from './quickCalibrationMapper';
+export type { QuickCalibrationAnswers } from './types';
 export { QUICK_CALIBRATION_QUESTIONS } from './quickCalibrationQuestions';
 export type { QuickCalibrationQuestion, QuickCalibrationOption } from './quickCalibrationQuestions';
 export {

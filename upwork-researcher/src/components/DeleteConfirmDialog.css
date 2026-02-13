@@ -25,7 +25,7 @@
 }
 
 .delete-confirm {
-  background: #1a1a1a;
+  background: var(--color-bg-primary, #1a1a1a);
   color: #e0e0e0;
   border-radius: 12px;
   padding: 28px;
@@ -96,18 +96,18 @@
 }
 
 .delete-confirm__button:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary, #3b82f6);
   outline-offset: 2px;
 }
 
 .delete-confirm__button:focus-visible {
-  outline: 3px solid #3b82f6;
+  outline: 3px solid var(--color-primary, #3b82f6);
   outline-offset: 3px;
 }
 
 /* Cancel button: neutral secondary style */
 .delete-confirm__button.button--secondary {
-  background: #404040;
+  background: var(--color-bg-hover, #404040);
   color: #e0e0e0;
   border: 1px solid #606060;
 }
@@ -119,9 +119,9 @@
 
 .delete-confirm__button.button--danger {
   background: #ef4444; /* Red danger */
-  color: #ffffff;
+  color: var(--color-primary-text, #ffffff);
 }
 
 .delete-confirm__button.button--danger:hover {
-  background: #dc2626;
+  background: var(--color-error-hover, #dc2626);
 }

@@ -1,6 +1,7 @@
+// Story 7.4 + 7.5: Accept broader View type (proposal-detail is a sub-view of history, analytics is a top-level view)
 interface NavigationProps {
-  activeView: "generate" | "history" | "settings";
-  onViewChange: (view: "generate" | "history" | "settings") => void;
+  activeView: string;
+  onViewChange: (view: "generate" | "history" | "analytics" | "settings") => void;
 }
 
 function Navigation({ activeView, onViewChange }: NavigationProps) {
@@ -21,14 +22,25 @@ function Navigation({ activeView, onViewChange }: NavigationProps) {
         </button>
         <button
           id="history-tab"
-          className={`nav-tab ${activeView === "history" ? "nav-tab--active" : ""}`}
+          className={`nav-tab ${activeView === "history" || activeView === "proposal-detail" ? "nav-tab--active" : ""}`}
           onClick={() => onViewChange("history")}
           type="button"
           role="tab"
-          aria-selected={activeView === "history"}
+          aria-selected={activeView === "history" || activeView === "proposal-detail"}
           aria-controls="history-panel"
         >
           History
+        </button>
+        <button
+          id="analytics-tab"
+          className={`nav-tab ${activeView === "analytics" ? "nav-tab--active" : ""}`}
+          onClick={() => onViewChange("analytics")}
+          type="button"
+          role="tab"
+          aria-selected={activeView === "analytics"}
+          aria-controls="analytics-panel"
+        >
+          Analytics
         </button>
         <button
           id="settings-tab"

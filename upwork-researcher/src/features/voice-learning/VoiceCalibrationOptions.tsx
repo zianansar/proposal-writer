@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { QuickCalibration } from './QuickCalibration';
 import { GoldenSetUpload } from './components/GoldenSetUpload';
-import type { QuickCalibrationAnswers } from './quickCalibrationMapper';
+import type { QuickCalibrationAnswers } from './types';
 
 export interface VoiceCalibrationOptionsProps {
   /** Callback when calibration completes */
@@ -36,21 +36,21 @@ export function VoiceCalibrationOptions({
   // AC-1: Show calibration method choice
   if (mode === 'choice') {
     return (
-      <Card className="bg-[#1e1e1e] border-[#2a2a2a] max-w-2xl mx-auto">
+      <Card className="bg-[var(--color-bg-primary)] border-[#2a2a2a] max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-[#fafafa]">
+          <CardTitle className="text-[var(--color-text-primary)]">
             {isRecalibration ? 'Recalibrate Voice Profile' : 'Voice Calibration'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <p className="text-[#a3a3a3]">
+          <p className="text-[var(--color-text-secondary)]">
             Choose how you'd like to calibrate your writing voice:
           </p>
 
           {/* Option 1: Upload Past Proposals (Golden Set) */}
-          <div className="p-4 rounded-lg border border-[#2a2a2a] hover:border-[#3a3a3a] space-y-2">
-            <h3 className="text-[#fafafa] font-semibold">Upload Past Proposals</h3>
-            <p className="text-[#a3a3a3] text-sm">
+          <div className="p-4 rounded-lg border border-[#2a2a2a] hover:border-[var(--color-bg-tertiary)] space-y-2">
+            <h3 className="text-[var(--color-text-primary)] font-semibold">Upload Past Proposals</h3>
+            <p className="text-[var(--color-text-secondary)] text-sm">
               Upload 3-5 successful proposals for the most accurate voice profile.
               Analysis happens locally - your proposals never leave your device.
             </p>
@@ -64,11 +64,11 @@ export function VoiceCalibrationOptions({
           </div>
 
           {/* Option 2: Quick Calibration (5 Questions) */}
-          <div className="p-4 rounded-lg border border-[#2a2a2a] hover:border-[#3a3a3a] space-y-2">
-            <h3 className="text-[#fafafa] font-semibold">
-              Quick Calibration <span className="text-[#a3a3a3] font-normal">(No uploads needed)</span>
+          <div className="p-4 rounded-lg border border-[#2a2a2a] hover:border-[var(--color-bg-tertiary)] space-y-2">
+            <h3 className="text-[var(--color-text-primary)] font-semibold">
+              Quick Calibration <span className="text-[var(--color-text-secondary)] font-normal">(No uploads needed)</span>
             </h3>
-            <p className="text-[#a3a3a3] text-sm">
+            <p className="text-[var(--color-text-secondary)] text-sm">
               Answer 5 quick questions about your writing style. Takes about 30 seconds.
               Less accurate than uploading proposals, but you can start right away.
             </p>
