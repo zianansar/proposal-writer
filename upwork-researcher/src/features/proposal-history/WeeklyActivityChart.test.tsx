@@ -5,9 +5,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 import { WeeklyActivityChart } from './WeeklyActivityChart';
 
+let lastChartData: any[] = [];
+
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => createElement('div', { 'data-testid': 'responsive-container' }, children),
-  ComposedChart: ({ children, data }: any) => createElement('div', { 'data-testid': 'composed-chart', 'data-items': data?.length }, children),
+  ComposedChart: ({ children, data }: any) => {
+    lastChartData = data || [];
+    return createElement('div', { 'data-testid': 'composed-chart', 'data-items': data?.length }, children);
+  },
   Bar: () => null,
   Line: () => null,
   XAxis: () => null,
@@ -35,6 +40,7 @@ describe('WeeklyActivityChart', () => {
       defaultOptions: { queries: { retry: false } },
     });
     mockInvoke.mockClear();
+    lastChartData = [];
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -96,7 +102,10 @@ describe('WeeklyActivityChart', () => {
     renderChart();
 
     const chart = await screen.findByTestId('composed-chart');
-    // Data is transformed — chart receives formatted weeks
     expect(chart.getAttribute('data-items')).toBe('1');
+    // CR R2 L-3: Verify date formatting and responseRate rounding
+    expect(lastChartData[0].week).toBe('Feb 2');
+    expect(lastChartData[0].proposalCount).toBe(3);
+    expect(lastChartData[0].responseRate).toBe(33.3);
   });
 });

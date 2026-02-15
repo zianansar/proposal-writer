@@ -1,5 +1,5 @@
 // Strategy Performance Chart component (Story 7.5 AC-3)
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { useStrategyPerformance } from './useProposalAnalytics';
 import { formatLabel } from './OutcomeDropdown';
 
@@ -25,6 +25,7 @@ export function StrategyPerformanceChart() {
     total: item.total,
     positive: item.positive,
     lowSample: item.total < 3,
+    label: `${item.positive}/${item.total}`,
   }));
 
   return (
@@ -54,6 +55,7 @@ export function StrategyPerformanceChart() {
               fill={entry.lowSample ? '#3b82f680' : '#3b82f6'}
             />
           ))}
+          <LabelList dataKey="label" position="right" style={{ fontSize: 11, fill: '#a3a3a3' }} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>

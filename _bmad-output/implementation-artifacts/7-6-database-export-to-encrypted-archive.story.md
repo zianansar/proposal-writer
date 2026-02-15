@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 assignedTo: ""
 epic: 7
 story: 6
@@ -198,6 +198,15 @@ Then all existing tests pass (no regressions) plus new tests for the export comm
 - [x] [AI-Review][MEDIUM] Add `tracing::warn!` logging on export failure paths (write, verify, rename) [src-tauri/src/commands/export.rs]
 - [x] [AI-Review][MEDIUM] Verification gap vs AC-3 — documented as deliberate deviation: derived key not retained in accessible state, simplified validation catches corruption/truncation/format errors [src-tauri/src/commands/export.rs:74-112]
 - [x] [AI-Review][MEDIUM] Update story File List — added missing files and fixed Dev Agent Record
+
+### Review Follow-ups (AI) — Code Review R2 2026-02-15
+
+- [x] [AI-Review][MEDIUM] AC-2 granular progress — added Tauri event emission (`app_handle.emit("export-progress", stage)`) at 4 stages + frontend `listen()` from `@tauri-apps/api/event` [commands/export.rs + DatabaseExportButton.tsx]
+- [x] [AI-Review][MEDIUM] `verify_archive()` rewritten with streaming BufReader — reads only header+metadata+salt, infers DB size from file size. No full DB load [commands/export.rs]
+- [x] [AI-Review][MEDIUM] `read_metadata_only()` — 3 tests added: valid round-trip, corrupt header, oversized metadata rejection [archive_export.rs]
+- [x] [AI-Review][LOW] Focus trap — Tab/Shift+Tab cycles within dialog, auto-focuses hint input on open [DatabaseExportButton.tsx]
+- [x] [AI-Review][LOW] `formatFileSize` — bytes display as integers ("512 B"), decimals only for KB/MB/GB [DatabaseExportButton.tsx]
+- [x] [AI-Review][LOW] Passphrase hint validation — warns when hint matches passphrase patterns (mixed case+digits+symbols or >30 chars) [DatabaseExportButton.tsx + .css]
 
 ## Dev Notes
 
@@ -514,6 +523,15 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 - M1: Added `tracing::warn!` on failure paths
 - M2: Documented AC-3 verification deviation in code comments
 - M3: Updated File List and Dev Agent Record
+
+**Code Review R2 fixes (2026-02-15, Claude Opus 4.6):**
+- M1: Added Tauri event emission at 4 export stages + frontend `listen()` for AC-2 granular progress
+- M2: Rewrote `verify_archive()` with streaming BufReader — no full DB load into memory
+- M3: Added 3 tests for `read_metadata_only()` (valid, corrupt, oversized)
+- L1: Focus trap on confirmation modal + auto-focus hint input
+- L2: Fixed `formatFileSize` — bytes as integers, decimals only for KB+
+- L3: Passphrase hint pattern validation warning (mixed case+digits+symbols or >30 chars)
+- Test counts: Rust 16/16 (11 archive + 5 export), Frontend 37/37 (17 unit + 20 integration)
 
 ### File List
 

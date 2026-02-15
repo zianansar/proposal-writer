@@ -6,10 +6,14 @@ import { createElement } from 'react';
 import { StrategyPerformanceChart } from './StrategyPerformanceChart';
 
 const cellProps: any[] = [];
+let lastChartData: any[] = [];
 
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => createElement('div', { 'data-testid': 'responsive-container' }, children),
-  BarChart: ({ children, data }: any) => createElement('div', { 'data-testid': 'bar-chart', 'data-items': data?.length }, children),
+  BarChart: ({ children, data }: any) => {
+    lastChartData = data || [];
+    return createElement('div', { 'data-testid': 'bar-chart', 'data-items': data?.length }, children);
+  },
   Bar: ({ children }: any) => createElement('div', { 'data-testid': 'bar' }, children),
   XAxis: () => null,
   YAxis: () => null,
@@ -18,6 +22,7 @@ vi.mock('recharts', () => ({
     cellProps.push(props);
     return createElement('div', { 'data-testid': 'cell', 'data-fill': props.fill });
   },
+  LabelList: () => null,
 }));
 
 const mockInvoke = vi.fn();
@@ -40,6 +45,7 @@ describe('StrategyPerformanceChart', () => {
     });
     mockInvoke.mockClear();
     cellProps.length = 0;
+    lastChartData = [];
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -57,6 +63,12 @@ describe('StrategyPerformanceChart', () => {
     const chart = await screen.findByTestId('bar-chart');
     expect(chart).toBeTruthy();
     expect(chart.getAttribute('data-items')).toBe('3');
+    // CR R2 L-3: Verify data transformations (formatLabel, responseRate rounding, label)
+    expect(lastChartData[0].name).toBe('Social Proof');
+    expect(lastChartData[0].responseRate).toBe(60.0);
+    expect(lastChartData[0].label).toBe('6/10');
+    expect(lastChartData[2].name).toBe('No strategy');
+    expect(lastChartData[2].label).toBe('0/2');
   });
 
   it('renders loading state', () => {
@@ -109,9 +121,9 @@ describe('StrategyPerformanceChart', () => {
 
     renderChart();
 
-    // The chart data should transform 'none' to 'No strategy'
-    // (verified via the data transformation, not DOM text since chart internals are mocked)
     await screen.findByTestId('bar-chart');
+    // CR R2 L-2: Verify 'none' → 'No strategy' data transformation
+    expect(lastChartData[0].name).toBe('No strategy');
     expect(mockInvoke).toHaveBeenCalledWith('get_response_rate_by_strategy');
   });
 

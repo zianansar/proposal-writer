@@ -520,12 +520,29 @@ pub fn get_proposal_analytics_summary(conn: &Connection) -> Result<AnalyticsSumm
         0.0
     };
 
-    // Get best performing strategy
-    let strategy_perf = get_response_rate_by_strategy(conn)?;
-    let (best_strategy, best_strategy_rate) = strategy_perf
-        .first()
-        .map(|s| (Some(s.strategy.clone()), s.response_rate))
-        .unwrap_or((None, 0.0));
+    // CR R2 M-1: Dedicated LIMIT 1 query instead of fetching all strategies
+    let (best_strategy, best_strategy_rate) = conn.query_row(
+        "SELECT \
+            COALESCE(hook_strategy_id, 'none') as strategy, \
+            COUNT(*) as total, \
+            SUM(CASE WHEN outcome_status IN ('response_received','interview','hired') THEN 1 ELSE 0 END) as positive \
+        FROM proposals \
+        WHERE status != 'draft' \
+        GROUP BY hook_strategy_id \
+        ORDER BY positive * 1.0 / NULLIF(total, 0) DESC \
+        LIMIT 1",
+        [],
+        |row| {
+            let total: i64 = row.get(1)?;
+            let positive: i64 = row.get(2)?;
+            let rate = if total > 0 {
+                (positive as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            };
+            Ok((Some(row.get::<_, String>(0)?), rate))
+        },
+    ).unwrap_or((None, 0.0));
 
     Ok(AnalyticsSummary {
         total_proposals,
@@ -611,7 +628,8 @@ pub fn get_weekly_activity(conn: &Connection, weeks: u32) -> Result<Vec<WeeklyAc
             strftime('%Y-W%W', created_at) as week_label, \
             DATE(created_at, 'weekday 0', '-6 days') as week_start, \
             COUNT(*) as proposal_count, \
-            SUM(CASE WHEN outcome_status IN ('response_received','interview','hired') THEN 1 ELSE 0 END) as positive_count \
+            SUM(CASE WHEN outcome_status IN ('response_received','interview','hired') THEN 1 ELSE 0 END) as positive_count, \
+            SUM(CASE WHEN outcome_status NOT IN ('pending','submitted') THEN 1 ELSE 0 END) as resolved_count \
         FROM proposals \
         WHERE status != 'draft' \
             AND created_at >= datetime('now', '-' || ?1 || ' days') \
@@ -623,8 +641,11 @@ pub fn get_weekly_activity(conn: &Connection, weeks: u32) -> Result<Vec<WeeklyAc
         .query_map(params![days], |row| {
             let proposal_count: i64 = row.get(2)?;
             let positive_count: i64 = row.get(3)?;
-            let response_rate = if proposal_count > 0 {
-                (positive_count as f64 / proposal_count as f64) * 100.0
+            let resolved_count: i64 = row.get(4)?;
+            // CR R2 H-1: Use resolved_count (excluding pending/submitted) as denominator
+            // for consistency with get_proposal_analytics_summary response rate formula
+            let response_rate = if resolved_count > 0 {
+                (positive_count as f64 / resolved_count as f64) * 100.0
             } else {
                 0.0
             };
@@ -2043,6 +2064,29 @@ mod tests {
 
         assert_eq!(activities.len(), 1);
         assert_eq!(activities[0].proposal_count, 1); // draft excluded
+    }
+
+    // CR R2 H-1: Verify response rate uses resolved_count denominator (excludes pending/submitted)
+    #[test]
+    fn test_get_weekly_activity_rate_excludes_pending() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let id1 = insert_proposal(&conn, "J1", "T1", Some("completed")).unwrap();
+        let id2 = insert_proposal(&conn, "J2", "T2", Some("completed")).unwrap();
+        let _id3 = insert_proposal(&conn, "J3", "T3", Some("completed")).unwrap(); // stays pending
+
+        update_proposal_outcome(&conn, id1, "hired").unwrap();
+        update_proposal_outcome(&conn, id2, "no_response").unwrap();
+        // id3 has no outcome update → outcome_status stays 'pending'
+
+        let activities = get_weekly_activity(&conn, 12).unwrap();
+
+        assert_eq!(activities.len(), 1);
+        assert_eq!(activities[0].proposal_count, 3); // all 3 counted
+        assert_eq!(activities[0].positive_count, 1); // only hired
+        // Rate = 1/2 * 100 = 50.0 (denominator is 2 resolved, not 3 total)
+        assert_eq!(activities[0].response_rate, 50.0);
     }
 
     #[test]

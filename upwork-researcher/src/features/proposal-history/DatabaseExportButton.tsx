@@ -1,7 +1,8 @@
 // DatabaseExportButton — Encrypted database export with passphrase warning (Story 7.6)
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import './DatabaseExportButton.css';
 
 interface ExportArchiveResult {
@@ -23,6 +24,8 @@ export function DatabaseExportButton() {
   const [passphraseHint, setPassphraseHint] = useState('');
   const [result, setResult] = useState<ExportArchiveResult | null>(null);
   const [error, setError] = useState<string>('');
+  const [progressMessage, setProgressMessage] = useState('Preparing...');
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Auto-dismiss success/error states after 8 seconds
   useEffect(() => {
@@ -38,6 +41,14 @@ export function DatabaseExportButton() {
     }
   }, [state]);
 
+  // L-1: Auto-focus passphrase hint input when confirmation dialog opens
+  useEffect(() => {
+    if (state === 'confirming' && dialogRef.current) {
+      const firstInput = dialogRef.current.querySelector<HTMLElement>('input');
+      firstInput?.focus();
+    }
+  }, [state]);
+
   const handleExportClick = useCallback(() => {
     setState('confirming');
   }, []);
@@ -49,8 +60,14 @@ export function DatabaseExportButton() {
 
   const handleConfirmExport = useCallback(async () => {
     setState('exporting');
+    setProgressMessage('Preparing...');
 
+    let unlisten: (() => void) | undefined;
     try {
+      unlisten = await listen<string>('export-progress', (event) => {
+        setProgressMessage(event.payload);
+      });
+
       const exportResult = await invoke<ExportArchiveResult>('export_encrypted_archive', {
         passphraseHint: passphraseHint.trim() || null,
       });
@@ -65,6 +82,8 @@ export function DatabaseExportButton() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
       setState('error');
+    } finally {
+      if (unlisten) unlisten();
     }
   }, [passphraseHint]);
 
@@ -73,11 +92,37 @@ export function DatabaseExportButton() {
     setError('');
   }, []);
 
+  // L-1: Focus trap for confirmation modal
+  const handleDialogKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const dialog = e.currentTarget as HTMLElement;
+    const focusable = dialog.querySelectorAll<HTMLElement>(
+      'button, input, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
+  // L-3: Warn if hint looks like an actual passphrase (mixed case + digits + symbols)
+  const isHintSuspicious = passphraseHint.length > 0 && (
+    passphraseHint.length > 30 ||
+    (/[A-Z]/.test(passphraseHint) && /[a-z]/.test(passphraseHint) && /\d/.test(passphraseHint) && /[^A-Za-z0-9\s]/.test(passphraseHint))
+  );
+
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
+    if (i === 0) return `${bytes} B`;
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
@@ -97,8 +142,8 @@ export function DatabaseExportButton() {
   // Confirming state
   if (state === 'confirming') {
     return (
-      <div className="database-export-modal-overlay">
-        <div className="database-export-modal" role="dialog" aria-labelledby="export-dialog-title">
+      <div className="database-export-modal-overlay" onKeyDown={handleDialogKeyDown}>
+        <div className="database-export-modal" ref={dialogRef} role="dialog" aria-labelledby="export-dialog-title">
           <h3 id="export-dialog-title" className="export-dialog-title">
             ⚠ Passphrase Warning
           </h3>
@@ -123,6 +168,11 @@ export function DatabaseExportButton() {
             <span className="export-hint-help-text">
               This hint will be shown if you forget your passphrase. Do NOT enter your actual passphrase.
             </span>
+            {isHintSuspicious && (
+              <span className="export-hint-warning">
+                This looks like a passphrase, not a hint. A hint should help you remember without revealing it.
+              </span>
+            )}
           </div>
 
           <div className="export-dialog-buttons">
@@ -144,7 +194,7 @@ export function DatabaseExportButton() {
       <div className="database-export-status">
         <div className="export-status-content">
           <div className="export-spinner" />
-          <span className="export-status-text">Exporting encrypted backup...</span>
+          <span className="export-status-text">{progressMessage}</span>
         </div>
       </div>
     );

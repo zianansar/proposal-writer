@@ -7,10 +7,14 @@ import { OutcomeDistributionChart } from './OutcomeDistributionChart';
 
 // Track Cell renders to verify color mapping
 const cellProps: any[] = [];
+let lastChartData: any[] = [];
 
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => createElement('div', { 'data-testid': 'responsive-container' }, children),
-  BarChart: ({ children, data }: any) => createElement('div', { 'data-testid': 'bar-chart', 'data-items': data?.length }, children),
+  BarChart: ({ children, data }: any) => {
+    lastChartData = data || [];
+    return createElement('div', { 'data-testid': 'bar-chart', 'data-items': data?.length }, children);
+  },
   Bar: ({ children }: any) => createElement('div', { 'data-testid': 'bar' }, children),
   XAxis: () => null,
   YAxis: () => null,
@@ -41,6 +45,7 @@ describe('OutcomeDistributionChart', () => {
     });
     mockInvoke.mockClear();
     cellProps.length = 0;
+    lastChartData = [];
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -58,6 +63,12 @@ describe('OutcomeDistributionChart', () => {
     const chart = await screen.findByTestId('bar-chart');
     expect(chart).toBeTruthy();
     expect(chart.getAttribute('data-items')).toBe('3');
+    // CR R2 L-3: Verify data transformations (formatLabel, percentage calc)
+    expect(lastChartData[0].name).toBe('Hired');
+    expect(lastChartData[1].name).toBe('Pending');
+    expect(lastChartData[2].name).toBe('Rejected');
+    expect(lastChartData[0].percentage).toBe('50.0'); // 5/10
+    expect(lastChartData[1].percentage).toBe('30.0'); // 3/10
   });
 
   it('renders loading state', () => {

@@ -1,6 +1,6 @@
 // Export commands for database backup and portability (Story 7.6)
 
-use crate::archive_export::{read_archive_metadata, write_archive, ArchiveMetadata};
+use crate::archive_export::{write_archive, ArchiveMetadata};
 use crate::db::AppDatabase;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
@@ -10,7 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 /// Rate limit state for export operations (AC-6: 60s cooldown)
@@ -71,7 +71,7 @@ fn get_table_counts(conn: &Connection) -> Result<TableCounts, String> {
     .map_err(|e| format!("Failed to query table counts: {}", e))
 }
 
-/// Verify archive integrity (simplified validation without requiring encryption key)
+/// Verify archive integrity using streaming reads (no full DB load into memory)
 ///
 /// NOTE: AC-3 specifies "opening the DB with the current encryption key" but the
 /// derived key is consumed by SQLCipher's PRAGMA key and not retained in accessible
@@ -79,32 +79,71 @@ fn get_table_counts(conn: &Connection) -> Result<TableCounts, String> {
 /// without needing the raw key. Full key-based verification would require either
 /// caching the derived key (security concern) or re-deriving from passphrase (UX concern).
 ///
-/// Checks:
+/// Checks (streaming — reads only header, not full DB):
 /// - Archive format is valid (URB1 magic header)
 /// - Metadata parses correctly
 /// - Salt length is correct (16 bytes)
-/// - Database file has content and minimum size
+/// - Database portion has minimum size (inferred from file size)
 fn verify_archive(archive_path: &Path) -> Result<(), String> {
-    let (_metadata, salt, db_bytes): (ArchiveMetadata, Vec<u8>, Vec<u8>) = read_archive_metadata(archive_path)?;
+    use std::io::{BufReader, Read};
 
-    // Validate salt length (should be 16 bytes)
-    if salt.len() != 16 {
+    let file = fs::File::open(archive_path)
+        .map_err(|e| format!("Failed to open archive for verification: {}", e))?;
+    let file_size = file
+        .metadata()
+        .map_err(|e| format!("Failed to get archive file size: {}", e))?
+        .len();
+    let mut reader = BufReader::new(file);
+
+    // Read and verify magic header (4 bytes)
+    let mut magic = [0u8; 4];
+    reader
+        .read_exact(&mut magic)
+        .map_err(|e| format!("Failed to read magic header: {}", e))?;
+    if &magic != b"URB1" {
         return Err(format!(
-            "Invalid salt length: expected 16 bytes, got {}",
-            salt.len()
+            "Invalid archive format: expected URB1, got {:?}",
+            magic
         ));
     }
 
-    // Validate database has content
-    if db_bytes.is_empty() {
-        return Err("Archive contains empty database".to_string());
+    // Read metadata length (4 bytes, u32 LE)
+    let mut len_buf = [0u8; 4];
+    reader
+        .read_exact(&mut len_buf)
+        .map_err(|e| format!("Failed to read metadata length: {}", e))?;
+    let metadata_len = u32::from_le_bytes(len_buf) as usize;
+
+    // Read and parse metadata JSON (validates it's well-formed)
+    let mut metadata_bytes = vec![0u8; metadata_len];
+    reader
+        .read_exact(&mut metadata_bytes)
+        .map_err(|e| format!("Failed to read metadata: {}", e))?;
+    let _metadata: ArchiveMetadata = serde_json::from_slice(&metadata_bytes)
+        .map_err(|e| format!("Failed to parse metadata JSON: {}", e))?;
+
+    // Read salt length (4 bytes, u32 LE)
+    reader
+        .read_exact(&mut len_buf)
+        .map_err(|e| format!("Failed to read salt length: {}", e))?;
+    let salt_len = u32::from_le_bytes(len_buf) as usize;
+
+    // Validate salt length (should be 16 bytes for Argon2id)
+    if salt_len != 16 {
+        return Err(format!(
+            "Invalid salt length: expected 16 bytes, got {}",
+            salt_len
+        ));
     }
 
-    // Validate database is not obviously corrupted (check minimum size)
-    if db_bytes.len() < 1024 {
+    // Calculate DB size from remaining file bytes (without reading DB into memory)
+    let header_consumed = (4 + 4 + metadata_len + 4 + salt_len) as u64;
+    let db_size = file_size.saturating_sub(header_consumed);
+
+    if db_size < 1024 {
         return Err(format!(
             "Database file is suspiciously small ({} bytes)",
-            db_bytes.len()
+            db_size
         ));
     }
 
@@ -202,6 +241,9 @@ pub async fn export_encrypted_archive(
     // Get database instance
     let database = database.get()?;
 
+    // AC-2: Emit progress event — Preparing
+    let _ = app_handle.emit("export-progress", "Preparing...");
+
     // AC-2, AC-3: Perform export with WAL checkpoint, counts, and file copy
     // CRITICAL: Hold DB lock during file read to prevent concurrent writes from
     // corrupting the export snapshot (per story Dev Notes).
@@ -221,6 +263,9 @@ pub async fn export_encrypted_archive(
 
         // Query table counts
         let counts = get_table_counts(&conn)?;
+
+        // AC-2: Emit progress event — Copying database
+        let _ = app_handle.emit("export-progress", "Copying database...");
 
         // Read encrypted database file while holding the lock
         let db_path = &database.path;
@@ -277,6 +322,9 @@ pub async fn export_encrypted_archive(
             msg
         })?;
 
+    // AC-2: Emit progress event — Verifying
+    let _ = app_handle.emit("export-progress", "Verifying...");
+
     // AC-3: Verify archive integrity
     verify_archive(&temp_path).map_err(|e| {
         let _ = fs::remove_file(&temp_path);
@@ -297,6 +345,9 @@ pub async fn export_encrypted_archive(
     let file_size = fs::metadata(&path)
         .map_err(|e| format!("Failed to read file size: {}", e))?
         .len();
+
+    // AC-2: Emit progress event — Complete
+    let _ = app_handle.emit("export-progress", "Complete!");
 
     // AC-4: Log security event
     tracing::info!(

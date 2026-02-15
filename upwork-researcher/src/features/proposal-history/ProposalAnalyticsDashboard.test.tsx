@@ -110,6 +110,13 @@ describe('ProposalAnalyticsDashboard', () => {
   });
 
   it('retry button calls refetch not page reload', async () => {
+    // CR R2 L-1: Mock reload to verify it's NOT called
+    const reloadSpy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, reload: reloadSpy },
+      configurable: true,
+    });
+
     // First call fails, second succeeds
     mockInvoke
       .mockRejectedValueOnce(new Error('DB error'))
@@ -123,8 +130,9 @@ describe('ProposalAnalyticsDashboard', () => {
     const retryBtn = await screen.findByText('Retry');
     fireEvent.click(retryBtn);
 
-    // After retry, should call invoke again
+    // After retry, should call invoke again (not reload)
     expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(reloadSpy).not.toHaveBeenCalled();
   });
 
   it('response rate color is green when > 20%', async () => {

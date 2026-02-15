@@ -92,6 +92,14 @@
   color: #999;
 }
 
+.export-hint-warning {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-error, #ef4444);
+  font-weight: 500;
+}
+
 .export-dialog-buttons {
   display: flex;
   justify-content: flex-end;

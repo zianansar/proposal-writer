@@ -11,9 +11,17 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+// Mock Tauri event listener (M-1: progress events)
+const mockListen = vi.fn();
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: (...args: unknown[]) => mockListen(...args),
+}));
+
 describe('DatabaseExportButton', () => {
   beforeEach(() => {
     mockInvoke.mockClear();
+    mockListen.mockClear();
+    mockListen.mockResolvedValue(() => {}); // Returns unlisten fn
   });
 
   it('renders idle state with export button', () => {
@@ -117,7 +125,7 @@ describe('DatabaseExportButton', () => {
     await user.click(screen.getByRole('button', { name: /Export Backup/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Exporting encrypted backup/i)).toBeInTheDocument();
+      expect(screen.getByText(/Preparing\.\.\./)).toBeInTheDocument();
     });
 
     // Cleanup — resolve the pending promise
@@ -243,7 +251,7 @@ describe('DatabaseExportButton', () => {
 
     const testCases = [
       { bytes: 0, expected: '0 B' },
-      { bytes: 512, expected: '512.00 B' },
+      { bytes: 512, expected: '512 B' },
       { bytes: 1024, expected: '1.00 KB' },
       { bytes: 1536, expected: '1.50 KB' },
       { bytes: 1048576, expected: '1.00 MB' },
@@ -274,6 +282,59 @@ describe('DatabaseExportButton', () => {
 
       unmount();
     }
+  });
+
+  it('auto-focuses passphrase hint input when dialog opens', async () => {
+    const user = userEvent.setup();
+    render(<DatabaseExportButton />);
+
+    await user.click(screen.getByRole('button', { name: /export encrypted database backup/i }));
+
+    expect(screen.getByLabelText(/Passphrase hint/i)).toHaveFocus();
+  });
+
+  it('shows warning when hint looks like a passphrase', async () => {
+    const user = userEvent.setup();
+    render(<DatabaseExportButton />);
+
+    await user.click(screen.getByRole('button', { name: /export encrypted database backup/i }));
+    await user.type(screen.getByLabelText(/Passphrase hint/i), 'MyP@ssw0rd!');
+
+    expect(screen.getByText(/looks like a passphrase/i)).toBeInTheDocument();
+  });
+
+  it('does not show warning for normal hint text', async () => {
+    const user = userEvent.setup();
+    render(<DatabaseExportButton />);
+
+    await user.click(screen.getByRole('button', { name: /export encrypted database backup/i }));
+    await user.type(screen.getByLabelText(/Passphrase hint/i), 'My childhood pet');
+
+    expect(screen.queryByText(/looks like a passphrase/i)).not.toBeInTheDocument();
+  });
+
+  it('registers event listener for export progress', async () => {
+    const user = userEvent.setup();
+    mockInvoke.mockResolvedValue({
+      success: true,
+      filePath: '/test.urb',
+      fileSizeBytes: 1000,
+      proposalCount: 0,
+      revisionCount: 0,
+      jobPostCount: 0,
+      settingsCount: 0,
+      voiceProfileCount: 0,
+      message: '',
+    });
+
+    render(<DatabaseExportButton />);
+
+    await user.click(screen.getByRole('button', { name: /export encrypted database backup/i }));
+    await user.click(screen.getByRole('button', { name: /Export Backup/i }));
+
+    await waitFor(() => {
+      expect(mockListen).toHaveBeenCalledWith('export-progress', expect.any(Function));
+    });
   });
 
   // Auto-dismiss: use fireEvent (synchronous) + fake timers to avoid

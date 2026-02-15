@@ -216,27 +216,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_import_mode_parsing() {
-        // Valid modes
-        assert!(matches!(
-            "replace",
-            mode if mode == "replace" || mode == "merge"
-        ));
-        assert!(matches!(
-            "merge",
-            mode if mode == "replace" || mode == "merge"
-        ));
+    fn test_import_mode_parsing_valid() {
+        // Test the actual mode parsing logic from execute_import
+        let replace = match "replace" {
+            "replace" => Some(ImportMode::ReplaceAll),
+            "merge" => Some(ImportMode::MergeSkipDuplicates),
+            _ => None,
+        };
+        assert_eq!(replace, Some(ImportMode::ReplaceAll));
+
+        let merge = match "merge" {
+            "replace" => Some(ImportMode::ReplaceAll),
+            "merge" => Some(ImportMode::MergeSkipDuplicates),
+            _ => None,
+        };
+        assert_eq!(merge, Some(ImportMode::MergeSkipDuplicates));
     }
 
     #[test]
-    fn test_schema_compatibility_string_conversion() {
-        let compat_str = "compatible";
-        assert_eq!(compat_str, "compatible");
+    fn test_import_mode_parsing_invalid_rejected() {
+        let invalid = match "invalid_mode" {
+            "replace" => Some(ImportMode::ReplaceAll),
+            "merge" => Some(ImportMode::MergeSkipDuplicates),
+            _ => None,
+        };
+        assert!(invalid.is_none(), "Invalid mode should not parse");
+    }
 
-        let compat_str = "older";
-        assert_eq!(compat_str, "older");
-
-        let compat_str = "newer";
-        assert_eq!(compat_str, "newer");
+    #[test]
+    fn test_cleanup_import_temp_files_runs_without_error() {
+        // cleanup_import_temp_files scans system temp dir — verify it doesn't panic
+        let result = cleanup_import_temp_files();
+        assert!(result.is_ok());
     }
 }

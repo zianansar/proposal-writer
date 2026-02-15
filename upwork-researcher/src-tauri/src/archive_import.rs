@@ -63,6 +63,7 @@ pub struct ImportProgress {
 
 /// Import summary statistics
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportSummary {
     pub proposals_imported: usize,
     pub proposals_skipped: usize,
@@ -319,16 +320,116 @@ pub fn cleanup_orphaned_temp_files(temp_dir: &Path) -> Result<usize, String> {
     Ok(cleaned)
 }
 
-/// Import a single table in batches of IMPORT_BATCH_SIZE rows
+/// System settings keys that should never be imported (H-1: expanded skip list)
+const SYSTEM_SETTINGS_KEYS: &str =
+    "'onboarding_completed', 'db_version', 'encryption_status', 'encryption_migrated', 'last_migration_version', 'last_migration_date'";
+
+/// Build a column-mapped INSERT SQL for cross-schema import (C-2: older archive support)
 ///
-/// For tables with >100 rows, uses LIMIT/OFFSET to insert in batches,
-/// calling the progress callback between batches to keep the UI responsive.
+/// Compares main and archive table schemas via PRAGMA table_info. For columns
+/// present in main but missing from the archive, uses the column's DEFAULT value
+/// (or NULL if no default). This handles older archives with fewer columns.
+fn build_column_mapped_insert(
+    conn: &Connection,
+    table: &str,
+    mode: ImportMode,
+    where_clause: Option<&str>,
+    limit_offset: Option<(usize, usize)>,
+) -> Result<String, ArchiveImportError> {
+    // Get main table columns: (name, default_value_sql)
+    let main_cols = get_pragma_columns(conn, "main", table)?;
+    let archive_cols = get_pragma_columns(conn, "archive", table)?;
+
+    if main_cols.is_empty() {
+        return Err(ArchiveImportError::ImportFailed(
+            format!("Table {} not found in main database", table),
+        ));
+    }
+
+    let archive_col_names: std::collections::HashSet<&str> =
+        archive_cols.iter().map(|(name, _)| name.as_str()).collect();
+
+    let mut col_names = Vec::new();
+    let mut select_exprs = Vec::new();
+
+    for (col_name, default_value) in &main_cols {
+        col_names.push(col_name.as_str());
+        if archive_col_names.contains(col_name.as_str()) {
+            select_exprs.push(col_name.clone());
+        } else {
+            // Column missing in archive — use its DEFAULT or NULL
+            let default_sql = default_value.as_deref().unwrap_or("NULL");
+            select_exprs.push(format!("{} AS {}", default_sql, col_name));
+        }
+    }
+
+    let insert_verb = match mode {
+        ImportMode::ReplaceAll => "INSERT INTO",
+        ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO",
+    };
+
+    let col_list = col_names.join(", ");
+    let select_list = select_exprs.join(", ");
+
+    let mut sql = format!(
+        "{} main.{} ({}) SELECT {} FROM archive.{}",
+        insert_verb, table, col_list, select_list, table
+    );
+
+    if let Some(wc) = where_clause {
+        sql.push_str(&format!(" WHERE {}", wc));
+    }
+
+    if let Some((limit, offset)) = limit_offset {
+        sql.push_str(&format!(" LIMIT {} OFFSET {}", limit, offset));
+    }
+
+    sql.push(';');
+    Ok(sql)
+}
+
+/// Get column info from PRAGMA table_info for a given schema.table
+/// Returns Vec<(column_name, Option<default_value_sql>)>
+fn get_pragma_columns(
+    conn: &Connection,
+    schema: &str,
+    table: &str,
+) -> Result<Vec<(String, Option<String>)>, ArchiveImportError> {
+    let sql = format!("PRAGMA {}.table_info({});", schema, table);
+    let mut stmt = conn.prepare(&sql).map_err(|e| {
+        ArchiveImportError::ImportFailed(format!(
+            "Failed to get table info for {}.{}: {}",
+            schema, table, e
+        ))
+    })?;
+
+    let columns: Vec<(String, Option<String>)> = stmt
+        .query_map([], |row| {
+            let name: String = row.get(1)?; // column name
+            let dflt_value: Option<String> = row.get(4)?; // default value SQL
+            Ok((name, dflt_value))
+        })
+        .map_err(|e| {
+            ArchiveImportError::ImportFailed(format!("Failed to read table info: {}", e))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(columns)
+}
+
+/// Import a single table with column mapping and optional batching
+///
+/// Uses PRAGMA table_info to dynamically map archive columns to main columns,
+/// supporting older archives with fewer columns (missing columns get defaults).
+/// For tables with >100 rows, uses LIMIT/OFFSET batching with progress callbacks.
 ///
 /// Returns the number of rows actually inserted.
 fn import_table_batched<F>(
     conn: &Connection,
     table: &str,
     mode: ImportMode,
+    where_clause: Option<&str>,
     total_steps: usize,
     step_num: usize,
     progress_callback: &mut F,
@@ -336,9 +437,13 @@ fn import_table_batched<F>(
 where
     F: FnMut(ImportProgress),
 {
-    // Count archive rows
+    // Count archive rows (with optional WHERE filter)
+    let count_sql = match where_clause {
+        Some(wc) => format!("SELECT COUNT(*) FROM archive.{} WHERE {};", table, wc),
+        None => format!("SELECT COUNT(*) FROM archive.{};", table),
+    };
     let archive_count: usize = conn
-        .query_row(&format!("SELECT COUNT(*) FROM archive.{};", table), [], |row| row.get(0))
+        .query_row(&count_sql, [], |row| row.get(0))
         .unwrap_or(0);
 
     if archive_count == 0 {
@@ -348,28 +453,19 @@ where
     let mut total_inserted = 0;
 
     if archive_count <= IMPORT_BATCH_SIZE {
-        // Small table — single INSERT
-        let sql = match mode {
-            ImportMode::ReplaceAll => format!("INSERT INTO {} SELECT * FROM archive.{};", table, table),
-            ImportMode::MergeSkipDuplicates => format!("INSERT OR IGNORE INTO {} SELECT * FROM archive.{};", table, table),
-        };
+        // Small table — single column-mapped INSERT
+        let sql = build_column_mapped_insert(conn, table, mode, where_clause, None)?;
         conn.execute_batch(&sql)
             .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import {}: {}", table, e)))?;
         total_inserted = conn.changes() as usize;
     } else {
-        // Large table — batched INSERT using rowid ranges
+        // Large table — batched column-mapped INSERT
         let mut offset = 0;
         while offset < archive_count {
-            let sql = match mode {
-                ImportMode::ReplaceAll => format!(
-                    "INSERT INTO {} SELECT * FROM archive.{} LIMIT {} OFFSET {};",
-                    table, table, IMPORT_BATCH_SIZE, offset
-                ),
-                ImportMode::MergeSkipDuplicates => format!(
-                    "INSERT OR IGNORE INTO {} SELECT * FROM archive.{} LIMIT {} OFFSET {};",
-                    table, table, IMPORT_BATCH_SIZE, offset
-                ),
-            };
+            let sql = build_column_mapped_insert(
+                conn, table, mode, where_clause,
+                Some((IMPORT_BATCH_SIZE, offset)),
+            )?;
             conn.execute_batch(&sql)
                 .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import {} batch: {}", table, e)))?;
             total_inserted += conn.changes() as usize;
@@ -444,6 +540,10 @@ where
     conn.execute_batch("BEGIN EXCLUSIVE TRANSACTION;")
         .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to begin transaction: {}", e)))?;
 
+    // Total number of tables to import (for progress tracking)
+    const TOTAL_TABLES: usize = 12;
+    let settings_where = format!("key NOT IN ({})", SYSTEM_SETTINGS_KEYS);
+
     // Import result (will be set on success)
     let result: Result<ImportSummary, ArchiveImportError> = (|| {
         let mut summary = ImportSummary {
@@ -457,85 +557,34 @@ where
             total_records: 0,
         };
 
-        match mode {
-            ImportMode::ReplaceAll => {
-                // Delete all user data in FK-safe reverse order
-                progress_callback(ImportProgress {
-                    table: "Clearing data".to_string(),
-                    current: 0,
-                    total: 1,
-                    phase: "Preparing".to_string(),
-                });
+        if mode == ImportMode::ReplaceAll {
+            // Delete all user data in FK-safe reverse order
+            progress_callback(ImportProgress {
+                table: "Clearing data".to_string(),
+                current: 0,
+                total: TOTAL_TABLES,
+                phase: "Preparing".to_string(),
+            });
 
-                // FK-safe deletion order (reverse of import)
-                conn.execute_batch(
-                    "DELETE FROM scoring_feedback;
-                     DELETE FROM job_scores;
-                     DELETE FROM job_skills;
-                     DELETE FROM safety_overrides;
-                     DELETE FROM proposal_revisions;
-                     DELETE FROM proposals;
-                     DELETE FROM job_posts;
-                     DELETE FROM golden_set_proposals;
-                     DELETE FROM voice_profiles;
-                     DELETE FROM user_skills;
-                     DELETE FROM rss_imports;
-                     DELETE FROM settings WHERE key NOT IN ('onboarding_completed', 'db_version');",
-                )
+            // FK-safe deletion order (reverse of import) — H-1: expanded system key skip list
+            let delete_sql = format!(
+                "DELETE FROM scoring_feedback;
+                 DELETE FROM job_scores;
+                 DELETE FROM job_skills;
+                 DELETE FROM safety_overrides;
+                 DELETE FROM proposal_revisions;
+                 DELETE FROM proposals;
+                 DELETE FROM job_posts;
+                 DELETE FROM golden_set_proposals;
+                 DELETE FROM voice_profiles;
+                 DELETE FROM user_skills;
+                 DELETE FROM rss_imports;
+                 DELETE FROM settings WHERE {};",
+                settings_where
+            );
+            conn.execute_batch(&delete_sql)
                 .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to clear data: {}", e)))?;
-            }
-            ImportMode::MergeSkipDuplicates => {
-                // No pre-deletion for merge mode
-            }
         }
-
-        // Import tables in FK-safe order
-        // Step 1: Tables with no FKs
-        progress_callback(ImportProgress {
-            table: "settings".to_string(),
-            current: 0,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
-
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO settings SELECT * FROM archive.settings WHERE key NOT IN ('onboarding_completed', 'db_version');",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO settings SELECT * FROM archive.settings WHERE key NOT IN ('onboarding_completed', 'db_version');",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import settings: {}", e)))?;
-
-        summary.settings_imported = conn.changes() as usize;
-
-        // user_skills
-        progress_callback(ImportProgress {
-            table: "user_skills".to_string(),
-            current: 1,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
-
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO user_skills SELECT * FROM archive.user_skills;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO user_skills SELECT * FROM archive.user_skills;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import user_skills: {}", e)))?;
-
-        // rss_imports (no FKs)
-        progress_callback(ImportProgress {
-            table: "rss_imports".to_string(),
-            current: 2,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
-
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO rss_imports SELECT * FROM archive.rss_imports;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO rss_imports SELECT * FROM archive.rss_imports;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import rss_imports: {}", e)))?;
 
         // For Merge mode: pre-count archive rows to calculate skipped counts
         let archive_proposal_count: usize = if mode == ImportMode::MergeSkipDuplicates {
@@ -544,153 +593,99 @@ where
         } else { 0 };
         let archive_settings_count: usize = if mode == ImportMode::MergeSkipDuplicates {
             conn.query_row(
-                "SELECT COUNT(*) FROM archive.settings WHERE key NOT IN ('onboarding_completed', 'db_version');",
+                &format!("SELECT COUNT(*) FROM archive.settings WHERE {};", settings_where),
                 [], |row| row.get(0),
             ).unwrap_or(0)
         } else { 0 };
 
-        // Step 2: Independent tables
-        // job_posts
-        progress_callback(ImportProgress {
-            table: "job_posts".to_string(),
-            current: 3,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
+        // === Import all tables via column-mapped import (C-2: older archive support) ===
+        // FK-safe order: no-FK tables → independent tables → FK-dependent tables
 
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO job_posts SELECT * FROM archive.job_posts;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO job_posts SELECT * FROM archive.job_posts;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import job_posts: {}", e)))?;
+        // Step 1: Tables with no FKs
+        summary.settings_imported = import_table_batched(
+            &conn, "settings", mode, Some(&settings_where),
+            TOTAL_TABLES, 1, &mut progress_callback,
+        )?;
 
-        summary.jobs_imported = conn.changes() as usize;
+        let user_skills_count = import_table_batched(
+            &conn, "user_skills", mode, None,
+            TOTAL_TABLES, 2, &mut progress_callback,
+        )?;
 
-        // voice_profiles
-        progress_callback(ImportProgress {
-            table: "voice_profiles".to_string(),
-            current: 4,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
+        let rss_count = import_table_batched(
+            &conn, "rss_imports", mode, None,
+            TOTAL_TABLES, 3, &mut progress_callback,
+        )?;
 
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO voice_profiles SELECT * FROM archive.voice_profiles;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO voice_profiles SELECT * FROM archive.voice_profiles;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import voice_profiles: {}", e)))?;
+        // Step 2: Independent tables (no FKs to other user tables)
+        summary.jobs_imported = import_table_batched(
+            &conn, "job_posts", mode, None,
+            TOTAL_TABLES, 4, &mut progress_callback,
+        )?;
 
-        summary.voice_profile_imported = conn.changes() > 0;
+        let voice_count = import_table_batched(
+            &conn, "voice_profiles", mode, None,
+            TOTAL_TABLES, 5, &mut progress_callback,
+        )?;
+        summary.voice_profile_imported = voice_count > 0;
 
-        // golden_set_proposals
-        progress_callback(ImportProgress {
-            table: "golden_set_proposals".to_string(),
-            current: 5,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
+        let golden_count = import_table_batched(
+            &conn, "golden_set_proposals", mode, None,
+            TOTAL_TABLES, 6, &mut progress_callback,
+        )?;
 
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO golden_set_proposals SELECT * FROM archive.golden_set_proposals;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO golden_set_proposals SELECT * FROM archive.golden_set_proposals;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import golden_set_proposals: {}", e)))?;
+        // Step 3: proposals (FK: job_post_id → job_posts)
+        summary.proposals_imported = import_table_batched(
+            &conn, "proposals", mode, None,
+            TOTAL_TABLES, 7, &mut progress_callback,
+        )?;
 
-        // Step 3: proposals (depends on job_posts via FK) — batched for large archives
-        progress_callback(ImportProgress {
-            table: "proposals".to_string(),
-            current: 6,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
-
-        summary.proposals_imported = import_table_batched(&conn, "proposals", mode, 11, 6, &mut progress_callback)?;
+        // Merge mode: calculate skipped counts
         if mode == ImportMode::MergeSkipDuplicates {
             summary.proposals_skipped = archive_proposal_count.saturating_sub(summary.proposals_imported);
             summary.settings_skipped = archive_settings_count.saturating_sub(summary.settings_imported);
         }
 
         // Step 4: Tables depending on proposals
-        // proposal_revisions — batched for large archives
-        progress_callback(ImportProgress {
-            table: "proposal_revisions".to_string(),
-            current: 7,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
+        summary.revisions_imported = import_table_batched(
+            &conn, "proposal_revisions", mode, None,
+            TOTAL_TABLES, 8, &mut progress_callback,
+        )?;
 
-        summary.revisions_imported = import_table_batched(&conn, "proposal_revisions", mode, 11, 7, &mut progress_callback)?;
-
-        // safety_overrides
-        progress_callback(ImportProgress {
-            table: "safety_overrides".to_string(),
-            current: 8,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
-
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO safety_overrides SELECT * FROM archive.safety_overrides;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO safety_overrides SELECT * FROM archive.safety_overrides;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import safety_overrides: {}", e)))?;
+        let overrides_count = import_table_batched(
+            &conn, "safety_overrides", mode, None,
+            TOTAL_TABLES, 9, &mut progress_callback,
+        )?;
 
         // Step 5: Tables depending on job_posts
-        // job_skills
-        progress_callback(ImportProgress {
-            table: "job_skills".to_string(),
-            current: 9,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
+        let skills_count = import_table_batched(
+            &conn, "job_skills", mode, None,
+            TOTAL_TABLES, 10, &mut progress_callback,
+        )?;
 
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO job_skills SELECT * FROM archive.job_skills;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO job_skills SELECT * FROM archive.job_skills;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import job_skills: {}", e)))?;
+        let scores_count = import_table_batched(
+            &conn, "job_scores", mode, None,
+            TOTAL_TABLES, 11, &mut progress_callback,
+        )?;
 
-        // job_scores
-        progress_callback(ImportProgress {
-            table: "job_scores".to_string(),
-            current: 10,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
+        let feedback_count = import_table_batched(
+            &conn, "scoring_feedback", mode, None,
+            TOTAL_TABLES, 12, &mut progress_callback,
+        )?;
 
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO job_scores SELECT * FROM archive.job_scores;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO job_scores SELECT * FROM archive.job_scores;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import job_scores: {}", e)))?;
-
-        // scoring_feedback
-        progress_callback(ImportProgress {
-            table: "scoring_feedback".to_string(),
-            current: 11,
-            total: 11,
-            phase: "Importing".to_string(),
-        });
-
-        let sql = match mode {
-            ImportMode::ReplaceAll => "INSERT INTO scoring_feedback SELECT * FROM archive.scoring_feedback;",
-            ImportMode::MergeSkipDuplicates => "INSERT OR IGNORE INTO scoring_feedback SELECT * FROM archive.scoring_feedback;",
-        };
-        conn.execute_batch(sql)
-            .map_err(|e| ArchiveImportError::ImportFailed(format!("Failed to import scoring_feedback: {}", e)))?;
-
-        // Calculate total records
+        // H-3: total_records counts ALL imported tables (not just the named summary fields)
         summary.total_records = summary.proposals_imported
             + summary.jobs_imported
             + summary.revisions_imported
             + summary.settings_imported
-            + if summary.voice_profile_imported { 1 } else { 0 };
+            + voice_count
+            + user_skills_count
+            + rss_count
+            + golden_count
+            + overrides_count
+            + skills_count
+            + scores_count
+            + feedback_count;
 
         Ok(summary)
     })();
@@ -703,8 +698,8 @@ where
 
             progress_callback(ImportProgress {
                 table: "Complete".to_string(),
-                current: 11,
-                total: 11,
+                current: TOTAL_TABLES,
+                total: TOTAL_TABLES,
                 phase: "Done".to_string(),
             });
 
@@ -871,14 +866,92 @@ mod tests {
 
         // Create the temp DB (unencrypted for test simplicity)
         let temp_conn = Connection::open(temp_path).unwrap();
-        temp_conn.execute_batch("CREATE TABLE test (id INTEGER);").unwrap();
+        temp_conn.execute_batch("CREATE TABLE test (id INTEGER); INSERT INTO test VALUES (42);").unwrap();
         drop(temp_conn);
 
-        // For unencrypted test, use empty hex key (won't actually encrypt)
+        // Attach with empty key (unencrypted DB)
         let result = attach_archive_to_db(&main_conn, temp_path, "");
 
-        // May fail if SQLCipher key required, which is OK for this basic test
-        // Main goal is to test the function doesn't panic
-        let _ = result;
+        // With SQLCipher builds, attaching an unencrypted DB with empty key may fail;
+        // with plain SQLite, it succeeds. Assert based on outcome.
+        match result {
+            Ok(()) => {
+                // Verify the attached DB is accessible
+                let val: i32 = main_conn
+                    .query_row("SELECT id FROM archive.test LIMIT 1;", [], |row| row.get(0))
+                    .expect("Should read from attached archive");
+                assert_eq!(val, 42);
+                let _ = main_conn.execute_batch("DETACH DATABASE archive;");
+            }
+            Err(e) => {
+                // SQLCipher rejects unencrypted attach — that's an expected environment difference
+                assert!(
+                    format!("{}", e).contains("attach"),
+                    "Expected attach-related error, got: {}",
+                    e
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_build_column_mapped_insert_same_schema() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        // Create matching tables in main and "archive" (simulated via ATTACH)
+        conn.execute_batch(
+            "CREATE TABLE proposals (id INTEGER, content TEXT, status TEXT DEFAULT 'draft');",
+        ).unwrap();
+
+        let temp = NamedTempFile::new().unwrap();
+        {
+            let arc = Connection::open(temp.path()).unwrap();
+            arc.execute_batch(
+                "CREATE TABLE proposals (id INTEGER, content TEXT, status TEXT DEFAULT 'draft');",
+            ).unwrap();
+        }
+
+        conn.execute_batch(&format!(
+            "ATTACH DATABASE '{}' AS archive;",
+            temp.path().display()
+        )).unwrap();
+
+        let sql = build_column_mapped_insert(&conn, "proposals", ImportMode::ReplaceAll, None, None).unwrap();
+        // Should reference all columns without defaults substitution
+        assert!(sql.contains("INSERT INTO main.proposals"));
+        assert!(sql.contains("SELECT id, content, status FROM archive.proposals"));
+
+        conn.execute_batch("DETACH DATABASE archive;").unwrap();
+    }
+
+    #[test]
+    fn test_build_column_mapped_insert_older_archive() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        // Main has extra column not in archive
+        conn.execute_batch(
+            "CREATE TABLE proposals (id INTEGER, content TEXT, outcome_status TEXT DEFAULT 'pending');",
+        ).unwrap();
+
+        let temp = NamedTempFile::new().unwrap();
+        {
+            let arc = Connection::open(temp.path()).unwrap();
+            // Archive is older — missing outcome_status column
+            arc.execute_batch(
+                "CREATE TABLE proposals (id INTEGER, content TEXT);",
+            ).unwrap();
+        }
+
+        conn.execute_batch(&format!(
+            "ATTACH DATABASE '{}' AS archive;",
+            temp.path().display()
+        )).unwrap();
+
+        let sql = build_column_mapped_insert(&conn, "proposals", ImportMode::MergeSkipDuplicates, None, None).unwrap();
+        // Should substitute default for missing column
+        assert!(sql.contains("INSERT OR IGNORE INTO"));
+        assert!(sql.contains("'pending' AS outcome_status"), "Expected default value substitution in SQL: {}", sql);
+
+        conn.execute_batch("DETACH DATABASE archive;").unwrap();
     }
 }

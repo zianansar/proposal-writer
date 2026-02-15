@@ -1,11 +1,11 @@
 ---
-status: review
+status: done
 assignedTo: ""
 epic: 7
 story: 5
 priority: medium
 tasksCompleted: 40
-testsWritten: 30
+testsWritten: 35
 ---
 
 # Story 7.5: Proposal Analytics Dashboard
@@ -269,6 +269,19 @@ Then all existing tests pass (no regressions) plus new tests for:
 - [x] [AI-Review][MEDIUM] M-2: Replace `window.location.reload()` with `refetch()` [ProposalAnalyticsDashboard.tsx]
 - [x] [AI-Review][LOW] L-1: Fix timezone: `new Date(item.weekStart + 'T00:00:00')` [WeeklyActivityChart.tsx]
 - [x] [AI-Review][LOW] L-2: Replace `strokeDasharray` with opacity-based indicator (`#3b82f680`) for low-sample [StrategyPerformanceChart.tsx]
+
+### Review Follow-ups (AI) — CR R2 — ALL FIXED
+
+- [x] [AI-Review][HIGH] H-1: Fix weekly response rate denominator — added `resolved_count` column excluding pending/submitted for consistent rate calculation + new Rust test
+- [x] [AI-Review][HIGH] H-2: Invalidate analytics cache on outcome changes — added `queryClient.invalidateQueries({ queryKey: ['analytics'] })` in onSettled
+- [x] [AI-Review][MEDIUM] M-1: Replace redundant full strategy query — inlined LIMIT 1 query in `get_proposal_analytics_summary`
+- [x] [AI-Review][MEDIUM] M-2: Add `onBack` prop — added optional `onBack?: () => void` prop with interface
+- [x] [AI-Review][MEDIUM] M-3: SKIP (false positive) — `weekday 0, '-6 days'` correctly computes Monday, consistent with `%W`
+- [x] [AI-Review][MEDIUM] M-4: Add bar labels — added `LabelList` with `positive/total` counts on strategy chart bars
+- [x] [AI-Review][LOW] L-1: Strengthen retry test — mocked `window.location.reload`, verified NOT called
+- [x] [AI-Review][LOW] L-2: Fix "No strategy" test — added `lastChartData` capture, verified `'none'` → `'No strategy'` transformation
+- [x] [AI-Review][LOW] L-3: Add data transformation assertions — added formatLabel, percentage, date formatting assertions to all 4 chart test files
+- [x] [AI-Review][LOW] L-4: Replace hard-coded CSS colors — converted to `var(--color-bg-secondary)`, `var(--color-border)`, `var(--color-text-muted)`, `var(--color-error)`, `var(--color-primary-hover)`
 
 ## Dev Notes
 

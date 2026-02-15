@@ -84,6 +84,8 @@ export function useUpdateProposalOutcome() {
     // Invalidate to ensure server state sync
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['proposalHistory'] });
+      // CR R2 H-2: Invalidate analytics cache so dashboard reflects outcome changes
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }

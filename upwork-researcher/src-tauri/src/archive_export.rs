@@ -405,6 +405,70 @@ mod tests {
     }
 
     #[test]
+    fn test_read_metadata_only_valid_archive() {
+        // Create a valid archive and read metadata only (without loading DB)
+        let metadata = ArchiveMetadata::new(
+            "2.0.0".to_string(),
+            Some("pet name".to_string()),
+            50,
+            100,
+            30,
+            8,
+            2,
+            4096,
+        );
+        let salt = vec![0xAA; 16];
+        let db = vec![0xFF; 4096];
+
+        let temp_file = NamedTempFile::new().unwrap();
+        write_archive(temp_file.path(), &metadata, &salt, &db).unwrap();
+
+        let read_meta = read_metadata_only(temp_file.path()).unwrap();
+
+        assert_eq!(read_meta.format_version, 1);
+        assert_eq!(read_meta.app_version, "2.0.0");
+        assert_eq!(read_meta.passphrase_hint, Some("pet name".to_string()));
+        assert_eq!(read_meta.proposal_count, 50);
+        assert_eq!(read_meta.revision_count, 100);
+        assert_eq!(read_meta.job_post_count, 30);
+        assert_eq!(read_meta.settings_count, 8);
+        assert_eq!(read_meta.voice_profile_count, 2);
+        assert_eq!(read_meta.db_size_bytes, 4096);
+    }
+
+    #[test]
+    fn test_read_metadata_only_corrupt_header() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(b"BAAD").unwrap();
+        temp_file.write_all(&[0u8; 100]).unwrap();
+        temp_file.flush().unwrap();
+
+        let result = read_metadata_only(temp_file.path());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid archive format"));
+    }
+
+    #[test]
+    fn test_read_metadata_only_oversized_metadata() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+
+        // Write valid magic header
+        temp_file.write_all(b"URB1").unwrap();
+
+        // Write metadata length exceeding 1MB sanity check
+        let huge_len = 2 * 1024 * 1024u32; // 2MB
+        temp_file.write_all(&huge_len.to_le_bytes()).unwrap();
+
+        // Write some padding (doesn't matter, length check triggers first)
+        temp_file.write_all(&[0u8; 100]).unwrap();
+        temp_file.flush().unwrap();
+
+        let result = read_metadata_only(temp_file.path());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Metadata too large"));
+    }
+
+    #[test]
     fn test_salt_length_validation() {
         let mut temp_file = NamedTempFile::new().unwrap();
 

@@ -160,11 +160,7 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
 
       setSummary(result);
       setStep('complete');
-
-      // Task 7.5: Invalidate caches on success
-      setTimeout(() => {
-        onImportComplete();
-      }, 100);
+      // Cache invalidation happens when user clicks "Done" (onImportComplete in Done handler)
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Import failed';
       setError(errorMsg);
@@ -172,7 +168,7 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
     } finally {
       setIsProcessing(false);
     }
-  }, [archivePath, passphrase, mode, replaceConfirmed, onImportComplete]);
+  }, [archivePath, passphrase, mode, replaceConfirmed]);
 
   const formatDate = (isoDate: string): string => {
     try {
@@ -431,7 +427,7 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                   <div className="progress-bar">
                     <div
                       className="progress-fill"
-                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                      style={{ width: `${Math.round((progress.current / Math.max(progress.total, 1)) * 100)}%` }}
                     />
                   </div>
                   <div className="progress-count">
@@ -500,6 +496,18 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
               <div className="error-message">{error}</div>
               <p className="error-note">Your current data is unchanged.</p>
               <div className="error-actions">
+                {/* AC-7: Retry re-attempts import with same archive/passphrase/mode */}
+                {archivePath && passphrase && (
+                  <button
+                    className="import-button-primary"
+                    onClick={() => {
+                      setError('');
+                      handleImport();
+                    }}
+                  >
+                    Retry
+                  </button>
+                )}
                 <button
                   className="import-button-secondary"
                   onClick={() => {
@@ -514,7 +522,7 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                   Start Over
                 </button>
                 <button
-                  className="import-button-primary"
+                  className="import-button-secondary"
                   onClick={onClose}
                 >
                   Cancel

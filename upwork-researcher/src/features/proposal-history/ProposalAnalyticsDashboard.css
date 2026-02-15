@@ -21,8 +21,8 @@
 }
 
 .metric-card {
-  background-color: #1e1e1e;
-  border: 1px solid #404040;
+  background-color: var(--color-bg-secondary, #1e1e1e);
+  border: 1px solid var(--color-border, #404040);
   border-radius: 8px;
   padding: 20px;
   text-align: center;
@@ -30,7 +30,7 @@
 
 .metric-label {
   font-size: 12px;
-  color: #a3a3a3;
+  color: var(--color-text-muted, #a3a3a3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 12px;
@@ -50,7 +50,7 @@
 
 .metric-subtitle {
   font-size: 14px;
-  color: #a3a3a3;
+  color: var(--color-text-muted, #a3a3a3);
   margin-top: 4px;
 }
 
@@ -63,8 +63,8 @@
 }
 
 .chart-container {
-  background-color: #1e1e1e;
-  border: 1px solid #404040;
+  background-color: var(--color-bg-secondary, #1e1e1e);
+  border: 1px solid var(--color-border, #404040);
   border-radius: 8px;
   padding: 20px;
 }
@@ -78,8 +78,8 @@
 }
 
 .chart-container-full {
-  background-color: #1e1e1e;
-  border: 1px solid #404040;
+  background-color: var(--color-bg-secondary, #1e1e1e);
+  border: 1px solid var(--color-border, #404040);
   border-radius: 8px;
   padding: 20px;
 }
@@ -90,7 +90,7 @@
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  color: #a3a3a3;
+  color: var(--color-text-muted, #a3a3a3);
   font-size: 16px;
   text-align: center;
   padding: 40px;
@@ -109,8 +109,8 @@
 }
 
 .metric-card-skeleton {
-  background-color: #1e1e1e;
-  border: 1px solid #404040;
+  background-color: var(--color-bg-secondary, #1e1e1e);
+  border: 1px solid var(--color-border, #404040);
   border-radius: 8px;
   height: 120px;
   animation: pulse 1.5s ease-in-out infinite;
@@ -124,16 +124,16 @@
 }
 
 .chart-skeleton {
-  background-color: #1e1e1e;
-  border: 1px solid #404040;
+  background-color: var(--color-bg-secondary, #1e1e1e);
+  border: 1px solid var(--color-border, #404040);
   border-radius: 8px;
   height: 300px;
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .chart-skeleton-full {
-  background-color: #1e1e1e;
-  border: 1px solid #404040;
+  background-color: var(--color-bg-secondary, #1e1e1e);
+  border: 1px solid var(--color-border, #404040);
   border-radius: 8px;
   height: 300px;
   animation: pulse 1.5s ease-in-out infinite;
@@ -155,7 +155,7 @@
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  color: #f87171;
+  color: var(--color-error, #f87171);
   text-align: center;
   padding: 40px;
 }
@@ -172,7 +172,7 @@
 }
 
 .analytics-error button:hover {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover, #2563eb);
 }
 
 /* Responsive */

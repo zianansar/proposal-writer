@@ -6,7 +6,12 @@ import { WeeklyActivityChart } from './WeeklyActivityChart';
 import { formatLabel } from './OutcomeDropdown';
 import './ProposalAnalyticsDashboard.css';
 
-export function ProposalAnalyticsDashboard() {
+// CR R2 M-2: Accept optional onBack prop for reuse outside tab navigation
+interface ProposalAnalyticsDashboardProps {
+  onBack?: () => void;
+}
+
+export function ProposalAnalyticsDashboard({ onBack }: ProposalAnalyticsDashboardProps) {
   const { data: summary, isLoading, isError, refetch } = useAnalyticsSummary();
 
   // AC-6: Empty state when no proposals
