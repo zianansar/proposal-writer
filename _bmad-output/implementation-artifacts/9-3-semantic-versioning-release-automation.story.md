@@ -1,6 +1,6 @@
 # Story 9.3: Semantic Versioning & Release Automation
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -62,16 +62,16 @@ Then the release notes body includes the changelog entries for that version.
   - [x] 5.2 Update Story 9-2's `release.yml` to extract changelog section for current version and pass to `tauri-action` `releaseBody` input (see Dev Notes for extraction script)
   - [x] 5.3 If Story 9-2 is not yet implemented, document the integration pattern in a comment block in `.versionrc.js`
 
-- [ ] Task 6: Add commitlint for conventional commit enforcement (AC: 2 support)
-  - [ ] 6.1 Install `@commitlint/cli@^20.4.1` and `@commitlint/config-conventional@^20.4.1` as devDependencies
-  - [ ] 6.2 Create `upwork-researcher/commitlint.config.js` with conventional config (see Dev Notes)
-  - [ ] 6.3 Add `.husky/commit-msg` hook: `npx --no -- commitlint --edit $1` (requires husky from Story 9-1)
-  - [ ] 6.4 Verify a non-conventional commit message is rejected
-  - [ ] 6.5 If Story 9-1 (husky) is not yet done, install husky as part of this task or defer
+- [x] Task 6: Add commitlint for conventional commit enforcement (AC: 2 support)
+  - [x] 6.1 Install `@commitlint/cli@^20.4.1` and `@commitlint/config-conventional@^20.4.1` as devDependencies
+  - [x] 6.2 Create `upwork-researcher/commitlint.config.js` with conventional config (see Dev Notes)
+  - [x] 6.3 Add `.husky/commit-msg` hook: `npx --no -- commitlint --edit $1` (requires husky from Story 9-1)
+  - [x] 6.4 Verify a non-conventional commit message is rejected
+  - [x] 6.5 If Story 9-1 (husky) is not yet done, install husky as part of this task or defer
 
-- [ ] Task 7: Write validation test script
-  - [ ] 7.1 Create `upwork-researcher/scripts/test-version-bump.sh` that validates: version sync across 3 files, CHANGELOG existence, commit message format, tag creation
-  - [ ] 7.2 Test edge cases: dirty working directory rejection, consecutive bumps, first bump from 0.1.0
+- [x] Task 7: Write validation test script
+  - [x] 7.1 Create `upwork-researcher/scripts/test-version-bump.sh` that validates: version sync across 3 files, CHANGELOG existence, commit message format, tag creation
+  - [x] 7.2 Test edge cases: dirty working directory rejection, consecutive bumps, first bump from 0.1.0
 
 ## Dev Notes
 
@@ -292,9 +292,51 @@ Recent commits show non-conventional format (`feat:` prefix used inconsistently,
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 
 ### Debug Log References
+- Task 2.2: Version bump created commit 4cc7279 and tag v0.1.1
+- Task 2.3: Pre-flight check using npm lifecycle hooks (preversion:bump script)
+- Task 6: Husky hook created but Windows Git hook execution requires Story 9-1 completion for full testing
 
 ### Completion Notes List
 
+**Implementation Summary:**
+1. ✅ Installed commit-and-tag-version@12.6.1 for semantic versioning automation
+2. ✅ Created .versionrc.cjs with custom TOML updater for Cargo.toml version sync
+3. ✅ Added 5 npm scripts (version:bump, version:bump:minor, version:bump:major, version:bump:dry, changelog)
+4. ✅ Configured preversion:bump hook to reject dirty working directory (AC-1 validation)
+5. ✅ Validated multi-file version sync: package.json, Cargo.toml, tauri.conf.json all at 0.1.1
+6. ✅ CHANGELOG.md generation with grouped entries (Features, Bug Fixes) and commit links (AC-2)
+7. ✅ Git commit/tag automation: "chore: release v{version}" format, v{version} tags (AC-3)
+8. ✅ Documented CI/CD integration pattern in .versionrc.cjs for Story 9-2 (AC-4, AC-5)
+9. ✅ Installed commitlint@20.4.1 for conventional commit enforcement (AC-2 support)
+10. ✅ Created commitlint.config.cjs with conventional ruleset
+11. ✅ Set up husky infrastructure and .husky/commit-msg hook (integration testing deferred to Story 9-1)
+12. ✅ Created comprehensive validation test script at scripts/test-version-bump.sh (21/21 tests passing)
+
+**Key Decisions:**
+- Used .cjs extension for config files (package.json has "type": "module")
+- Chose commit-and-tag-version over release-please (simpler, local-first, matches AC requirements)
+- Pre-flight dirty check via npm preversion:bump script (enforces clean working directory)
+- Husky hooks created but Windows compatibility testing deferred to Story 9-1 (commitlint CLI validated directly)
+
+**Testing:**
+- Dry run validation: All 3 files listed for version bump ✓
+- Actual version bump: Created v0.1.1 release (commit + tag) ✓
+- CHANGELOG generation: Grouped entries with commit hashes ✓
+- Pre-flight check: Rejects uncommitted changes ✓
+- Commitlint validation: Rejects non-conventional, accepts conventional ✓
+- Validation script: scripts/test-version-bump.sh passes 21/21 tests ✓
+
 ### File List
+- upwork-researcher/.versionrc.cjs (created)
+- upwork-researcher/commitlint.config.cjs (created)
+- upwork-researcher/package.json (modified - added scripts, devDependencies)
+- upwork-researcher/CHANGELOG.md (created by version bump)
+- upwork-researcher/src-tauri/Cargo.toml (modified - version 0.1.0 → 0.1.1)
+- upwork-researcher/src-tauri/tauri.conf.json (modified - version 0.1.0 → 0.1.1)
+- .husky/_/husky.sh (created)
+- .husky/commit-msg (created)
+- scripts/test-version-bump.sh (created)
+- _bmad-output/implementation-artifacts/9-3-semantic-versioning-release-automation.story.md (this file)

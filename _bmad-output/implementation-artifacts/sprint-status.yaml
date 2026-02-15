@@ -1,4 +1,4 @@
-# generated: 2026-02-05
+# generated: 2026-02-15
 # project: Upwork Research Agent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -33,7 +33,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-02-05
+generated: 2026-02-15
 project: Upwork Research Agent
 project_key: NOKEY
 tracking_system: file-system
@@ -167,6 +167,7 @@ development_status:
   td-5-code-quality-consolidation: done  # 2026-02-12: All 7 review follow-ups fixed (1H 3M 3L). build.rs, config docs, call_to_action, TSX tokens, CTA test. 14+17 tests pass.
   epic-td-retrospective: done  # Completed 2026-02-12
 
+
   # ═══════════════════════════════════════════════════════════
   # EPIC 7 — Proposal History & Data Portability [POST-MVP]
   # Created: 2026-02-12 from epics.md Post-MVP Priority 1
@@ -181,3 +182,32 @@ development_status:
   7-6-database-export-to-encrypted-archive: done  # CR R2 2026-02-15: ALL 6 items fixed (3M 3L). M1: Tauri event progress stages, M2: streaming verify_archive, M3: read_metadata_only tests. L1: focus trap, L2: formatFileSize, L3: hint validation. 53 tests pass (16 Rust + 37 frontend).
   7-7-database-import-from-archive: done  # CR R2 2026-02-15: ALL 10 items fixed (3C 3H 4M). C1: camelCase serde added. C2: Dynamic column mapping via PRAGMA table_info. H1: 6-key skip list. H2: Removed auto-fire. H3: All 12 tables counted. M1: Retry button. M2-M3: Real tests. M4: Div-by-zero guard. 692 Rust + 14 frontend tests pass.
   epic-7-retrospective: done  # Completed 2026-02-15
+
+  # ═══════════════════════════════════════════════════════════
+  # EPIC 9 — Platform Deployment & Distribution [POST-MVP]
+  # Priority 2. NFRs: NFR-13, NFR-14, NFR-15, NFR-16. ARs: AR-21
+  # 9 stories. Dependency flow: 9.1→9.2→9.3→9.4/9.5(parallel)→9.6→9.7→9.8→9.9
+  # Key risks: Windows EV cert procurement (1-2 week lead), macOS notarization
+  # NOTE: Start code signing certificate procurement ASAP
+  # ═══════════════════════════════════════════════════════════
+  epic-9: in-progress
+  9-1-eslint-prettier-pre-commit-hooks: in-progress  # Story file created 2026-02-15
+  9-2-ci-cd-release-build-pipeline: in-progress  # CR R1 2026-02-15: FAILED — 0% implemented. release.yml never created. All tasks reset. Re-implementation required.
+  9-3-semantic-versioning-release-automation: review  # Implementation complete 2026-02-15. Validation: 21/21 tests pass. Husky hook integration testing deferred to Story 9-1.
+  9-4-macos-code-signing-notarization: ready-for-dev  # Story file created 2026-02-15
+  9-5-windows-code-signing-smartscreen: in-progress
+  9-6-auto-updater-plugin-integration: ready-for-dev  # Story file created 2026-02-15
+  9-7-auto-update-notification-ui: backlog
+  9-8-mandatory-safety-update-enforcement: backlog
+  9-9-post-update-health-check-rollback: backlog
+  epic-9-retrospective: optional
+
+  # ═══════════════════════════════════════════════════════════
+  # EPIC 10 — Advanced Configuration & Extensibility [POST-MVP]
+  # Priority 3. FR: FR-18 (dynamic hook configuration). AR: AR-14 (network allowlist)
+  # Estimated: 4-6 stories (unchanged). Scope: Simple remote config (Option B)
+  # Stories NOT yet broken down — can use create-story incrementally
+  # Depends on: Epic 9 (can't update config if app isn't distributed)
+  # ═══════════════════════════════════════════════════════════
+  epic-10: backlog
+  epic-10-retrospective: optional
