@@ -3,38 +3,40 @@
  * Main view for displaying sortable, filterable job queue
  */
 
-import { useMemo, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useInfiniteJobQueue } from '../hooks/useInfiniteJobQueue';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import JobQueueControls from './JobQueueControls';
-import VirtualizedJobList from './VirtualizedJobList';
-import type { SortField, ScoreFilter } from '../types';
-import './JobQueuePage.css';
+import { useMemo, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+
+import { useInfiniteJobQueue } from "../hooks/useInfiniteJobQueue";
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
+import type { SortField, ScoreFilter } from "../types";
+
+import JobQueueControls from "./JobQueueControls";
+import VirtualizedJobList from "./VirtualizedJobList";
+import "./JobQueuePage.css";
 
 export default function JobQueuePage() {
   // AC-8.6: Store sort/filter in URL query params for shareable state
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Read from URL params, fallback to defaults
-  const sortBy = (searchParams.get('sort') as SortField) || 'score';
-  const filter = (searchParams.get('filter') as ScoreFilter) || 'all';
+  const sortBy = (searchParams.get("sort") as SortField) || "score";
+  const filter = (searchParams.get("filter") as ScoreFilter) || "all";
 
   // Validate and sanitize URL params
   useEffect(() => {
-    const validSortFields: SortField[] = ['score', 'date', 'clientName'];
-    const validFilters: ScoreFilter[] = ['all', 'greenOnly', 'yellowAndGreen'];
+    const validSortFields: SortField[] = ["score", "date", "clientName"];
+    const validFilters: ScoreFilter[] = ["all", "greenOnly", "yellowAndGreen"];
 
     let needsUpdate = false;
     const newParams = new URLSearchParams(searchParams);
 
     if (!validSortFields.includes(sortBy)) {
-      newParams.set('sort', 'score');
+      newParams.set("sort", "score");
       needsUpdate = true;
     }
 
     if (!validFilters.includes(filter)) {
-      newParams.set('filter', 'all');
+      newParams.set("filter", "all");
       needsUpdate = true;
     }
 
@@ -44,13 +46,19 @@ export default function JobQueuePage() {
   }, [sortBy, filter, searchParams, setSearchParams]);
 
   // Update URL params when sort/filter changes
-  const handleSortChange = useCallback((newSort: SortField) => {
-    setSearchParams({ sort: newSort, filter });
-  }, [filter, setSearchParams]);
+  const handleSortChange = useCallback(
+    (newSort: SortField) => {
+      setSearchParams({ sort: newSort, filter });
+    },
+    [filter, setSearchParams],
+  );
 
-  const handleFilterChange = useCallback((newFilter: ScoreFilter) => {
-    setSearchParams({ sort: sortBy, filter: newFilter });
-  }, [sortBy, setSearchParams]);
+  const handleFilterChange = useCallback(
+    (newFilter: ScoreFilter) => {
+      setSearchParams({ sort: sortBy, filter: newFilter });
+    },
+    [sortBy, setSearchParams],
+  );
 
   const {
     data: infiniteData,
@@ -133,14 +141,15 @@ export default function JobQueuePage() {
   // [AI-Review Fix M1]: Differentiate "no jobs" vs "no jobs match filter"
   if (!infiniteData || allJobs.length === 0) {
     const totalCount = infiniteData?.pages[0]?.totalCount ?? 0;
-    const hasJobsButFiltered = infiniteData && totalCount === 0 && filter !== 'all';
-    const noJobsAtAll = !infiniteData || (totalCount === 0 && filter === 'all');
+    const hasJobsButFiltered = infiniteData && totalCount === 0 && filter !== "all";
+    const noJobsAtAll = !infiniteData || (totalCount === 0 && filter === "all");
 
     // Check if there are jobs in other colors when filtering
-    const hasOtherJobs = infiniteData && (
-      (filter === 'greenOnly' && (colorCounts.yellow > 0 || colorCounts.red > 0 || colorCounts.gray > 0)) ||
-      (filter === 'yellowAndGreen' && (colorCounts.red > 0 || colorCounts.gray > 0))
-    );
+    const hasOtherJobs =
+      infiniteData &&
+      ((filter === "greenOnly" &&
+        (colorCounts.yellow > 0 || colorCounts.red > 0 || colorCounts.gray > 0)) ||
+        (filter === "yellowAndGreen" && (colorCounts.red > 0 || colorCounts.gray > 0)));
 
     return (
       <div className="job-queue-page">
@@ -148,22 +157,27 @@ export default function JobQueuePage() {
           <h1>Job Queue</h1>
         </div>
         <div className="job-queue-empty">
-          <div className="empty-icon">{hasOtherJobs ? '🔍' : '📋'}</div>
-          <h2>{hasOtherJobs ? 'No matching jobs' : 'No jobs in queue'}</h2>
+          <div className="empty-icon">{hasOtherJobs ? "🔍" : "📋"}</div>
+          <h2>{hasOtherJobs ? "No matching jobs" : "No jobs in queue"}</h2>
           <p>
             {hasOtherJobs
-              ? filter === 'greenOnly'
-                ? 'No green-rated jobs found. Try adjusting your filter or improving your skills match.'
-                : 'No yellow or green jobs found. Try showing all jobs.'
-              : 'Import jobs via RSS or paste manually.'}
+              ? filter === "greenOnly"
+                ? "No green-rated jobs found. Try adjusting your filter or improving your skills match."
+                : "No yellow or green jobs found. Try showing all jobs."
+              : "Import jobs via RSS or paste manually."}
           </p>
           {hasOtherJobs ? (
-            <button className="import-button" onClick={() => handleFilterChange('all')}>
+            <button className="import-button" onClick={() => handleFilterChange("all")}>
               Show All Jobs
             </button>
           ) : (
             // [AI-Review Fix M3]: TODO - Wire to RSS import dialog when available
-            <button className="import-button" onClick={() => { /* TODO: Open RSS import dialog */ }}>
+            <button
+              className="import-button"
+              onClick={() => {
+                /* TODO: Open RSS import dialog */
+              }}
+            >
               Import Jobs
             </button>
           )}

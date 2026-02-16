@@ -9,14 +9,14 @@
  * NFR-14: Accessible with aria-label, tooltip, keyboard focus
  */
 
-import './BudgetAlignmentBadge.css';
+import "./BudgetAlignmentBadge.css";
 
 interface BudgetAlignmentBadgeProps {
   percentage: number | null;
-  status: 'green' | 'yellow' | 'red' | 'gray' | 'mismatch' | null;
+  status: "green" | "yellow" | "red" | "gray" | "mismatch" | null;
   budgetMin: number | null;
   budgetMax: number | null;
-  budgetType: 'hourly' | 'fixed' | 'unknown';
+  budgetType: "hourly" | "fixed" | "unknown";
   userHourlyRate?: number | null;
   userProjectRateMin?: number | null;
 }
@@ -28,26 +28,26 @@ function getTooltipText(
   budgetMin: number | null,
   budgetMax: number | null,
   userHourlyRate?: number | null,
-  userProjectRateMin?: number | null
+  userProjectRateMin?: number | null,
 ): string {
-  if (status === 'mismatch') {
-    if (budgetType === 'hourly') {
+  if (status === "mismatch") {
+    if (budgetType === "hourly") {
       return "Job is hourly but you haven't configured an hourly rate in Settings";
     }
-    if (budgetType === 'fixed') {
+    if (budgetType === "fixed") {
       return "Job is fixed-price but you haven't configured a project rate in Settings";
     }
     return "Budget type doesn't match your configured rates";
   }
 
-  if (status === 'gray' || budgetType === 'unknown') {
-    return 'Budget not mentioned in job post';
+  if (status === "gray" || budgetType === "unknown") {
+    return "Budget not mentioned in job post";
   }
 
   // Format budget display
   const formatBudget = (min: number | null, max: number | null, type: string): string => {
-    if (min === null) return 'Unknown';
-    const suffix = type === 'hourly' ? '/hr' : ' fixed';
+    if (min === null) return "Unknown";
+    const suffix = type === "hourly" ? "/hr" : " fixed";
     if (max !== null && max !== min) {
       return `$${min}-$${max}${suffix}`;
     }
@@ -56,10 +56,10 @@ function getTooltipText(
 
   const budgetStr = formatBudget(budgetMin, budgetMax, budgetType);
 
-  if (budgetType === 'hourly' && userHourlyRate) {
+  if (budgetType === "hourly" && userHourlyRate) {
     return `Job budget: ${budgetStr}, Your rate: $${userHourlyRate}/hr`;
   }
-  if (budgetType === 'fixed' && userProjectRateMin) {
+  if (budgetType === "fixed" && userProjectRateMin) {
     return `Job budget: ${budgetStr}, Your minimum: $${userProjectRateMin}+ projects`;
   }
 
@@ -68,18 +68,19 @@ function getTooltipText(
 
 /** Get accessibility label */
 function getAriaLabel(percentage: number | null, status: string | null): string {
-  if (status === 'mismatch') {
-    return 'Budget alignment: Type mismatch';
+  if (status === "mismatch") {
+    return "Budget alignment: Type mismatch";
   }
-  if (status === 'gray' || percentage === null) {
-    return 'Budget alignment: Unknown';
+  if (status === "gray" || percentage === null) {
+    return "Budget alignment: Unknown";
   }
 
-  const qualityDesc = status === 'green'
-    ? 'meets your rate expectations'
-    : status === 'yellow'
-    ? 'slightly below your rate'
-    : 'significantly below your rate';
+  const qualityDesc =
+    status === "green"
+      ? "meets your rate expectations"
+      : status === "yellow"
+        ? "slightly below your rate"
+        : "significantly below your rate";
 
   return `Budget alignment: ${percentage} percent, ${qualityDesc}`;
 }
@@ -94,22 +95,20 @@ export default function BudgetAlignmentBadge({
   userProjectRateMin,
 }: BudgetAlignmentBadgeProps) {
   // No rates configured - show message
-  if (!userHourlyRate && !userProjectRateMin && budgetType !== 'unknown') {
+  if (!userHourlyRate && !userProjectRateMin && budgetType !== "unknown") {
     return (
       <div
         className="budget-alignment budget-alignment--no-config"
         data-testid="budget-alignment-badge"
         aria-label="Budget alignment: Configure rates in Settings to see alignment"
       >
-        <span className="budget-alignment__message">
-          Configure rates in Settings
-        </span>
+        <span className="budget-alignment__message">Configure rates in Settings</span>
       </div>
     );
   }
 
   // Unknown budget or null status
-  if (status === null || status === 'gray' || budgetType === 'unknown') {
+  if (status === null || status === "gray" || budgetType === "unknown") {
     return (
       <div
         className="budget-alignment budget-alignment--gray"
@@ -126,13 +125,20 @@ export default function BudgetAlignmentBadge({
   }
 
   // Type mismatch
-  if (status === 'mismatch') {
+  if (status === "mismatch") {
     return (
       <div
         className="budget-alignment budget-alignment--gray"
         data-testid="budget-alignment-badge"
         aria-label="Budget alignment: Type mismatch"
-        title={getTooltipText(status, budgetType, budgetMin, budgetMax, userHourlyRate, userProjectRateMin)}
+        title={getTooltipText(
+          status,
+          budgetType,
+          budgetMin,
+          budgetMax,
+          userHourlyRate,
+          userProjectRateMin,
+        )}
         tabIndex={0}
         role="status"
       >
@@ -144,7 +150,14 @@ export default function BudgetAlignmentBadge({
 
   // Normal case - show percentage with color
   const colorClass = `budget-alignment--${status}`;
-  const tooltip = getTooltipText(status, budgetType, budgetMin, budgetMax, userHourlyRate, userProjectRateMin);
+  const tooltip = getTooltipText(
+    status,
+    budgetType,
+    budgetMin,
+    budgetMax,
+    userHourlyRate,
+    userProjectRateMin,
+  );
   const ariaLabel = getAriaLabel(percentage, status);
 
   return (
@@ -158,7 +171,7 @@ export default function BudgetAlignmentBadge({
     >
       <span className="budget-alignment__label">Budget Alignment:</span>
       <span className="budget-alignment__value">{percentage}%</span>
-      {status === 'red' && (
+      {status === "red" && (
         <span className="budget-alignment__warning" aria-label="Low budget">
           Below rate
         </span>

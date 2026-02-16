@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef } from "react";
+
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useGenerationStore } from "../stores/useGenerationStore";
 import "./DraftRecoveryModal.css";
@@ -16,6 +17,31 @@ function DraftRecoveryModal({ onContinue, triggerRef }: DraftRecoveryModalProps)
   // Story 8.2: Focus trap for keyboard navigation
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, { triggerRef });
+
+  // Keyboard accessibility: Enter to continue, Escape to discard
+  // (must be before early return to satisfy rules-of-hooks)
+  useEffect(() => {
+    if (!draftRecovery) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        onContinue(draftRecovery.jobContent, draftRecovery.generatedText);
+        clearDraftRecovery();
+      } else if (e.key === "Escape") {
+        invoke("update_proposal_status", {
+          proposalId: draftRecovery.id,
+          status: "completed",
+        })
+          .catch((err) => {
+            console.error("Failed to discard draft:", err);
+          })
+          .finally(() => clearDraftRecovery());
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [draftRecovery, onContinue, clearDraftRecovery]);
 
   if (!draftRecovery) {
     return null;
@@ -42,24 +68,11 @@ function DraftRecoveryModal({ onContinue, triggerRef }: DraftRecoveryModalProps)
     }
   };
 
-  // Keyboard accessibility: Enter to continue, Escape to discard
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        handleContinue();
-      } else if (e.key === "Escape") {
-        handleDiscard();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draftRecovery]);
-
   // Truncate preview text for display
-  const jobPreview = draftRecovery.jobContent.slice(0, 100) +
-    (draftRecovery.jobContent.length > 100 ? "..." : "");
-  const proposalPreview = draftRecovery.generatedText.slice(0, 150) +
+  const jobPreview =
+    draftRecovery.jobContent.slice(0, 100) + (draftRecovery.jobContent.length > 100 ? "..." : "");
+  const proposalPreview =
+    draftRecovery.generatedText.slice(0, 150) +
     (draftRecovery.generatedText.length > 150 ? "..." : "");
 
   return (
@@ -73,7 +86,8 @@ function DraftRecoveryModal({ onContinue, triggerRef }: DraftRecoveryModalProps)
       >
         <h2 id="draft-recovery-title">Draft Recovered</h2>
         <p className="draft-recovery-modal__message">
-          We found an incomplete proposal from your last session. Would you like to continue working on it?
+          We found an incomplete proposal from your last session. Would you like to continue working
+          on it?
         </p>
 
         <div className="draft-recovery-modal__preview">
@@ -84,16 +98,10 @@ function DraftRecoveryModal({ onContinue, triggerRef }: DraftRecoveryModalProps)
         </div>
 
         <div className="draft-recovery-modal__actions">
-          <button
-            className="button button--primary"
-            onClick={handleContinue}
-          >
+          <button className="button button--primary" onClick={handleContinue}>
             Continue Draft
           </button>
-          <button
-            className="button button--secondary"
-            onClick={handleDiscard}
-          >
+          <button className="button button--secondary" onClick={handleDiscard}>
             Discard
           </button>
         </div>

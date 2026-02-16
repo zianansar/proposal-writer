@@ -1,4 +1,5 @@
 import { create } from "zustand";
+
 import type { StageStatus, PipelineStage } from "../types/pipeline";
 
 interface DraftRecovery {
@@ -90,134 +91,131 @@ const initialState: GenerationState = {
   stageHistory: [],
 };
 
-export const useGenerationStore = create<GenerationState & GenerationActions>(
-  (set) => ({
-    ...initialState,
+export const useGenerationStore = create<GenerationState & GenerationActions>((set) => ({
+  ...initialState,
 
-    appendTokens: (newTokens) =>
-      set((state) => ({
-        tokens: [...state.tokens, ...newTokens],
-      })),
+  appendTokens: (newTokens) =>
+    set((state) => ({
+      tokens: [...state.tokens, ...newTokens],
+    })),
 
-    setStreaming: (isStreaming) =>
-      set((state) => ({
-        isStreaming,
-        // Clear error when starting new generation, preserve when stopping
-        error: isStreaming ? null : state.error,
-      })),
+  setStreaming: (isStreaming) =>
+    set((state) => ({
+      isStreaming,
+      // Clear error when starting new generation, preserve when stopping
+      error: isStreaming ? null : state.error,
+    })),
 
-    setError: (message) =>
-      set({
-        error: message,
-        isStreaming: false,
-        // Note: tokens are preserved so partial result is kept
-      }),
+  setError: (message) =>
+    set({
+      error: message,
+      isStreaming: false,
+      // Note: tokens are preserved so partial result is kept
+    }),
 
-    setComplete: (fullText, wasTruncated = false) =>
-      set({
-        fullText,
-        isStreaming: false,
-        generationWasTruncated: wasTruncated,
-      }),
+  setComplete: (fullText, wasTruncated = false) =>
+    set({
+      fullText,
+      isStreaming: false,
+      generationWasTruncated: wasTruncated,
+    }),
 
-    setSaved: (id) =>
-      set({
-        isSaved: true,
-        savedId: id,
-      }),
+  setSaved: (id) =>
+    set({
+      isSaved: true,
+      savedId: id,
+    }),
 
-    incrementRetry: () =>
-      set((state) => ({
-        retryCount: state.retryCount + 1,
-      })),
+  incrementRetry: () =>
+    set((state) => ({
+      retryCount: state.retryCount + 1,
+    })),
 
-    setDraftRecovery: (draft) =>
-      set({
-        draftRecovery: draft,
-      }),
+  setDraftRecovery: (draft) =>
+    set({
+      draftRecovery: draft,
+    }),
 
-    clearDraftRecovery: () =>
-      set({
-        draftRecovery: null,
-      }),
+  clearDraftRecovery: () =>
+    set({
+      draftRecovery: null,
+    }),
 
-    reset: () => set(initialState),
+  reset: () => set(initialState),
 
-    // Story 3.8: Cooldown actions
-    setCooldown: (durationMs) =>
-      set({
-        cooldownEnd: Date.now() + durationMs,
-        cooldownRemaining: Math.ceil(durationMs / 1000),
-      }),
+  // Story 3.8: Cooldown actions
+  setCooldown: (durationMs) =>
+    set({
+      cooldownEnd: Date.now() + durationMs,
+      cooldownRemaining: Math.ceil(durationMs / 1000),
+    }),
 
-    clearCooldown: () =>
-      set({
-        cooldownEnd: null,
-        cooldownRemaining: 0,
-      }),
+  clearCooldown: () =>
+    set({
+      cooldownEnd: null,
+      cooldownRemaining: 0,
+    }),
 
-    tickCooldown: () =>
-      set((state) => {
-        if (!state.cooldownEnd) {
-          return { cooldownRemaining: 0 };
-        }
-        const remaining = Math.max(0, Math.ceil((state.cooldownEnd - Date.now()) / 1000));
-        return { cooldownRemaining: remaining };
-      }),
+  tickCooldown: () =>
+    set((state) => {
+      if (!state.cooldownEnd) {
+        return { cooldownRemaining: 0 };
+      }
+      const remaining = Math.max(0, Math.ceil((state.cooldownEnd - Date.now()) / 1000));
+      return { cooldownRemaining: remaining };
+    }),
 
-    // Story 8.4: Stage tracking
-    setStage: (stageId, status, error) =>
-      set((state) => {
-        const now = Date.now();
-        const history = [...state.stageHistory];
+  // Story 8.4: Stage tracking
+  setStage: (stageId, status, error) =>
+    set((state) => {
+      const now = Date.now();
+      const history = [...state.stageHistory];
 
-        // Complete previous active stage
-        if (state.currentStage && status === "active") {
-          const prevIndex = history.findIndex((s) => s.id === state.currentStage);
-          if (prevIndex >= 0) {
-            history[prevIndex] = {
-              ...history[prevIndex],
-              status: "complete",
-              completedAt: now,
-              durationMs: now - history[prevIndex].startedAt,
-            };
-          }
-        }
-
-        // Add or update current stage
-        const existingIndex = history.findIndex((s) => s.id === stageId);
-        if (existingIndex >= 0) {
-          history[existingIndex] = {
-            ...history[existingIndex],
-            status,
-            ...(status === "error" ? { error } : {}),
-            ...(status === "complete"
-              ? {
-                  completedAt: now,
-                  durationMs: now - history[existingIndex].startedAt,
-                }
-              : {}),
+      // Complete previous active stage
+      if (state.currentStage && status === "active") {
+        const prevIndex = history.findIndex((s) => s.id === state.currentStage);
+        if (prevIndex >= 0) {
+          history[prevIndex] = {
+            ...history[prevIndex],
+            status: "complete",
+            completedAt: now,
+            durationMs: now - history[prevIndex].startedAt,
           };
-        } else {
-          history.push({
-            id: stageId,
-            status,
-            startedAt: now,
-            ...(status === "error" ? { error } : {}),
-          });
         }
+      }
 
-        return {
-          currentStage: status === "complete" || status === "error" ? null : stageId,
-          stageHistory: history,
+      // Add or update current stage
+      const existingIndex = history.findIndex((s) => s.id === stageId);
+      if (existingIndex >= 0) {
+        history[existingIndex] = {
+          ...history[existingIndex],
+          status,
+          ...(status === "error" ? { error } : {}),
+          ...(status === "complete"
+            ? {
+                completedAt: now,
+                durationMs: now - history[existingIndex].startedAt,
+              }
+            : {}),
         };
-      }),
-  })
-);
+      } else {
+        history.push({
+          id: stageId,
+          status,
+          startedAt: now,
+          ...(status === "error" ? { error } : {}),
+        });
+      }
+
+      return {
+        currentStage: status === "complete" || status === "error" ? null : stageId,
+        stageHistory: history,
+      };
+    }),
+}));
 
 /** Get concatenated text from all tokens */
-export const getStreamedText = (state: GenerationState): string =>
-  state.tokens.join("");
+export const getStreamedText = (state: GenerationState): string => state.tokens.join("");
 
 /**
  * Get all stages with their current status (Story 8.4)

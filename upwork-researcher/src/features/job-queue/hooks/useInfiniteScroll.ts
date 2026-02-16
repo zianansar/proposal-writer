@@ -3,7 +3,7 @@
  * Detects when user scrolls near bottom and triggers load more
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from "react";
 
 interface UseInfiniteScrollOptions {
   hasMore: boolean;
@@ -30,7 +30,7 @@ export function useInfiniteScroll({
         onLoadMore();
       }
     },
-    [hasMore, isLoading, onLoadMore]
+    [hasMore, isLoading, onLoadMore],
   );
 
   useEffect(() => {

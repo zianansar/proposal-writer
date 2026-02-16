@@ -12,16 +12,12 @@
  *   await stopMockApiServer();
  */
 
-import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
+import { createServer, IncomingMessage, ServerResponse, Server } from "http";
 
 let server: Server | null = null;
-let currentScenario: MockScenario = 'standard';
+let currentScenario: MockScenario = "standard";
 
-export type MockScenario =
-  | 'standard'
-  | 'high-perplexity'
-  | 'streaming'
-  | 'error';
+export type MockScenario = "standard" | "high-perplexity" | "streaming" | "error";
 
 const MOCK_PORT = 18932;
 
@@ -36,22 +32,22 @@ export function getMockApiBaseUrl(): string {
  * Start the mock API server
  * @returns The base URL to configure as ANTHROPIC_API_BASE_URL
  */
-export async function startMockApiServer(scenario: MockScenario = 'standard'): Promise<string> {
+export async function startMockApiServer(scenario: MockScenario = "standard"): Promise<string> {
   currentScenario = scenario;
 
   if (server) {
-    console.log('[Mock API] Server already running, updating scenario');
+    console.log("[Mock API] Server already running, updating scenario");
     return getMockApiBaseUrl();
   }
 
   return new Promise((resolve, reject) => {
     server = createServer(handleRequest);
-    server.listen(MOCK_PORT, '127.0.0.1', () => {
+    server.listen(MOCK_PORT, "127.0.0.1", () => {
       const url = getMockApiBaseUrl();
       console.log(`[Mock API] Server started at ${url} (scenario: ${scenario})`);
       resolve(url);
     });
-    server.on('error', reject);
+    server.on("error", reject);
   });
 }
 
@@ -66,7 +62,7 @@ export async function stopMockApiServer(): Promise<void> {
     }
     server.close(() => {
       server = null;
-      console.log('[Mock API] Server stopped');
+      console.log("[Mock API] Server stopped");
       resolve();
     });
   });
@@ -81,63 +77,66 @@ export function setMockScenario(scenario: MockScenario): void {
 }
 
 function handleRequest(req: IncomingMessage, res: ServerResponse): void {
-  let body = '';
-  req.on('data', (chunk) => { body += chunk; });
-  req.on('end', () => {
-    const url = req.url ?? '';
+  let body = "";
+  req.on("data", (chunk) => {
+    body += chunk;
+  });
+  req.on("end", () => {
+    const url = req.url ?? "";
     console.log(`[Mock API] ${req.method} ${url}`);
 
     // CORS headers for any origin
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 
-    if (req.method === 'OPTIONS') {
+    if (req.method === "OPTIONS") {
       res.writeHead(204);
       res.end();
       return;
     }
 
     // POST /v1/messages — Claude API messages endpoint
-    if (url.includes('/v1/messages') && req.method === 'POST') {
+    if (url.includes("/v1/messages") && req.method === "POST") {
       handleMessagesEndpoint(res);
       return;
     }
 
     // Health check
-    if (url === '/health') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', scenario: currentScenario }));
+    if (url === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok", scenario: currentScenario }));
       return;
     }
 
     // 404 for unknown routes
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Not found" }));
   });
 }
 
 function handleMessagesEndpoint(res: ServerResponse): void {
-  if (currentScenario === 'error') {
-    res.writeHead(429, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      type: 'error',
-      error: { type: 'rate_limit_error', message: 'Rate limit exceeded' },
-    }));
+  if (currentScenario === "error") {
+    res.writeHead(429, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        type: "error",
+        error: { type: "rate_limit_error", message: "Rate limit exceeded" },
+      }),
+    );
     return;
   }
 
-  const text = currentScenario === 'high-perplexity'
-    ? MOCK_PROPOSAL_HIGH_PERPLEXITY
-    : MOCK_PROPOSAL_STANDARD;
+  const text =
+    currentScenario === "high-perplexity" ? MOCK_PROPOSAL_HIGH_PERPLEXITY : MOCK_PROPOSAL_STANDARD;
 
-  const chunkSize = currentScenario === 'streaming' ? 20 : 50;
+  const chunkSize = currentScenario === "streaming" ? 20 : 50;
 
   // Stream SSE response
   res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
   });
 
   const chunks: string[] = [];
@@ -150,15 +149,15 @@ function handleMessagesEndpoint(res: ServerResponse): void {
   const interval = setInterval(() => {
     if (index < chunks.length) {
       const event = {
-        type: 'content_block_delta',
+        type: "content_block_delta",
         index: 0,
-        delta: { type: 'text_delta', text: chunks[index] },
+        delta: { type: "text_delta", text: chunks[index] },
       };
       res.write(`data: ${JSON.stringify(event)}\n\n`);
       index++;
     } else {
       res.write('data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n');
-      res.write('data: [DONE]\n\n');
+      res.write("data: [DONE]\n\n");
       res.end();
       clearInterval(interval);
     }

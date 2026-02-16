@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import type { FlaggedSentence } from "../types/perplexity";
-import type { HumanizationIntensity } from "../stores/useSettingsStore";
+
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import type { HumanizationIntensity } from "../stores/useSettingsStore";
+import type { FlaggedSentence } from "../types/perplexity";
 import "./SafetyWarningModal.css";
 
 const INTENSITY_LABELS: Record<HumanizationIntensity, string> = {
@@ -94,8 +95,7 @@ function SafetyWarningModal({
         </h2>
 
         <p className="safety-warning-modal__score">
-          Perplexity score: <strong>{score.toFixed(1)}</strong> (threshold:{" "}
-          {threshold})
+          Perplexity score: <strong>{score.toFixed(1)}</strong> (threshold: {threshold})
           {previousScore && attemptCount > 0 && (
             <span className="safety-warning-modal__score-comparison">
               {" "}
@@ -128,8 +128,8 @@ function SafetyWarningModal({
         )}
 
         <p className="safety-warning-modal__message">
-          Parts of your proposal may be flagged as AI-generated. Review and fix
-          the highlighted sentences below:
+          Parts of your proposal may be flagged as AI-generated. Review and fix the highlighted
+          sentences below:
         </p>
 
         <div className="safety-warning-modal__flagged-sentences">
@@ -149,8 +149,7 @@ function SafetyWarningModal({
             {canShowRegenerateButton ? (
               <>
                 <p className="safety-warning-modal__regenerate-description">
-                  Try regenerating with stronger humanization to reduce AI
-                  detection risk.
+                  Try regenerating with stronger humanization to reduce AI detection risk.
                 </p>
                 <button
                   className="safety-warning-modal__button button--secondary button--regenerate"
@@ -176,14 +175,13 @@ function SafetyWarningModal({
               <div className="safety-warning-modal__max-attempts-message">
                 {isAtMaxIntensity && !isAtMaxAttempts && (
                   <p>
-                    ℹ️ Already at maximum humanization intensity (Heavy). Consider
-                    manual editing.
+                    ℹ️ Already at maximum humanization intensity (Heavy). Consider manual editing.
                   </p>
                 )}
                 {isAtMaxAttempts && (
                   <p>
-                    ⚠️ Maximum regeneration attempts ({MAX_ATTEMPTS}) reached.
-                    Please edit the proposal manually using the suggestions above.
+                    ⚠️ Maximum regeneration attempts ({MAX_ATTEMPTS}) reached. Please edit the
+                    proposal manually using the suggestions above.
                   </p>
                 )}
               </div>

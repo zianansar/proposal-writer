@@ -1,9 +1,9 @@
 // DatabaseExportButton — Encrypted database export with passphrase warning (Story 7.6)
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
-import './DatabaseExportButton.css';
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { useState, useEffect, useCallback, useRef } from "react";
+import "./DatabaseExportButton.css";
 
 interface ExportArchiveResult {
   success: boolean;
@@ -17,24 +17,24 @@ interface ExportArchiveResult {
   message: string;
 }
 
-type ExportState = 'idle' | 'confirming' | 'exporting' | 'success' | 'error';
+type ExportState = "idle" | "confirming" | "exporting" | "success" | "error";
 
 export function DatabaseExportButton() {
-  const [state, setState] = useState<ExportState>('idle');
-  const [passphraseHint, setPassphraseHint] = useState('');
+  const [state, setState] = useState<ExportState>("idle");
+  const [passphraseHint, setPassphraseHint] = useState("");
   const [result, setResult] = useState<ExportArchiveResult | null>(null);
-  const [error, setError] = useState<string>('');
-  const [progressMessage, setProgressMessage] = useState('Preparing...');
+  const [error, setError] = useState<string>("");
+  const [progressMessage, setProgressMessage] = useState("Preparing...");
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Auto-dismiss success/error states after 8 seconds
   useEffect(() => {
-    if (state === 'success' || state === 'error') {
+    if (state === "success" || state === "error") {
       const timer = setTimeout(() => {
-        setState('idle');
-        setPassphraseHint('');
+        setState("idle");
+        setPassphraseHint("");
         setResult(null);
-        setError('');
+        setError("");
       }, 8000);
 
       return () => clearTimeout(timer);
@@ -43,61 +43,61 @@ export function DatabaseExportButton() {
 
   // L-1: Auto-focus passphrase hint input when confirmation dialog opens
   useEffect(() => {
-    if (state === 'confirming' && dialogRef.current) {
-      const firstInput = dialogRef.current.querySelector<HTMLElement>('input');
+    if (state === "confirming" && dialogRef.current) {
+      const firstInput = dialogRef.current.querySelector<HTMLElement>("input");
       firstInput?.focus();
     }
   }, [state]);
 
   const handleExportClick = useCallback(() => {
-    setState('confirming');
+    setState("confirming");
   }, []);
 
   const handleCancel = useCallback(() => {
-    setState('idle');
-    setPassphraseHint('');
+    setState("idle");
+    setPassphraseHint("");
   }, []);
 
   const handleConfirmExport = useCallback(async () => {
-    setState('exporting');
-    setProgressMessage('Preparing...');
+    setState("exporting");
+    setProgressMessage("Preparing...");
 
     let unlisten: (() => void) | undefined;
     try {
-      unlisten = await listen<string>('export-progress', (event) => {
+      unlisten = await listen<string>("export-progress", (event) => {
         setProgressMessage(event.payload);
       });
 
-      const exportResult = await invoke<ExportArchiveResult>('export_encrypted_archive', {
+      const exportResult = await invoke<ExportArchiveResult>("export_encrypted_archive", {
         passphraseHint: passphraseHint.trim() || null,
       });
 
       if (exportResult.success) {
         setResult(exportResult);
-        setState('success');
+        setState("success");
       } else {
-        setError(exportResult.message || 'Export failed');
-        setState('error');
+        setError(exportResult.message || "Export failed");
+        setState("error");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      setState('error');
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
+      setState("error");
     } finally {
       if (unlisten) unlisten();
     }
   }, [passphraseHint]);
 
   const handleTryAgain = useCallback(() => {
-    setState('idle');
-    setError('');
+    setState("idle");
+    setError("");
   }, []);
 
   // L-1: Focus trap for confirmation modal
   const handleDialogKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key !== 'Tab') return;
+    if (e.key !== "Tab") return;
     const dialog = e.currentTarget as HTMLElement;
     const focusable = dialog.querySelectorAll<HTMLElement>(
-      'button, input, [tabindex]:not([tabindex="-1"])'
+      'button, input, [tabindex]:not([tabindex="-1"])',
     );
     if (focusable.length === 0) return;
     const first = focusable[0];
@@ -112,22 +112,25 @@ export function DatabaseExportButton() {
   }, []);
 
   // L-3: Warn if hint looks like an actual passphrase (mixed case + digits + symbols)
-  const isHintSuspicious = passphraseHint.length > 0 && (
-    passphraseHint.length > 30 ||
-    (/[A-Z]/.test(passphraseHint) && /[a-z]/.test(passphraseHint) && /\d/.test(passphraseHint) && /[^A-Za-z0-9\s]/.test(passphraseHint))
-  );
+  const isHintSuspicious =
+    passphraseHint.length > 0 &&
+    (passphraseHint.length > 30 ||
+      (/[A-Z]/.test(passphraseHint) &&
+        /[a-z]/.test(passphraseHint) &&
+        /\d/.test(passphraseHint) &&
+        /[^A-Za-z0-9\s]/.test(passphraseHint)));
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     if (i === 0) return `${bytes} B`;
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
   // Idle state
-  if (state === 'idle') {
+  if (state === "idle") {
     return (
       <button
         className="database-export-button"
@@ -140,16 +143,22 @@ export function DatabaseExportButton() {
   }
 
   // Confirming state
-  if (state === 'confirming') {
+  if (state === "confirming") {
     return (
       <div className="database-export-modal-overlay" onKeyDown={handleDialogKeyDown}>
-        <div className="database-export-modal" ref={dialogRef} role="dialog" aria-labelledby="export-dialog-title">
+        <div
+          className="database-export-modal"
+          ref={dialogRef}
+          role="dialog"
+          aria-labelledby="export-dialog-title"
+        >
           <h3 id="export-dialog-title" className="export-dialog-title">
             ⚠ Passphrase Warning
           </h3>
 
           <p className="export-warning-text">
-            This backup is encrypted with your current passphrase. You'll need this passphrase to restore it on this or another machine.
+            This backup is encrypted with your current passphrase. You'll need this passphrase to
+            restore it on this or another machine.
           </p>
 
           <div className="export-hint-input-group">
@@ -166,11 +175,13 @@ export function DatabaseExportButton() {
               maxLength={200}
             />
             <span className="export-hint-help-text">
-              This hint will be shown if you forget your passphrase. Do NOT enter your actual passphrase.
+              This hint will be shown if you forget your passphrase. Do NOT enter your actual
+              passphrase.
             </span>
             {isHintSuspicious && (
               <span className="export-hint-warning">
-                This looks like a passphrase, not a hint. A hint should help you remember without revealing it.
+                This looks like a passphrase, not a hint. A hint should help you remember without
+                revealing it.
               </span>
             )}
           </div>
@@ -189,7 +200,7 @@ export function DatabaseExportButton() {
   }
 
   // Exporting state
-  if (state === 'exporting') {
+  if (state === "exporting") {
     return (
       <div className="database-export-status">
         <div className="export-status-content">
@@ -201,7 +212,7 @@ export function DatabaseExportButton() {
   }
 
   // Success state
-  if (state === 'success' && result) {
+  if (state === "success" && result) {
     return (
       <div className="database-export-status database-export-success">
         <div className="export-status-content">
@@ -211,8 +222,8 @@ export function DatabaseExportButton() {
           <div className="export-result-details">
             <div className="export-result-row">
               <span className="export-result-label">File:</span>
-              <span className="export-result-value" title={result.filePath || ''}>
-                {result.filePath ? result.filePath.split(/[/\\]/).pop() : 'N/A'}
+              <span className="export-result-value" title={result.filePath || ""}>
+                {result.filePath ? result.filePath.split(/[/\\]/).pop() : "N/A"}
               </span>
             </div>
 
@@ -224,8 +235,8 @@ export function DatabaseExportButton() {
             <div className="export-result-row export-counts-row">
               <span className="export-result-label">Contents:</span>
               <span className="export-result-value">
-                {result.proposalCount} Proposals | {result.revisionCount} Revisions |{' '}
-                {result.jobPostCount} Jobs | {result.settingsCount} Settings |{' '}
+                {result.proposalCount} Proposals | {result.revisionCount} Revisions |{" "}
+                {result.jobPostCount} Jobs | {result.settingsCount} Settings |{" "}
                 {result.voiceProfileCount} Voice Profiles
               </span>
             </div>
@@ -236,7 +247,7 @@ export function DatabaseExportButton() {
   }
 
   // Error state
-  if (state === 'error') {
+  if (state === "error") {
     return (
       <div className="database-export-status database-export-error">
         <div className="export-status-content">

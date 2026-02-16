@@ -37,11 +37,10 @@ pub async fn add_golden_proposal_command(
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
-    add_golden_proposal(&conn, &content, source_filename.as_deref())
-        .map_err(|e| match e {
-            rusqlite::Error::SqliteFailure(_, Some(msg)) => msg,
-            _ => format!("Failed to add proposal: {}", e),
-        })
+    add_golden_proposal(&conn, &content, source_filename.as_deref()).map_err(|e| match e {
+        rusqlite::Error::SqliteFailure(_, Some(msg)) => msg,
+        _ => format!("Failed to add proposal: {}", e),
+    })
 }
 
 /// Tauri command: Get all golden proposals
@@ -140,8 +139,7 @@ pub async fn pick_and_read_file(app_handle: tauri::AppHandle) -> Result<FileCont
         })?
     } else {
         // Plain text file (AC-2: Extract text from .txt files)
-        std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read file: {}", e))?
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?
     };
 
     Ok(FileContent { text, filename })
@@ -206,8 +204,8 @@ pub async fn calibrate_voice(
             .lock()
             .map_err(|e| format!("Database lock error: {}", e))?;
 
-        let proposals = get_golden_proposals(&conn)
-            .map_err(|e| format!("Failed to load proposals: {}", e))?;
+        let proposals =
+            get_golden_proposals(&conn).map_err(|e| format!("Failed to load proposals: {}", e))?;
 
         if proposals.len() < 3 {
             return Err("At least 3 proposals required for voice calibration".to_string());
@@ -243,7 +241,10 @@ pub async fn calibrate_voice(
     // Save profile to database (Story 5-5b: AC-1)
     {
         use crate::db::queries::voice_profile::{self, VoiceProfileRow};
-        let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
         let row = VoiceProfileRow::from_voice_profile(&profile, "default");
         voice_profile::save_voice_profile(&conn, &row)
             .map_err(|e| format!("Warning: Failed to save voice profile: {}", e))?;
@@ -354,8 +355,8 @@ pub async fn update_voice_parameters(
     database: State<'_, AppDatabase>,
     voice_cache: State<'_, crate::VoiceCache>, // Invalidate cache on update
 ) -> Result<crate::voice::VoiceProfile, String> {
-    use crate::db::queries::voice_profile::{get_voice_profile, save_voice_profile};
     use crate::db::queries::voice_profile::VoiceProfileRow;
+    use crate::db::queries::voice_profile::{get_voice_profile, save_voice_profile};
 
     let database = database.get()?;
     let conn = database
@@ -426,7 +427,7 @@ pub struct QuickCalibrationAnswers {
     pub structure: String,       // bullets, paragraphs, mixed
     // call_to_action is collected from the frontend questionnaire but not yet mapped
     // to a VoiceProfile field. Reserved for future CTA-style personalization.
-    pub call_to_action: String,  // direct, consultative, question
+    pub call_to_action: String, // direct, consultative, question
 }
 
 /// Map quick calibration answers to a VoiceProfile (pure function, no DB).
@@ -512,7 +513,10 @@ pub async fn quick_calibrate(
     {
         use crate::db::queries::voice_profile::{self, VoiceProfileRow};
         let database = database.get()?;
-        let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
         let row = VoiceProfileRow::from_voice_profile(&profile, "default");
         voice_profile::save_voice_profile(&conn, &row)
             .map_err(|e| format!("Failed to save voice profile: {}", e))?;
@@ -564,7 +568,10 @@ mod tests {
         assert!(result.is_err(), "Should reject proposal < 200 words");
 
         if let Err(rusqlite::Error::SqliteFailure(_, Some(msg))) = result {
-            assert!(msg.contains("200"), "Error should mention minimum word count");
+            assert!(
+                msg.contains("200"),
+                "Error should mention minimum word count"
+            );
             assert!(msg.contains("150"), "Error should show current word count");
         }
     }
@@ -594,7 +601,8 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         let content = "word ".repeat(200); // 200 words
-        let proposal_id = golden_set::add_golden_proposal(&conn, &content, Some("test.txt")).unwrap();
+        let proposal_id =
+            golden_set::add_golden_proposal(&conn, &content, Some("test.txt")).unwrap();
 
         let result = golden_set::delete_golden_proposal(&conn, proposal_id);
         assert!(result.is_ok(), "Should delete successfully");
@@ -632,7 +640,10 @@ mod tests {
         writeln!(temp_file, "{}", test_content).unwrap();
 
         let content = std::fs::read_to_string(temp_file.path()).unwrap();
-        assert!(content.contains(test_content), "Should read .txt file content");
+        assert!(
+            content.contains(test_content),
+            "Should read .txt file content"
+        );
     }
 
     #[test]
@@ -679,8 +690,14 @@ mod tests {
             call_to_action: "direct".to_string(),
         };
         assert_eq!(map_answers_to_profile(&make("formal")).tone_score, 9.0);
-        assert_eq!(map_answers_to_profile(&make("professional")).tone_score, 7.0);
-        assert_eq!(map_answers_to_profile(&make("conversational")).tone_score, 5.0);
+        assert_eq!(
+            map_answers_to_profile(&make("professional")).tone_score,
+            7.0
+        );
+        assert_eq!(
+            map_answers_to_profile(&make("conversational")).tone_score,
+            5.0
+        );
         assert_eq!(map_answers_to_profile(&make("casual")).tone_score, 3.0);
         assert_eq!(map_answers_to_profile(&make("unknown")).tone_score, 7.0); // default
     }
@@ -695,9 +712,18 @@ mod tests {
             structure: "mixed".to_string(),
             call_to_action: "direct".to_string(),
         };
-        assert_eq!(map_answers_to_profile(&make("brief")).avg_sentence_length, 10.0);
-        assert_eq!(map_answers_to_profile(&make("moderate")).avg_sentence_length, 16.0);
-        assert_eq!(map_answers_to_profile(&make("detailed")).avg_sentence_length, 24.0);
+        assert_eq!(
+            map_answers_to_profile(&make("brief")).avg_sentence_length,
+            10.0
+        );
+        assert_eq!(
+            map_answers_to_profile(&make("moderate")).avg_sentence_length,
+            16.0
+        );
+        assert_eq!(
+            map_answers_to_profile(&make("detailed")).avg_sentence_length,
+            24.0
+        );
     }
 
     #[test]
@@ -711,7 +737,10 @@ mod tests {
             call_to_action: "direct".to_string(),
         };
         assert_eq!(map_answers_to_profile(&make("simple")).technical_depth, 3.0);
-        assert_eq!(map_answers_to_profile(&make("technical")).technical_depth, 6.0);
+        assert_eq!(
+            map_answers_to_profile(&make("technical")).technical_depth,
+            6.0
+        );
         assert_eq!(map_answers_to_profile(&make("expert")).technical_depth, 9.0);
     }
 
@@ -753,7 +782,10 @@ mod tests {
         assert_eq!(profile.length_preference, 5.0);
         assert_eq!(profile.sample_count, 0);
         assert!(profile.common_phrases.is_empty());
-        assert!(matches!(profile.calibration_source, crate::voice::CalibrationSource::QuickCalibration));
+        assert!(matches!(
+            profile.calibration_source,
+            crate::voice::CalibrationSource::QuickCalibration
+        ));
     }
 
     #[test]
@@ -776,6 +808,9 @@ mod tests {
         assert_eq!(direct.tone_score, question.tone_score);
         assert_eq!(direct.avg_sentence_length, consultative.avg_sentence_length);
         assert_eq!(direct.technical_depth, question.technical_depth);
-        assert_eq!(direct.structure_preference.bullets_pct, consultative.structure_preference.bullets_pct);
+        assert_eq!(
+            direct.structure_preference.bullets_pct,
+            consultative.structure_preference.bullets_pct
+        );
     }
 }

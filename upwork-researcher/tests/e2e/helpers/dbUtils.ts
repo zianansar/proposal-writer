@@ -7,10 +7,12 @@
  * - Verify database state via Tauri IPC commands from page context
  */
 
-import { resolve } from 'path';
-import { existsSync, unlinkSync, mkdirSync, writeFileSync } from 'fs';
-import { Page } from '@playwright/test';
-import { getDirname } from './esm-utils';
+import { existsSync, unlinkSync, mkdirSync, writeFileSync } from "fs";
+import { resolve } from "path";
+
+import { Page } from "@playwright/test";
+
+import { getDirname } from "./esm-utils";
 
 const __dirname = getDirname(import.meta.url);
 
@@ -18,13 +20,13 @@ const __dirname = getDirname(import.meta.url);
  * Get path to test database
  */
 export function getTestDatabasePath(): string {
-  const dbDir = resolve(__dirname, '../../../test-data');
+  const dbDir = resolve(__dirname, "../../../test-data");
 
   if (!existsSync(dbDir)) {
     mkdirSync(dbDir, { recursive: true });
   }
 
-  return resolve(dbDir, 'test.db');
+  return resolve(dbDir, "test.db");
 }
 
 /**
@@ -43,10 +45,10 @@ export function clearDatabase(): void {
  * Predefined seed scenarios
  */
 export type SeedScenario =
-  | 'returning-user'   // Has passphrase, API key, 3 proposals
-  | 'with-api-key'     // Has API key, no voice profile
-  | 'with-voice-profile' // Has API key and voice profile
-  | 'empty';           // No data (same as clearDatabase)
+  | "returning-user" // Has passphrase, API key, 3 proposals
+  | "with-api-key" // Has API key, no voice profile
+  | "with-voice-profile" // Has API key and voice profile
+  | "empty"; // No data (same as clearDatabase)
 
 /**
  * C3: Seed database with fixture data for specific test scenarios
@@ -58,27 +60,27 @@ export type SeedScenario =
 export function seedDatabase(scenario: SeedScenario): void {
   clearDatabase();
 
-  if (scenario === 'empty') {
+  if (scenario === "empty") {
     return;
   }
 
   // Write seed SQL to a fixture file that the app's test mode will load
-  const seedDir = resolve(__dirname, '../fixtures/seeds');
+  const seedDir = resolve(__dirname, "../fixtures/seeds");
   if (!existsSync(seedDir)) {
     mkdirSync(seedDir, { recursive: true });
   }
 
   const seedSql = generateSeedSql(scenario);
   const seedPath = resolve(seedDir, `seed-${scenario}.sql`);
-  writeFileSync(seedPath, seedSql, 'utf-8');
+  writeFileSync(seedPath, seedSql, "utf-8");
 
   // Also write a marker file the app can detect for which scenario to load
-  const markerPath = resolve(__dirname, '../../../test-data/seed-scenario.txt');
-  const markerDir = resolve(__dirname, '../../../test-data');
+  const markerPath = resolve(__dirname, "../../../test-data/seed-scenario.txt");
+  const markerDir = resolve(__dirname, "../../../test-data");
   if (!existsSync(markerDir)) {
     mkdirSync(markerDir, { recursive: true });
   }
-  writeFileSync(markerPath, scenario, 'utf-8');
+  writeFileSync(markerPath, scenario, "utf-8");
 
   console.log(`Seeded database with scenario: ${scenario}`);
 }
@@ -135,7 +137,11 @@ function generateSeedSql(scenario: SeedScenario): string {
   `);
 
   // Scenario-specific data
-  if (scenario === 'returning-user' || scenario === 'with-api-key' || scenario === 'with-voice-profile') {
+  if (
+    scenario === "returning-user" ||
+    scenario === "with-api-key" ||
+    scenario === "with-voice-profile"
+  ) {
     // All scenarios need an API key
     statements.push(`
       INSERT INTO settings (key, value) VALUES ('api_key_configured', 'true');
@@ -143,7 +149,7 @@ function generateSeedSql(scenario: SeedScenario): string {
     `);
   }
 
-  if (scenario === 'returning-user') {
+  if (scenario === "returning-user") {
     // Passphrase + 3 proposals
     statements.push(`
       INSERT INTO settings (key, value) VALUES ('passphrase_configured', 'true');
@@ -156,14 +162,14 @@ function generateSeedSql(scenario: SeedScenario): string {
     `);
   }
 
-  if (scenario === 'with-voice-profile') {
+  if (scenario === "with-voice-profile") {
     statements.push(`
       INSERT INTO voice_profiles (tone, length, complexity, proposal_count)
         VALUES ('Professional and concise', 'Under 300 words', 'Technical jargon', 5);
     `);
   }
 
-  return statements.join('\n');
+  return statements.join("\n");
 }
 
 /**
@@ -180,10 +186,7 @@ export interface DatabaseState {
   safetyOverrideCount?: number;
 }
 
-export async function verifyDatabaseState(
-  page: Page,
-  expected: DatabaseState
-): Promise<void> {
+export async function verifyDatabaseState(page: Page, expected: DatabaseState): Promise<void> {
   // Try Tauri IPC first (requires test-mode command in Rust backend)
   try {
     const state = await page.evaluate(async () => {
@@ -193,10 +196,10 @@ export async function verifyDatabaseState(
         | undefined;
       if (!tauri?.invoke) return null;
 
-      return await tauri.invoke('get_test_db_state');
+      return await tauri.invoke("get_test_db_state");
     });
 
-    if (state && typeof state === 'object') {
+    if (state && typeof state === "object") {
       const dbState = state as Record<string, unknown>;
       if (expected.proposalCount !== undefined) {
         const actual = dbState.proposal_count as number;
@@ -219,14 +222,16 @@ export async function verifyDatabaseState(
       if (expected.safetyOverrideCount !== undefined) {
         const actual = dbState.safety_override_count as number;
         if (actual !== expected.safetyOverrideCount) {
-          throw new Error(`Expected ${expected.safetyOverrideCount} safety overrides, got ${actual}`);
+          throw new Error(
+            `Expected ${expected.safetyOverrideCount} safety overrides, got ${actual}`,
+          );
         }
       }
-      console.log('Database state verified via Tauri IPC:', expected);
+      console.log("Database state verified via Tauri IPC:", expected);
       return;
     }
   } catch (ipcError) {
-    console.warn('Tauri IPC verification unavailable, falling back to UI verification:', ipcError);
+    console.warn("Tauri IPC verification unavailable, falling back to UI verification:", ipcError);
   }
 
   // Fallback: verify via UI state
@@ -240,17 +245,17 @@ export async function verifyDatabaseState(
 async function verifyDatabaseStateViaUI(page: Page, expected: DatabaseState): Promise<void> {
   if (expected.proposalCount !== undefined) {
     // Navigate to history and count items
-    const historyNav = page.getByTestId('history-nav');
+    const historyNav = page.getByTestId("history-nav");
     if (await historyNav.isVisible()) {
       await historyNav.click();
-      const list = page.getByTestId('history-list');
-      await list.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+      const list = page.getByTestId("history-list");
+      await list.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
       const items = await page.getByTestId(/history-item-/).count();
       if (items !== expected.proposalCount) {
         throw new Error(`Expected ${expected.proposalCount} proposals in UI, found ${items}`);
       }
       // Navigate back
-      const backButton = page.getByRole('button', { name: /back|editor/i });
+      const backButton = page.getByRole("button", { name: /back|editor/i });
       if (await backButton.isVisible()) {
         await backButton.click();
       }
@@ -258,24 +263,26 @@ async function verifyDatabaseStateViaUI(page: Page, expected: DatabaseState): Pr
   }
 
   if (expected.hasVoiceProfile !== undefined) {
-    const settingsButton = page.getByRole('button', { name: /settings/i });
+    const settingsButton = page.getByRole("button", { name: /settings/i });
     if (await settingsButton.isVisible()) {
       await settingsButton.click();
-      const voiceTab = page.getByRole('tab', { name: /voice/i });
+      const voiceTab = page.getByRole("tab", { name: /voice/i });
       if (await voiceTab.isVisible()) {
         await voiceTab.click();
-        const profileDisplay = page.getByTestId('voice-profile-display');
+        const profileDisplay = page.getByTestId("voice-profile-display");
         const isVisible = await profileDisplay.isVisible().catch(() => false);
         if (isVisible !== expected.hasVoiceProfile) {
-          throw new Error(`Expected voice profile visible=${expected.hasVoiceProfile}, got ${isVisible}`);
+          throw new Error(
+            `Expected voice profile visible=${expected.hasVoiceProfile}, got ${isVisible}`,
+          );
         }
       }
       // Close settings
-      await page.keyboard.press('Escape');
+      await page.keyboard.press("Escape");
     }
   }
 
-  console.log('Database state verified via UI:', expected);
+  console.log("Database state verified via UI:", expected);
 }
 
 /**

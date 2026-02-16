@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import './PreMigrationBackup.css';
+import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect } from "react";
+import "./PreMigrationBackup.css";
 
 interface BackupResult {
   success: boolean;
@@ -17,7 +17,11 @@ interface PreMigrationBackupProps {
   onRetry?: () => void;
 }
 
-export function PreMigrationBackup({ onBackupComplete, onBackupFailed, onRetry }: PreMigrationBackupProps) {
+export function PreMigrationBackup({
+  onBackupComplete,
+  onBackupFailed,
+  onRetry,
+}: PreMigrationBackupProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backupResult, setBackupResult] = useState<BackupResult | null>(null);
@@ -27,13 +31,13 @@ export function PreMigrationBackup({ onBackupComplete, onBackupFailed, onRetry }
     setError(null);
 
     try {
-      const result = await invoke<BackupResult>('create_pre_migration_backup');
+      const result = await invoke<BackupResult>("create_pre_migration_backup");
 
       if (result.success) {
         setBackupResult(result);
         onBackupComplete(result.filePath);
       } else {
-        const errorMsg = 'Backup failed: Unknown error';
+        const errorMsg = "Backup failed: Unknown error";
         setError(errorMsg);
         onBackupFailed(errorMsg);
       }
@@ -104,9 +108,7 @@ export function PreMigrationBackup({ onBackupComplete, onBackupFailed, onRetry }
       <div className="pre-migration-backup">
         <div className="backup-success">
           <h3>✅ Backup Created</h3>
-          <p className="success-message">
-            {backupResult.message}
-          </p>
+          <p className="success-message">{backupResult.message}</p>
           <div className="backup-details">
             <div className="detail-row">
               <span className="detail-label">Proposals:</span>

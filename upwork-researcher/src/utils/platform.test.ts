@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
 import { isMac, getModifierKey, getShiftKey, formatShortcut, SHORTCUTS } from "./platform";
 
 describe("platform utilities", () => {

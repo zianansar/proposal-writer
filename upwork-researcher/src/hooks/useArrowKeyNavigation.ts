@@ -5,7 +5,7 @@
  * Implements roving tabindex pattern for WCAG compliance (AC8).
  */
 
-import { useCallback } from 'react';
+import { useCallback } from "react";
 
 interface UseArrowKeyNavigationOptions {
   /** Total number of items in the list */
@@ -59,8 +59,8 @@ export function useArrowKeyNavigation({
         return;
       }
 
-      const prevKey = horizontal ? 'ArrowLeft' : 'ArrowUp';
-      const nextKey = horizontal ? 'ArrowRight' : 'ArrowDown';
+      const prevKey = horizontal ? "ArrowLeft" : "ArrowUp";
+      const nextKey = horizontal ? "ArrowRight" : "ArrowDown";
 
       switch (e.key) {
         case prevKey:
@@ -81,18 +81,18 @@ export function useArrowKeyNavigation({
           }
           break;
 
-        case 'Home':
+        case "Home":
           e.preventDefault();
           onIndexChange(0);
           break;
 
-        case 'End':
+        case "End":
           e.preventDefault();
           onIndexChange(itemCount - 1);
           break;
       }
     },
-    [currentIndex, itemCount, onIndexChange, horizontal, wrap]
+    [currentIndex, itemCount, onIndexChange, horizontal, wrap],
   );
 
   return { handleKeyDown };

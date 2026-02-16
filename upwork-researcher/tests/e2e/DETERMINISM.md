@@ -5,14 +5,17 @@ This document summarizes the determinism and reliability features implemented in
 ## ✅ Determinism Requirements Met (AC-9)
 
 ### 1. No Arbitrary Waits
+
 **Status:** ✅ Complete
 
 All tests use explicit condition-based waits:
+
 - `await expect(element).toBeVisible({ timeout: 5000 })` - Waits for element visibility
 - `await page.waitForSelector('[data-testid="loaded"]')` - Waits for specific selectors
 - `await page.waitForLoadState('networkidle')` - Waits for network to settle
 
 **Files verified:**
+
 - `tests/e2e/pages/*.ts` - All Page Objects use explicit waits
 - `tests/e2e/journeys/*.spec.ts` - All journey tests use explicit waits
 - No usage of `page.waitForTimeout()` in test files
@@ -20,17 +23,20 @@ All tests use explicit condition-based waits:
 **Note:** `setTimeout()` is used only in infrastructure code (`tauriDriver.ts`) for process cleanup, not for test timing.
 
 ### 2. Mocked API Responses
+
 **Status:** ✅ Complete
 
 **Implementation:** `tests/e2e/helpers/apiMocks.ts`
 
 All Claude API calls return deterministic responses:
+
 - `standard` - Consistent proposal text (157 characters)
 - `high-perplexity` - Triggers safety warning with predictable score
 - `streaming` - Realistic streaming with fixed chunk sizes
 - `error` - Deterministic error response
 
 **Benefits:**
+
 - ✅ Same output every test run
 - ✅ No API costs
 - ✅ Faster execution (no network calls)
@@ -38,22 +44,27 @@ All Claude API calls return deterministic responses:
 - ✅ Predictable test data
 
 ### 3. Fixed Test Data
+
 **Status:** ✅ Complete
 
 **Database seeding:**
+
 - `clearDatabase()` - Starts from known state
 - `seedDatabase('fixture-name')` - Loads deterministic data
 - Each test runs with clean state
 
 **Fixture data:**
+
 - `tests/e2e/fixtures/sample-job-content.txt` - Fixed job posts
 - `tests/e2e/fixtures/sample-proposals/*.txt` - Pre-generated proposals
 - No random UUIDs, timestamps, or generated content
 
 ### 4. Idempotent Tests
+
 **Status:** ✅ Complete
 
 Each test:
+
 - ✅ Starts from clean database state
 - ✅ Doesn't depend on previous test outcomes
 - ✅ Can run in any order
@@ -65,21 +76,25 @@ Each test:
 ### Retry Policy
 
 **Local development:**
+
 ```typescript
 retries: 0, // No retries - fix the test instead
 ```
 
 **CI environment:**
+
 ```typescript
 retries: process.env.CI ? 2 : 0, // 2 retries for transient CI issues
 ```
 
 **Retry-eligible failures:**
+
 - Network timeouts (rare with mocked APIs)
 - Platform-specific WebView issues
 - Resource contention on CI runners
 
 **Not eligible for retry:**
+
 - Assertion failures (test logic errors)
 - Element not found (UI regression)
 - Incorrect test data
@@ -87,22 +102,26 @@ retries: process.env.CI ? 2 : 0, // 2 retries for transient CI issues
 ### Verification Script
 
 **Bash/Linux/macOS:**
+
 ```bash
 ./scripts/test-reliability.sh
 ```
 
 **PowerShell/Windows:**
+
 ```powershell
 .\scripts\test-reliability.ps1
 ```
 
 **What it does:**
+
 - Runs tests 10 consecutive times
 - Logs all results to timestamped file
 - Reports pass/fail rate
 - Exits with error if any inconsistency detected
 
 **Success criteria:**
+
 - All 10 runs produce same result (pass or fail)
 - No intermittent failures
 - Runtime variance <10%
@@ -120,6 +139,7 @@ expect(duration).toBeLessThan(8000); // NFR-6: <8s
 ```
 
 **Why this is deterministic:**
+
 - Measures actual elapsed time (not random)
 - Thresholds are upper bounds (slower CI still passes)
 - Mock responses are identical every time
@@ -129,34 +149,39 @@ expect(duration).toBeLessThan(8000); // NFR-6: <8s
 ### Page Object Waits
 
 **HistoryPage.getProposalCount():**
+
 ```typescript
 await expect(this.proposalList).toBeVisible();
-await this.page.waitForSelector(
-  '[data-testid^="history-item-"], [data-testid="empty-state"]',
-  { state: 'visible', timeout: 5000 }
-);
+await this.page.waitForSelector('[data-testid^="history-item-"], [data-testid="empty-state"]', {
+  state: "visible",
+  timeout: 5000,
+});
 ```
 
 **MainEditorPage.waitForFirstToken():**
+
 ```typescript
 await expect(this.proseMirrorContent).toContainText(/.+/, { timeout: 2000 });
 ```
 
 **HistoryPage.searchProposals():**
+
 ```typescript
 await this.searchInput.fill(query);
-await this.page.waitForLoadState('networkidle', { timeout: 3000 });
+await this.page.waitForLoadState("networkidle", { timeout: 3000 });
 ```
 
 ### Database State Management
 
 **Before each test:**
+
 ```typescript
 clearDatabase(); // Delete all data
-seedDatabase('returning-user'); // Load fixture
+seedDatabase("returning-user"); // Load fixture
 ```
 
 **Seed fixtures:**
+
 - `new-user` - Empty database
 - `returning-user` - 3 existing proposals
 - `golden-set-ready` - API key configured
@@ -173,15 +198,16 @@ seedDatabase('returning-user'); // Load fixture
 
 ### Alert Thresholds
 
-| Metric | Threshold | Action |
-|--------|-----------|--------|
-| Flakiness | >2% | Investigate timing issues |
-| Duration increase | >20% | Check for performance regression |
-| Failure rate | >5% | Likely real bug, not flakiness |
+| Metric            | Threshold | Action                           |
+| ----------------- | --------- | -------------------------------- |
+| Flakiness         | >2%       | Investigate timing issues        |
+| Duration increase | >20%      | Check for performance regression |
+| Failure rate      | >5%       | Likely real bug, not flakiness   |
 
 ## Files Modified for Determinism
 
 ### Test Infrastructure
+
 - ✅ `playwright.config.ts` - Sequential execution, retries config
 - ✅ `global-setup.ts` - Environment validation
 - ✅ `helpers/tauriDriver.ts` - No arbitrary waits in app lifecycle
@@ -189,6 +215,7 @@ seedDatabase('returning-user'); // Load fixture
 - ✅ `helpers/dbUtils.ts` - Database cleanup and seeding
 
 ### Page Objects (All use explicit waits)
+
 - ✅ `pages/OnboardingPage.ts`
 - ✅ `pages/MainEditorPage.ts`
 - ✅ `pages/HistoryPage.ts`
@@ -198,12 +225,14 @@ seedDatabase('returning-user'); // Load fixture
 - ✅ `pages/SettingsPage.ts`
 
 ### Journey Tests
+
 - ✅ `journeys/first-time-user.spec.ts` - 3 test cases
 - ✅ `journeys/returning-user.spec.ts` - 4 test cases
 - ✅ `journeys/golden-set-calibration.spec.ts` - 4 test cases
 - ✅ `journeys/safety-override.spec.ts` - 5 test cases
 
 ### Verification Scripts
+
 - ✅ `scripts/test-reliability.sh` - Bash reliability test (10x runs)
 - ✅ `scripts/test-reliability.ps1` - PowerShell reliability test (10x runs)
 
@@ -217,6 +246,7 @@ seedDatabase('returning-user'); // Load fixture
 ## Next Steps
 
 1. **Run reliability test locally:**
+
    ```bash
    ./scripts/test-reliability.sh
    ```

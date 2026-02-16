@@ -1,12 +1,22 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSettingsStore, getHumanizationIntensity, type HumanizationIntensity } from "../stores/useSettingsStore";
+import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
+import { useState, useEffect, useRef, useCallback } from "react";
+
+import { DatabaseExportButton } from "../features/proposal-history/DatabaseExportButton";
+import { ImportArchiveDialog } from "../features/proposal-history/ImportArchiveDialog";
 import { useOnboardingStore } from "../stores/useOnboardingStore";
+import {
+  useSettingsStore,
+  getHumanizationIntensity,
+  type HumanizationIntensity,
+} from "../stores/useSettingsStore";
+import { useSettings } from "../hooks/useSettings";
+import type { UpdateInfo } from "../hooks/useUpdater";
+import { formatRelativeTime } from "../utils/dateUtils";
+
 import UserSkillsConfig from "./UserSkillsConfig";
 import { VoiceSettings } from "./VoiceSettings";
-import { ImportArchiveDialog } from "../features/proposal-history/ImportArchiveDialog";
-import { DatabaseExportButton } from "../features/proposal-history/DatabaseExportButton";
 
 /** Story 4b.4: Rate configuration for budget alignment */
 interface RateConfig {
@@ -14,14 +24,30 @@ interface RateConfig {
   project_rate_min: number | null;
 }
 
-const INTENSITY_OPTIONS: { value: HumanizationIntensity; label: string; description: string; badge?: string }[] = [
+const INTENSITY_OPTIONS: {
+  value: HumanizationIntensity;
+  label: string;
+  description: string;
+  badge?: string;
+}[] = [
   { value: "off", label: "Off", description: "No humanization — pure AI output" },
   { value: "light", label: "Light", description: "Subtle: ~0.5-1 touches per 100 words" },
-  { value: "medium", label: "Medium", description: "Balanced: ~1-2 touches per 100 words", badge: "Recommended" },
+  {
+    value: "medium",
+    label: "Medium",
+    description: "Balanced: ~1-2 touches per 100 words",
+    badge: "Recommended",
+  },
   { value: "heavy", label: "Heavy", description: "Casual: ~2-3 touches per 100 words" },
 ];
 
-function SettingsPanel() {
+/** CR R1 H-1: Props injected from App.tsx to avoid redundant useUpdater instance */
+interface SettingsPanelProps {
+  checkForUpdate: () => Promise<UpdateInfo | null>;
+  isChecking: boolean;
+}
+
+function SettingsPanel({ checkForUpdate, isChecking }: SettingsPanelProps) {
   const queryClient = useQueryClient();
   const { getSetting, setSetting } = useSettingsStore();
   const humanizationIntensity = useSettingsStore(getHumanizationIntensity);
@@ -49,13 +75,31 @@ function SettingsPanel() {
   // Story 4b.4: Rate configuration state
   const [hourlyRate, setHourlyRate] = useState<string>("");
   const [projectRateMin, setProjectRateMin] = useState<string>("");
-  const [rateSaving, setRateSaving] = useState<'hourly' | 'project' | null>(null);
+  const [rateSaving, setRateSaving] = useState<"hourly" | "project" | null>(null);
   const [rateMessage, setRateMessage] = useState<string | null>(null);
   const hourlyTimeoutRef = useRef<number | null>(null);
   const projectTimeoutRef = useRef<number | null>(null);
 
   // Story 7.7: Import archive dialog state
   const [showImportDialog, setShowImportDialog] = useState(false);
+
+  // Story 9.7: Auto-update settings state (CR R1 H-1: checkForUpdate/isChecking via props)
+  const { autoUpdateEnabled, setAutoUpdateEnabled, setLastUpdateCheck, lastUpdateCheck } = useSettings();
+  const [currentVersion, setCurrentVersion] = useState<string>("");
+  const [checkMessage, setCheckMessage] = useState<string | null>(null);
+
+  // Story 9.7 Task 4.2: Load app version on mount
+  useEffect(() => {
+    const loadVersion = async () => {
+      try {
+        const version = await getVersion();
+        setCurrentVersion(version);
+      } catch (err) {
+        console.error("Failed to load app version:", err);
+      }
+    };
+    loadVersion();
+  }, []);
 
   useEffect(() => {
     // Load current log level from settings
@@ -113,9 +157,7 @@ function SettingsPanel() {
   }, []);
 
   // Story 8.14: Handle crash reporting toggle
-  const handleCrashReportingChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleCrashReportingChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.checked;
     setCrashReportingEnabled(newValue);
     setCrashReportingSaving(true);
@@ -136,9 +178,7 @@ function SettingsPanel() {
     }
   };
 
-  const handleLogLevelChange = async (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
+  const handleLogLevelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLevel = e.target.value;
     setLogLevel(newLevel);
     setIsSaving(true);
@@ -146,9 +186,7 @@ function SettingsPanel() {
 
     try {
       await invoke("set_log_level", { level: newLevel });
-      setSaveMessage(
-        "Log level updated. Restart the app for changes to take effect."
-      );
+      setSaveMessage("Log level updated. Restart the app for changes to take effect.");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setSaveMessage(`Failed to update log level: ${errorMessage}`);
@@ -166,9 +204,7 @@ function SettingsPanel() {
       });
       setShowOnboarding(true);
     } catch (err) {
-      alert(
-        `Failed to reset onboarding: ${err instanceof Error ? err.message : String(err)}`
-      );
+      alert(`Failed to reset onboarding: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsResettingOnboarding(false);
     }
@@ -225,7 +261,7 @@ function SettingsPanel() {
 
     // Debounce save (500ms per story requirement)
     hourlyTimeoutRef.current = window.setTimeout(async () => {
-      setRateSaving('hourly');
+      setRateSaving("hourly");
       try {
         await invoke("set_user_hourly_rate", { rate: numValue });
         setRateMessage("✓ Hourly rate saved");
@@ -256,7 +292,7 @@ function SettingsPanel() {
 
     // Debounce save (500ms per story requirement)
     projectTimeoutRef.current = window.setTimeout(async () => {
-      setRateSaving('project');
+      setRateSaving("project");
       try {
         await invoke("set_user_project_rate_min", { rate: numValue });
         setRateMessage("✓ Project rate saved");
@@ -270,6 +306,38 @@ function SettingsPanel() {
     }, 500);
   }, []);
 
+  // Story 9.7 Task 4.3: Handle auto-update toggle
+  const handleAutoUpdateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.checked;
+    try {
+      await setAutoUpdateEnabled(newValue);
+    } catch (err) {
+      console.error("Failed to toggle auto-update:", err);
+    }
+  };
+
+  // Story 9.7 Task 4.4: Handle check for update button
+  const handleCheckForUpdate = async () => {
+    setCheckMessage(null);
+    try {
+      const info = await checkForUpdate();
+      const now = new Date().toISOString();
+      await setLastUpdateCheck(now);
+
+      if (info) {
+        setCheckMessage(`Update available: v${info.version}`);
+      } else {
+        setCheckMessage("You're up to date!");
+      }
+
+      // Clear message after 5 seconds
+      setTimeout(() => setCheckMessage(null), 5000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setCheckMessage(`Check failed: ${errorMessage}`);
+    }
+  };
+
   return (
     <div className="settings-panel">
       <h2>Settings</h2>
@@ -278,9 +346,7 @@ function SettingsPanel() {
         <h3>Profile</h3>
         <div className="settings-field">
           <label>Your Skills</label>
-          <p className="settings-help">
-            Skills used for job matching and scoring (Story 4b.2)
-          </p>
+          <p className="settings-help">Skills used for job matching and scoring (Story 4b.2)</p>
           <UserSkillsConfig />
         </div>
 
@@ -302,14 +368,12 @@ function SettingsPanel() {
                 min="0"
                 max="999999"
                 step="0.01"
-                disabled={rateSaving === 'hourly'}
+                disabled={rateSaving === "hourly"}
                 aria-describedby="rates-help"
                 aria-label="Hourly rate in dollars per hour"
                 data-testid="hourly-rate-input"
               />
-              {rateSaving === 'hourly' && (
-                <span className="rate-saving">Saving...</span>
-              )}
+              {rateSaving === "hourly" && <span className="rate-saving">Saving...</span>}
             </div>
             <div className="rate-input-group">
               <label htmlFor="project-rate">Minimum Project Rate ($)</label>
@@ -322,18 +386,18 @@ function SettingsPanel() {
                 min="0"
                 max="999999"
                 step="0.01"
-                disabled={rateSaving === 'project'}
+                disabled={rateSaving === "project"}
                 aria-describedby="rates-help"
                 aria-label="Minimum project rate in dollars"
                 data-testid="project-rate-input"
               />
-              {rateSaving === 'project' && (
-                <span className="rate-saving">Saving...</span>
-              )}
+              {rateSaving === "project" && <span className="rate-saving">Saving...</span>}
             </div>
           </div>
           {rateMessage && (
-            <p className={`settings-message ${rateMessage.includes("Failed") ? "error" : "success"}`}>
+            <p
+              className={`settings-message ${rateMessage.includes("Failed") ? "error" : "success"}`}
+            >
               {rateMessage}
             </p>
           )}
@@ -363,8 +427,7 @@ function SettingsPanel() {
             </p>
           )}
           <p className="settings-help">
-            Controls the level of detail in log files. Requires app restart to
-            take effect.
+            Controls the level of detail in log files. Requires app restart to take effect.
           </p>
         </div>
       </section>
@@ -396,7 +459,9 @@ function SettingsPanel() {
             Lower = stricter AI detection checks, Higher = more proposals pass
           </p>
           {thresholdMessage && (
-            <p className={`settings-message ${thresholdMessage.includes("Failed") ? "error" : "success"}`}>
+            <p
+              className={`settings-message ${thresholdMessage.includes("Failed") ? "error" : "success"}`}
+            >
               {thresholdMessage}
             </p>
           )}
@@ -409,11 +474,13 @@ function SettingsPanel() {
       <section className="settings-section">
         <h3>Privacy</h3>
         <div className="privacy-indicator">
-          <span className="privacy-icon" aria-hidden="true">✓</span>
+          <span className="privacy-icon" aria-hidden="true">
+            ✓
+          </span>
           <span className="privacy-label">Zero Telemetry</span>
           <p className="settings-help">
-            No usage data, analytics, or crash reports are sent without your permission.
-            All data stays on your device.
+            No usage data, analytics, or crash reports are sent without your permission. All data
+            stays on your device.
           </p>
         </div>
 
@@ -429,8 +496,8 @@ function SettingsPanel() {
             <span>Enable crash reporting (helps improve the app)</span>
           </label>
           <p className="settings-help settings-help--warning">
-            When enabled, anonymous crash data may be sent to help diagnose issues.
-            Disabled by default for maximum privacy.
+            When enabled, anonymous crash data may be sent to help diagnose issues. Disabled by
+            default for maximum privacy.
           </p>
           {crashReportingError && (
             <p className="settings-error" role="alert" aria-live="assertive">
@@ -443,7 +510,8 @@ function SettingsPanel() {
       <section className="settings-section">
         <h3>Humanization</h3>
         <p className="settings-help">
-          Controls how many natural imperfections are injected into generated proposals to reduce AI detection risk.
+          Controls how many natural imperfections are injected into generated proposals to reduce AI
+          detection risk.
         </p>
         <div className="settings-field humanization-options">
           {INTENSITY_OPTIONS.map((option) => (
@@ -480,7 +548,9 @@ function SettingsPanel() {
           ))}
         </div>
         {intensityMessage && (
-          <p className={`settings-message ${intensityMessage.includes("Failed") ? "error" : "success"}`}>
+          <p
+            className={`settings-message ${intensityMessage.includes("Failed") ? "error" : "success"}`}
+          >
             {intensityMessage}
           </p>
         )}
@@ -493,13 +563,10 @@ function SettingsPanel() {
           disabled={isResettingOnboarding}
           className="button-secondary"
         >
-          {isResettingOnboarding
-            ? "Resetting..."
-            : "Show Onboarding Wizard Again"}
+          {isResettingOnboarding ? "Resetting..." : "Show Onboarding Wizard Again"}
         </button>
         <p className="settings-help">
-          Re-run the initial setup wizard to configure your API key and
-          preferences.
+          Re-run the initial setup wizard to configure your API key and preferences.
         </p>
       </section>
 
@@ -522,8 +589,68 @@ function SettingsPanel() {
           </button>
         </div>
         <p className="settings-help">
-          Export your data to an encrypted .urb file for backup or transfer to another device. Import to restore from a previous backup.
+          Export your data to an encrypted .urb file for backup or transfer to another device.
+          Import to restore from a previous backup.
         </p>
+      </section>
+
+      {/* Story 9.7 Task 4.5: Auto-Update Settings */}
+      <section className="settings-section">
+        <h3>Auto-Update</h3>
+        <div className="settings-field">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={autoUpdateEnabled}
+              onChange={handleAutoUpdateChange}
+              aria-label="Enable automatic update checking"
+              data-testid="auto-update-toggle"
+            />
+            <span>Check for updates automatically</span>
+          </label>
+          <p className="settings-help">
+            When enabled, the app checks for updates in the background every 4 hours.
+          </p>
+        </div>
+
+        <div className="settings-field">
+          <div className="auto-update-info">
+            <div className="version-info">
+              <span className="version-label">Current Version:</span>
+              <span className="version-value" data-testid="current-version">
+                {currentVersion || "Loading..."}
+              </span>
+            </div>
+            {lastUpdateCheck && (
+              <div className="last-check-info">
+                <span className="last-check-label">Last Checked:</span>
+                <span className="last-check-value" data-testid="last-update-check">
+                  {formatRelativeTime(lastUpdateCheck)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleCheckForUpdate}
+            disabled={isChecking}
+            className="button-secondary check-update-button"
+            data-testid="check-update-button"
+          >
+            {isChecking ? "Checking..." : "Check Now"}
+          </button>
+
+          {checkMessage && (
+            <p
+              className={`settings-message ${checkMessage.includes("failed") || checkMessage.includes("Failed") ? "error" : "success"}`}
+              role="status"
+              aria-live="polite"
+              data-testid="check-message"
+            >
+              {checkMessage}
+            </p>
+          )}
+        </div>
       </section>
 
       {/* Story 7.7: Import Archive Dialog */}

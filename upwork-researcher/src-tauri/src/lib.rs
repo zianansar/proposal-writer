@@ -1,3 +1,8 @@
+// Architecture requirement AR-21: No unwrap() in production code
+// NOTE: Using warn (not deny) until 8 pre-existing unwrap() calls are fixed
+// TODO: Upgrade to #![deny(clippy::unwrap_used)] after fixing: claude.rs:473,503 rss.rs:634 migration/mod.rs:500-502 lib.rs:206,222
+#![warn(clippy::unwrap_used)]
+
 pub mod analysis;
 pub mod archive;
 pub mod archive_export;
@@ -8,6 +13,7 @@ pub mod commands;
 pub mod config;
 pub mod db;
 pub mod events;
+pub mod health_check;
 pub mod humanization;
 pub mod job;
 pub mod keychain;
@@ -261,7 +267,13 @@ async fn generate_proposal(
 
     // Story 5.8 Subtask 2.1: voice_profile parameter (loaded in Task 3)
     // Task 4.2: Pass AppHandle for network event emission
-    let result = claude::generate_proposal_with_key(&job_content, api_key.as_deref(), &intensity, Some(&app_handle)).await?;
+    let result = claude::generate_proposal_with_key(
+        &job_content,
+        api_key.as_deref(),
+        &intensity,
+        Some(&app_handle),
+    )
+    .await?;
 
     // Story 3.8: Record successful generation timestamp (after API call succeeds)
     cooldown.record();
@@ -341,7 +353,10 @@ async fn generate_proposal_streaming(
 
     // AC-2: Log parallel loading performance (<150ms target)
     let load_elapsed = load_start.elapsed();
-    tracing::debug!(elapsed_ms = load_elapsed.as_millis(), "Context loading complete");
+    tracing::debug!(
+        elapsed_ms = load_elapsed.as_millis(),
+        "Context loading complete"
+    );
 
     // Subtask 3.5: Log voice profile usage (AR-16: log metadata only, not content)
     if let Some(ref profile) = voice_profile {
@@ -461,7 +476,13 @@ async fn analyze_perplexity(
     config_state: State<'_, config::ConfigState>,
 ) -> Result<claude::PerplexityAnalysis, String> {
     let api_key = config_state.get_api_key()?;
-    claude::analyze_perplexity_with_sentences(&text, threshold, api_key.as_deref(), Some(&app_handle)).await
+    claude::analyze_perplexity_with_sentences(
+        &text,
+        threshold,
+        api_key.as_deref(),
+        Some(&app_handle),
+    )
+    .await
 }
 
 // ============================================================================
@@ -910,20 +931,22 @@ async fn analyze_job_post(
     let api_key = config_state.get_api_key()?;
 
     // AC-1: Call analysis function with Haiku (extracts client_name, key_skills, and hidden_needs)
-    let mut analysis = analysis::analyze_job(&raw_content, api_key.as_deref().ok_or("API key not found")?)
-        .await?;
+    let mut analysis =
+        analysis::analyze_job(&raw_content, api_key.as_deref().ok_or("API key not found")?).await?;
 
     // Story 4b.4 Task 6: Extract budget and calculate alignment (Subtask 6.1-6.5)
     // Extract budget from job post
-    let budget_info = analysis::extract_budget(&raw_content, api_key.as_deref().ok_or("API key not found")?).await
-        .unwrap_or_else(|e| {
-            tracing::warn!("Budget extraction failed, defaulting to unknown: {}", e);
-            analysis::BudgetInfo {
-                min: None,
-                max: None,
-                budget_type: "unknown".to_string(),
-            }
-        });
+    let budget_info =
+        analysis::extract_budget(&raw_content, api_key.as_deref().ok_or("API key not found")?)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!("Budget extraction failed, defaulting to unknown: {}", e);
+                analysis::BudgetInfo {
+                    min: None,
+                    max: None,
+                    budget_type: "unknown".to_string(),
+                }
+            });
 
     // Get user rate configuration (Subtask 6.2)
     let user_rate_config = {
@@ -939,11 +962,11 @@ async fn analyze_job_post(
         };
 
         // Get project rate minimum
-        let project_rate_min = match db::queries::settings::get_setting(&conn, "user_project_rate_min")
-        {
-            Ok(Some(value)) => value.parse::<f64>().ok(),
-            _ => None,
-        };
+        let project_rate_min =
+            match db::queries::settings::get_setting(&conn, "user_project_rate_min") {
+                Ok(Some(value)) => value.parse::<f64>().ok(),
+                _ => None,
+            };
 
         RateConfig {
             hourly_rate,
@@ -998,10 +1021,7 @@ async fn analyze_job_post(
 
         // Log warning if save exceeded 100ms target
         if save_duration.as_millis() > 100 {
-            tracing::warn!(
-                "Save exceeded NFR-4 target: {:?} > 100ms",
-                save_duration
-            );
+            tracing::warn!("Save exceeded NFR-4 target: {:?} > 100ms", save_duration);
         }
 
         // Story 4b.3: Store client quality score in job_scores table (AC-1)
@@ -1042,7 +1062,9 @@ async fn analyze_job_post(
             job_id,
             analysis.budget_type,
             analysis.budget_min,
-            alignment.percentage.map_or("N/A".to_string(), |p| p.to_string())
+            alignment
+                .percentage
+                .map_or("N/A".to_string(), |p| p.to_string())
         );
 
         // Story 4b.5 Review Fix: Store budget alignment score in job_scores table
@@ -1058,7 +1080,9 @@ async fn analyze_job_post(
 
         // Story 4b.5 Task 5.3: Calculate overall job score after analysis completes
         // Read component scores from job_scores table
-        let job_score = db::queries::scoring::get_job_score(&conn, job_id).ok().flatten();
+        let job_score = db::queries::scoring::get_job_score(&conn, job_id)
+            .ok()
+            .flatten();
 
         let (skills_match, client_quality, budget_alignment_score) = match job_score {
             Some(score) => (
@@ -1150,7 +1174,10 @@ fn clear_api_key(config_state: State<config::ConfigState>) -> Result<(), String>
 /// Get a setting value by key
 /// Returns None if the setting doesn't exist
 #[tauri::command]
-fn get_setting(database: State<'_, db::AppDatabase>, key: String) -> Result<Option<String>, String> {
+fn get_setting(
+    database: State<'_, db::AppDatabase>,
+    key: String,
+) -> Result<Option<String>, String> {
     let database = database.get()?;
     let conn = database
         .conn
@@ -1205,7 +1232,11 @@ fn set_log_level(
 /// Set a setting value (insert or update)
 /// Uses UPSERT pattern for atomic operation
 #[tauri::command]
-fn set_setting(database: State<'_, db::AppDatabase>, key: String, value: String) -> Result<(), String> {
+fn set_setting(
+    database: State<'_, db::AppDatabase>,
+    key: String,
+    value: String,
+) -> Result<(), String> {
     let database = database.get()?;
     // Validate key
     let key = key.trim();
@@ -1223,11 +1254,17 @@ fn set_setting(database: State<'_, db::AppDatabase>, key: String, value: String)
 
     // Redact key name if it might contain sensitive data
     let key_lower = key.to_lowercase();
-    let is_sensitive = key_lower.contains("key") || key_lower.contains("secret") ||
-                      key_lower.contains("pass") || key_lower.contains("token");
+    let is_sensitive = key_lower.contains("key")
+        || key_lower.contains("secret")
+        || key_lower.contains("pass")
+        || key_lower.contains("token");
 
     if is_sensitive {
-        tracing::debug!(key = "[REDACTED_SENSITIVE_KEY]", value_len = value.len(), "Setting configuration value");
+        tracing::debug!(
+            key = "[REDACTED_SENSITIVE_KEY]",
+            value_len = value.len(),
+            "Setting configuration value"
+        );
     } else {
         tracing::debug!(key = %key, value_len = value.len(), "Setting configuration value");
     }
@@ -1472,7 +1509,10 @@ fn set_user_hourly_rate(database: State<'_, db::AppDatabase>, rate: f64) -> Resu
 /// Validates: must be positive, max 6 digits
 /// Story 4b.5 Task 5.2: Triggers recalculation of all job scores
 #[tauri::command]
-fn set_user_project_rate_min(database: State<'_, db::AppDatabase>, rate: f64) -> Result<(), String> {
+fn set_user_project_rate_min(
+    database: State<'_, db::AppDatabase>,
+    rate: f64,
+) -> Result<(), String> {
     let database = database.get()?;
     // Validate rate
     if rate <= 0.0 {
@@ -1646,7 +1686,6 @@ fn recalculate_all_scores(database: State<'_, db::AppDatabase>) -> Result<usize,
     let database = database.get()?;
     recalculate_all_scores_internal(database)
 }
-
 
 // ============================================================================
 // Safety Threshold Commands (Story 3.5)
@@ -1862,8 +1901,7 @@ async fn export_proposals_to_json(
         .map_err(|e| format!("Failed to serialize proposals: {}", e))?;
 
     let path_str = path.to_string();
-    std::fs::write(&path_str, json)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    std::fs::write(&path_str, json).map_err(|e| format!("Failed to write file: {}", e))?;
 
     Ok(ExportResult {
         success: true,
@@ -1953,11 +1991,13 @@ async fn verify_passphrase_on_restart(
     match db::open_encrypted_database(&app_data_dir, &passphrase) {
         Ok(database) => {
             // Story 2-7b: Store Database instance in AppDatabase via OnceLock
-            app_database.set(database)
+            app_database
+                .set(database)
                 .map_err(|_| "Database already initialized".to_string())?;
 
             // Run deferred initialization (log level migration, override cleanup)
-            let log_level = config_state.get_log_level()
+            let log_level = config_state
+                .get_log_level()
                 .unwrap_or_else(|_| "INFO".to_string());
             if let Err(e) = run_deferred_db_init(&app_database, &config_state, &log_level) {
                 tracing::warn!("Deferred init warning (non-fatal): {}", e);
@@ -1987,7 +2027,10 @@ async fn verify_passphrase_on_restart(
                 255
             };
 
-            tracing::warn!("Failed passphrase attempt {} (passphrase NOT logged)", attempts);
+            tracing::warn!(
+                "Failed passphrase attempt {} (passphrase NOT logged)",
+                attempts
+            );
 
             // Show recovery after 5 failures
             let show_recovery = attempts >= 5;
@@ -2282,11 +2325,13 @@ async fn unlock_with_recovery_key(
         .map_err(|e| format!("Failed to open database with recovery key: {}", e))?;
 
     // Populate AppDatabase
-    app_database.set(database)
+    app_database
+        .set(database)
         .map_err(|_| "Database already initialized".to_string())?;
 
     // Run deferred initialization
-    let log_level = config_state.get_log_level()
+    let log_level = config_state
+        .get_log_level()
         .unwrap_or_else(|_| "INFO".to_string());
     if let Err(e) = run_deferred_db_init(&app_database, &config_state, &log_level) {
         tracing::warn!("Deferred init warning (non-fatal): {}", e);
@@ -2407,13 +2452,14 @@ async fn export_unencrypted_backup(
     let metadata = backup::export_unencrypted_backup(&database, &path_buf)
         .map_err(|e| format!("Backup export failed: {}", e))?;
 
-    let message = format!(
-        "Backup saved to {}. Store this file securely.",
-        path_str
-    );
+    let message = format!("Backup saved to {}. Store this file securely.", path_str);
 
-    tracing::info!("Unencrypted backup exported: {} proposals, {} settings, {} job posts",
-        metadata.proposal_count, metadata.settings_count, metadata.job_posts_count);
+    tracing::info!(
+        "Unencrypted backup exported: {} proposals, {} settings, {} job posts",
+        metadata.proposal_count,
+        metadata.settings_count,
+        metadata.job_posts_count
+    );
 
     Ok(BackupResult {
         success: true,
@@ -2490,13 +2536,20 @@ async fn migrate_database(
     let backup_path_buf = std::path::PathBuf::from(&backup_path);
 
     // Story 2-5: Enhanced error handling with cleanup on failure
-    let metadata = match migration::migrate_to_encrypted_database(&app_data_dir, &passphrase, &backup_path_buf) {
+    let metadata = match migration::migrate_to_encrypted_database(
+        &app_data_dir,
+        &passphrase,
+        &backup_path_buf,
+    ) {
         Ok(metadata) => metadata,
         Err(e) => {
             tracing::error!("Migration failed: {}. Attempting cleanup...", e);
             // Cleanup incomplete encrypted database
             migration::cleanup_failed_migration(&app_data_dir);
-            return Err(format!("Migration failed: {}. Your data has been preserved in the original database.", e));
+            return Err(format!(
+                "Migration failed: {}. Your data has been preserved in the original database.",
+                e
+            ));
         }
     };
 
@@ -2553,15 +2606,24 @@ fn run_deferred_db_init(
     config_state: &config::ConfigState,
     log_level: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let database = app_database.get().map_err(|e| format!("Database not ready: {}", e))?;
+    let database = app_database
+        .get()
+        .map_err(|e| format!("Database not ready: {}", e))?;
 
     // Story 2.1, Task 8 (Subtask 8.6): One-time migration from database to config.json
     if log_level == "INFO" {
-        let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
         if let Ok(Some(db_log_level)) = db::queries::settings::get_setting(&conn, "log_level") {
             if db_log_level != "INFO" {
-                tracing::info!("Migrating log level from database to config.json: {}", db_log_level);
-                config_state.set_log_level(db_log_level.clone())
+                tracing::info!(
+                    "Migrating log level from database to config.json: {}",
+                    db_log_level
+                );
+                config_state
+                    .set_log_level(db_log_level.clone())
                     .map_err(|e| format!("Failed to migrate log level: {}", e))?;
             }
         }
@@ -2572,7 +2634,10 @@ fn run_deferred_db_init(
 
     // Story 3.7: Auto-confirm successful overrides on startup (Task 3.1)
     {
-        let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+        let conn = database
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
 
         match db::queries::safety_overrides::get_pending_overrides_older_than_7_days(&conn) {
             Ok(pending_overrides) => {
@@ -2580,14 +2645,21 @@ fn run_deferred_db_init(
                 let mut unsuccessful_count = 0;
 
                 for override_record in pending_overrides {
-                    match db::queries::safety_overrides::proposal_exists(&conn, override_record.proposal_id) {
+                    match db::queries::safety_overrides::proposal_exists(
+                        &conn,
+                        override_record.proposal_id,
+                    ) {
                         Ok(true) => {
                             if let Err(e) = db::queries::safety_overrides::update_override_status(
                                 &conn,
                                 override_record.id,
                                 db::queries::safety_overrides::STATUS_SUCCESSFUL,
                             ) {
-                                tracing::warn!("Failed to update override {} to successful: {}", override_record.id, e);
+                                tracing::warn!(
+                                    "Failed to update override {} to successful: {}",
+                                    override_record.id,
+                                    e
+                                );
                             } else {
                                 successful_count += 1;
                             }
@@ -2598,13 +2670,21 @@ fn run_deferred_db_init(
                                 override_record.id,
                                 db::queries::safety_overrides::STATUS_UNSUCCESSFUL,
                             ) {
-                                tracing::warn!("Failed to update override {} to unsuccessful: {}", override_record.id, e);
+                                tracing::warn!(
+                                    "Failed to update override {} to unsuccessful: {}",
+                                    override_record.id,
+                                    e
+                                );
                             } else {
                                 unsuccessful_count += 1;
                             }
                         }
                         Err(e) => {
-                            tracing::warn!("Failed to check proposal existence for override {}: {}", override_record.id, e);
+                            tracing::warn!(
+                                "Failed to check proposal existence for override {}: {}",
+                                override_record.id,
+                                e
+                            );
                         }
                     }
                 }
@@ -2633,6 +2713,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Get app data directory
             let app_data_dir = app
@@ -2647,23 +2728,23 @@ pub fn run() {
             // Story 2.1, Task 8: Load config.json BEFORE logging initialization
             // This resolves the circular dependency (logging needs DB, DB needs logging)
             // Config is loaded first to read log_level setting
-            let config_state_early = config::ConfigState::new(app_data_dir.clone())
-                .map_err(|e| {
+            let config_state_early =
+                config::ConfigState::new(app_data_dir.clone()).map_err(|e| {
                     eprintln!("Failed to initialize config: {}", e);
                     format!("Failed to initialize config: {}", e)
                 })?;
 
             // Read log level from config (defaults to "INFO" if not set)
-            let log_level = config_state_early.get_log_level()
+            let log_level = config_state_early
+                .get_log_level()
                 .unwrap_or_else(|_| "INFO".to_string());
 
             // Initialize logging infrastructure with log level from config
             // Must initialize early to capture all subsequent operations
-            let logs_dir = logs::init_logging(&app_data_dir, Some(&log_level))
-                .map_err(|e| {
-                    eprintln!("Failed to initialize logging: {}", e);
-                    format!("Failed to initialize logging: {}", e)
-                })?;
+            let logs_dir = logs::init_logging(&app_data_dir, Some(&log_level)).map_err(|e| {
+                eprintln!("Failed to initialize logging: {}", e);
+                format!("Failed to initialize logging: {}", e)
+            })?;
 
             tracing::info!("Application starting");
             tracing::info!("App data directory: {:?}", app_data_dir);
@@ -2701,25 +2782,25 @@ pub fn run() {
             let app_database = if migration_complete {
                 // Subtask 8.4: Migration complete → encrypted database detected
                 // Database cannot be opened until user provides passphrase
-                tracing::info!("Migration marker found - encrypted database requires passphrase unlock");
+                tracing::info!(
+                    "Migration marker found - encrypted database requires passphrase unlock"
+                );
                 db::AppDatabase::new_empty()
             } else {
                 // Subtask 8.5: No migration marker → open unencrypted database immediately
                 let database = if db_path.exists() {
                     tracing::info!("Unencrypted database exists - opening directly");
-                    db::Database::new(db_path, None)
-                        .map_err(|e| {
-                            tracing::error!("Failed to initialize database: {}", e);
-                            format!("Failed to initialize database: {}", e)
-                        })?
+                    db::Database::new(db_path, None).map_err(|e| {
+                        tracing::error!("Failed to initialize database: {}", e);
+                        format!("Failed to initialize database: {}", e)
+                    })?
                 } else {
                     // New installation - create fresh unencrypted database
                     tracing::info!("New installation - creating fresh database");
-                    db::Database::new(db_path, None)
-                        .map_err(|e| {
-                            tracing::error!("Failed to create database: {}", e);
-                            format!("Failed to create database: {}", e)
-                        })?
+                    db::Database::new(db_path, None).map_err(|e| {
+                        tracing::error!("Failed to create database: {}", e);
+                        format!("Failed to create database: {}", e)
+                    })?
                 };
                 db::AppDatabase::new_with(database)
             };
@@ -2732,7 +2813,9 @@ pub fn run() {
             if app_database.is_ready() {
                 run_deferred_db_init(&app_database, &config_state, &log_level)?;
             } else {
-                tracing::info!("Deferring database-dependent initialization until passphrase unlock");
+                tracing::info!(
+                    "Deferring database-dependent initialization until passphrase unlock"
+                );
             }
 
             // Story 2.6: Auto-migrate API key from config.json to keychain (if needed)
@@ -2804,12 +2887,12 @@ pub fn run() {
             save_proposal,
             get_proposals,
             commands::proposals::get_proposal_history, // Story 8.7: Memory Optimization
-            commands::proposals::search_proposals, // Story 7.3: Search & Filter
+            commands::proposals::search_proposals,     // Story 7.3: Search & Filter
             commands::proposals::get_distinct_hook_strategies, // Story 7.3: Hook strategy filter
-            commands::proposals::get_proposal_detail, // Story 7.4: Full proposal detail view
+            commands::proposals::get_proposal_detail,  // Story 7.4: Full proposal detail view
             commands::proposals::update_proposal_outcome, // Story 7.1/7.2: Outcome status mutation
-            delete_proposal, // Story 6.8: Delete Proposal & All Revisions
-            update_proposal_content, // Story 6.1: TipTap Editor auto-save
+            delete_proposal,                           // Story 6.8: Delete Proposal & All Revisions
+            update_proposal_content,                   // Story 6.1: TipTap Editor auto-save
             // Revision commands (Story 6.3: Proposal Revision History)
             create_revision,
             get_proposal_revisions,
@@ -2820,8 +2903,8 @@ pub fn run() {
             get_archived_revision_count,
             restore_archived_revision,
             save_job_post,
-            analyze_job_post, // Story 4a.2: Client Name Extraction
-            job::rss::import_rss_feed, // Story 4b.7: RSS Feed Import
+            analyze_job_post,                   // Story 4a.2: Client Name Extraction
+            job::rss::import_rss_feed,          // Story 4b.7: RSS Feed Import
             commands::job_queue::get_job_queue, // Story 4b.9: Job Queue View with Sorting
             has_api_key,
             set_api_key,
@@ -2847,9 +2930,9 @@ pub fn run() {
             // Job scoring commands (Story 4b.2, 4b.5, 4b.6)
             calculate_and_store_skills_match,
             get_job_score,
-            get_scoring_breakdown, // Story 4b.6
+            get_scoring_breakdown,       // Story 4b.6
             calculate_overall_job_score, // Story 4b.5
-            recalculate_all_scores, // Story 4b.5
+            recalculate_all_scores,      // Story 4b.5
             // Scoring feedback commands (Story 4b.10)
             commands::scoring_feedback::submit_scoring_feedback,
             commands::scoring_feedback::check_can_report_score,
@@ -2899,10 +2982,10 @@ pub fn run() {
             set_passphrase,
             verify_passphrase_strength,
             verify_passphrase,
-            verify_passphrase_on_restart, // Story 2.7
-            get_encryption_status, // Story 2.8
-            generate_recovery_key, // Story 2.9
-            unlock_with_recovery_key, // Story 2.9 AC6
+            verify_passphrase_on_restart,      // Story 2.7
+            get_encryption_status,             // Story 2.8
+            generate_recovery_key,             // Story 2.9
+            unlock_with_recovery_key,          // Story 2.9 AC6
             set_new_passphrase_after_recovery, // Story 2.9 AC6
             // Backup commands (Story 2.2 + 2.9)
             create_pre_migration_backup,
@@ -2929,7 +3012,17 @@ pub fn run() {
             // Import commands (Story 7.7)
             commands::import::read_archive_metadata,
             commands::import::decrypt_archive,
-            commands::import::execute_import
+            commands::import::execute_import,
+            // Health check & version tracking commands (Story 9.9)
+            health_check::get_installed_version_command,
+            health_check::detect_update_command,
+            health_check::run_health_checks_command,
+            // Backup & rollback commands (Story 9.9)
+            health_check::create_pre_update_backup_command,
+            health_check::rollback_to_previous_version_command,
+            health_check::get_failed_update_versions_command,
+            health_check::clear_failed_update_versions_command,
+            health_check::cleanup_old_backups_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -3011,13 +3104,9 @@ async fn record_safety_override_internal(
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
-    let override_id = db::queries::safety_overrides::record_override(
-        &conn,
-        proposal_id,
-        ai_score,
-        threshold,
-    )
-    .map_err(|e| format!("Failed to record override: {}", e))?;
+    let override_id =
+        db::queries::safety_overrides::record_override(&conn, proposal_id, ai_score, threshold)
+            .map_err(|e| format!("Failed to record override: {}", e))?;
 
     tracing::info!(
         override_id = override_id,
@@ -3104,7 +3193,10 @@ async fn check_threshold_learning(
 
     // Get current threshold
     let current_threshold = match db::queries::settings::get_setting(&conn, "safety_threshold") {
-        Ok(Some(value)) => value.parse::<i32>().unwrap_or(THRESHOLD_DEFAULT).clamp(140, THRESHOLD_MAX),
+        Ok(Some(value)) => value
+            .parse::<i32>()
+            .unwrap_or(THRESHOLD_DEFAULT)
+            .clamp(140, THRESHOLD_MAX),
         Ok(None) => THRESHOLD_DEFAULT,
         Err(e) => {
             tracing::warn!("Failed to get threshold: {}", e);
@@ -3125,13 +3217,15 @@ async fn check_threshold_learning(
     }
 
     // H2 fix: Get dismissal timestamp to filter out overrides from before rejection
-    let dismissal_timestamp = db::queries::settings::get_setting(&conn, "threshold_suggestion_dismissed_at")
-        .ok()
-        .flatten();
+    let dismissal_timestamp =
+        db::queries::settings::get_setting(&conn, "threshold_suggestion_dismissed_at")
+            .ok()
+            .flatten();
 
     // Get successful overrides from last 30 days
-    let successful_overrides = db::queries::safety_overrides::get_successful_overrides_last_30_days(&conn)
-        .map_err(|e| format!("Failed to query overrides: {}", e))?;
+    let successful_overrides =
+        db::queries::safety_overrides::get_successful_overrides_last_30_days(&conn)
+            .map_err(|e| format!("Failed to query overrides: {}", e))?;
 
     // Filter overrides:
     // 1. Within THRESHOLD_PROXIMITY points of current threshold
@@ -3211,7 +3305,10 @@ async fn check_threshold_decrease(
 
     // Get current threshold
     let current_threshold = match db::queries::settings::get_setting(&conn, "safety_threshold") {
-        Ok(Some(value)) => value.parse::<i32>().unwrap_or(THRESHOLD_DEFAULT).clamp(140, THRESHOLD_MAX),
+        Ok(Some(value)) => value
+            .parse::<i32>()
+            .unwrap_or(THRESHOLD_DEFAULT)
+            .clamp(140, THRESHOLD_MAX),
         Ok(None) => THRESHOLD_DEFAULT,
         Err(e) => {
             tracing::warn!("Failed to get threshold: {}", e);
@@ -3221,7 +3318,10 @@ async fn check_threshold_decrease(
 
     // Only suggest decrease if above default
     if current_threshold <= THRESHOLD_DEFAULT {
-        tracing::debug!("Threshold at default ({}), no decrease suggestion", THRESHOLD_DEFAULT);
+        tracing::debug!(
+            "Threshold at default ({}), no decrease suggestion",
+            THRESHOLD_DEFAULT
+        );
         return Ok(None);
     }
 
@@ -3264,7 +3364,10 @@ async fn apply_threshold_adjustment(
     let database = database.get()?;
     // Validate threshold range
     if new_threshold < 140 || new_threshold > THRESHOLD_MAX {
-        return Err(format!("Threshold must be between 140 and {}", THRESHOLD_MAX));
+        return Err(format!(
+            "Threshold must be between 140 and {}",
+            THRESHOLD_MAX
+        ));
     }
 
     let conn = database
@@ -3284,7 +3387,10 @@ async fn apply_threshold_adjustment(
         .map_err(|e| format!("Failed to update threshold: {}", e))?;
 
     // H2 fix: Clear dismissal timestamp so counter starts fresh after adjustment
-    let _ = conn.execute("DELETE FROM settings WHERE key = 'threshold_suggestion_dismissed_at'", []);
+    let _ = conn.execute(
+        "DELETE FROM settings WHERE key = 'threshold_suggestion_dismissed_at'",
+        [],
+    );
 
     tracing::info!(
         old_threshold = old_threshold,
@@ -3301,9 +3407,7 @@ async fn apply_threshold_adjustment(
 /// so only overrides AFTER this time count toward the next suggestion.
 /// This effectively "resets the counter" per AC6.
 #[tauri::command]
-async fn dismiss_threshold_suggestion(
-    database: State<'_, db::AppDatabase>,
-) -> Result<(), String> {
+async fn dismiss_threshold_suggestion(database: State<'_, db::AppDatabase>) -> Result<(), String> {
     let database = database.get()?;
     let conn = database
         .conn
@@ -3338,12 +3442,16 @@ mod tests {
     #[test]
     fn test_user_hourly_rate_saves_correctly() {
         // Subtask 9.4: Test hourly rate saves correctly
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
         let conn = db.conn.lock().unwrap();
 
         // Validate and save rate
         let rate = 75.0;
-        assert!(rate > 0.0 && rate <= 999999.0, "Rate should be positive and <= 999999");
+        assert!(
+            rate > 0.0 && rate <= 999999.0,
+            "Rate should be positive and <= 999999"
+        );
         let rate_str = format!("{:.2}", rate);
         db::queries::settings::set_setting(&conn, "user_hourly_rate", &rate_str).unwrap();
 
@@ -3359,12 +3467,16 @@ mod tests {
     #[test]
     fn test_user_project_rate_min_saves_correctly() {
         // Subtask 9.4: Test project rate saves correctly
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
         let conn = db.conn.lock().unwrap();
 
         // Validate and save rate
         let rate = 2000.0;
-        assert!(rate > 0.0 && rate <= 999999.0, "Rate should be positive and <= 999999");
+        assert!(
+            rate > 0.0 && rate <= 999999.0,
+            "Rate should be positive and <= 999999"
+        );
         let rate_str = format!("{:.2}", rate);
         db::queries::settings::set_setting(&conn, "user_project_rate_min", &rate_str).unwrap();
 
@@ -3380,7 +3492,8 @@ mod tests {
     #[test]
     fn test_rate_config_returns_none_when_not_set() {
         // Subtask 9.4: Test get_user_rate_config logic returns None for unset rates
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
         let conn = db.conn.lock().unwrap();
 
         // Get hourly rate (should be None)
@@ -3390,10 +3503,11 @@ mod tests {
         };
 
         // Get project rate (should be None)
-        let project_rate_min = match db::queries::settings::get_setting(&conn, "user_project_rate_min") {
-            Ok(Some(value)) => value.parse::<f64>().ok(),
-            _ => None,
-        };
+        let project_rate_min =
+            match db::queries::settings::get_setting(&conn, "user_project_rate_min") {
+                Ok(Some(value)) => value.parse::<f64>().ok(),
+                _ => None,
+            };
 
         assert_eq!(hourly_rate, None);
         assert_eq!(project_rate_min, None);
@@ -3402,7 +3516,8 @@ mod tests {
     #[test]
     fn test_rate_config_returns_set_values() {
         // Subtask 9.4: Test get_user_rate_config logic returns configured rates
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
         let conn = db.conn.lock().unwrap();
 
         // Set rates
@@ -3415,10 +3530,11 @@ mod tests {
             _ => None,
         };
 
-        let project_rate_min = match db::queries::settings::get_setting(&conn, "user_project_rate_min") {
-            Ok(Some(value)) => value.parse::<f64>().ok(),
-            _ => None,
-        };
+        let project_rate_min =
+            match db::queries::settings::get_setting(&conn, "user_project_rate_min") {
+                Ok(Some(value)) => value.parse::<f64>().ok(),
+                _ => None,
+            };
 
         assert_eq!(hourly_rate, Some(75.0));
         assert_eq!(project_rate_min, Some(2000.0));
@@ -3428,7 +3544,8 @@ mod tests {
     #[test]
     fn test_get_safety_threshold_default() {
         // Create in-memory database
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
 
         // Query threshold (should return default 180)
         let result = get_safety_threshold_internal(&db);
@@ -3440,7 +3557,8 @@ mod tests {
     #[test]
     fn test_get_safety_threshold_custom() {
         // Create in-memory database
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
 
         // Set custom threshold
         {
@@ -3459,7 +3577,8 @@ mod tests {
     #[test]
     fn test_safety_threshold_validation() {
         // Create in-memory database
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
 
         // Test upper bound clamping (250 → 220)
         {
@@ -3495,7 +3614,11 @@ mod tests {
                 .expect("Failed to set threshold");
         }
         let result = get_safety_threshold_internal(&db);
-        assert_eq!(result.unwrap(), 180, "Non-numeric value should default to 180");
+        assert_eq!(
+            result.unwrap(),
+            180,
+            "Non-numeric value should default to 180"
+        );
     }
 
     // =========================================================================
@@ -3505,7 +3628,8 @@ mod tests {
     // Story 3.6, Task 5.11: Test override count increments from 0 to 1
     #[tokio::test]
     async fn test_log_safety_override_increments_count() {
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
 
         // Verify initial count is 0 (not set)
         {
@@ -3532,7 +3656,8 @@ mod tests {
     // Story 3.6, Task 5.12: Test count increments correctly across multiple calls
     #[tokio::test]
     async fn test_log_safety_override_multiple() {
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
 
         // Call log_safety_override 3 times
         for i in 1..=3 {
@@ -3553,7 +3678,8 @@ mod tests {
     // Story 3.6, Task 5.13: Test timestamp is stored
     #[tokio::test]
     async fn test_log_safety_override_stores_timestamp() {
-        let db = db::Database::new(":memory:".into(), None).expect("Failed to create test database");
+        let db =
+            db::Database::new(":memory:".into(), None).expect("Failed to create test database");
 
         // Call log_safety_override
         let result = log_safety_override_internal(200.0, 180.0, &db).await;
@@ -3568,7 +3694,10 @@ mod tests {
             // Should be a valid datetime string (not empty)
             assert!(!timestamp.is_empty(), "Timestamp should not be empty");
             // Should contain date-like characters
-            assert!(timestamp.contains("-"), "Timestamp should contain date separators");
+            assert!(
+                timestamp.contains("-"),
+                "Timestamp should contain date separators"
+            );
         }
     }
 
@@ -3580,7 +3709,11 @@ mod tests {
     #[test]
     fn test_cooldown_remaining_no_active() {
         let cooldown = CooldownState::new();
-        assert_eq!(cooldown.remaining_seconds(), 0, "Should return 0 with no prior generation");
+        assert_eq!(
+            cooldown.remaining_seconds(),
+            0,
+            "Should return 0 with no prior generation"
+        );
     }
 
     // Story 3.8, Task 7.6: Test get_cooldown_remaining returns correct remaining seconds
@@ -3610,7 +3743,11 @@ mod tests {
 
         // Should have remaining time (blocking)
         let remaining = cooldown.remaining_seconds();
-        assert!(remaining > 0, "Should block within 120s window, got {} remaining", remaining);
+        assert!(
+            remaining > 0,
+            "Should block within 120s window, got {} remaining",
+            remaining
+        );
     }
 
     // Story 3.8, Task 7.2: Test cooldown allows after expiry
@@ -3627,7 +3764,11 @@ mod tests {
 
         // Should return 0 (no cooldown)
         let remaining = cooldown.remaining_seconds();
-        assert_eq!(remaining, 0, "Should allow after 120s expiry, got {} remaining", remaining);
+        assert_eq!(
+            remaining, 0,
+            "Should allow after 120s expiry, got {} remaining",
+            remaining
+        );
     }
 
     // Story 3.8, Task 7.3: Test cooldown returns accurate remaining seconds
@@ -3654,7 +3795,11 @@ mod tests {
     #[test]
     fn test_cooldown_default() {
         let cooldown = CooldownState::default();
-        assert_eq!(cooldown.remaining_seconds(), 0, "Default should have no cooldown");
+        assert_eq!(
+            cooldown.remaining_seconds(),
+            0,
+            "Default should have no cooldown"
+        );
     }
 
     // Story 3.8: Test record() updates timestamp
@@ -3697,7 +3842,11 @@ mod tests {
         assert!(result.is_ok(), "Should return Ok");
 
         let suggestions = result.unwrap();
-        assert_eq!(suggestions.len(), 0, "Should return empty array for no matches");
+        assert_eq!(
+            suggestions.len(),
+            0,
+            "Should return empty array for no matches"
+        );
     }
 
     #[test]
@@ -3751,10 +3900,7 @@ mod tests {
     #[test]
     fn test_voice_cache_get_returns_none_initially() {
         let cache = VoiceCache::new();
-        assert!(
-            cache.get().is_none(),
-            "Cache should return None when empty"
-        );
+        assert!(cache.get().is_none(), "Cache should return None when empty");
     }
 
     /// Subtask 6.7: Test voice profile caching - set and get
@@ -3904,5 +4050,29 @@ mod tests {
             "Context loading took {}ms, expected <50ms for indexed queries",
             elapsed.as_millis()
         );
+    }
+
+    // =========================================================================
+    // Story 9.6: Updater Plugin Registration (Task 6.5)
+    // =========================================================================
+
+    #[test]
+    #[ignore = "Compile-time verification only — runtime requires full Tauri app context (DLLs)"]
+    fn test_updater_plugin_builds_without_panic() {
+        // The real value of this test is compilation: if tauri_plugin_updater
+        // dependency is misconfigured or incompatible, this won't compile.
+        // Runtime execution requires Tauri DLLs which aren't available in `cargo test`.
+        let _plugin = tauri_plugin_updater::Builder::new().build::<tauri::Wry>();
+    }
+
+    #[test]
+    #[ignore = "Compile-time verification only — runtime requires full Tauri app context (DLLs)"]
+    fn test_all_plugins_build_without_panic() {
+        // Verifies the full plugin chain compiles with compatible types.
+        // If any plugin breaks the chain, this will fail to compile.
+        let _opener = tauri_plugin_opener::init::<tauri::Wry>();
+        let _clipboard = tauri_plugin_clipboard_manager::init::<tauri::Wry>();
+        let _dialog = tauri_plugin_dialog::init::<tauri::Wry>();
+        let _updater = tauri_plugin_updater::Builder::new().build::<tauri::Wry>();
     }
 }

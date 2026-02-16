@@ -224,7 +224,10 @@ pub fn search_proposals(
     // CR M-2: Escape SQL LIKE wildcards (%, _) in user input
     if let Some(text) = search_text {
         if !text.is_empty() {
-            let escaped = text.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+            let escaped = text
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_");
             let pattern = format!("%{}%", escaped);
             conditions.push(format!(
                 "(job_content LIKE ?{p1} ESCAPE '\\' OR generated_text LIKE ?{p2} ESCAPE '\\')",
@@ -247,7 +250,10 @@ pub fn search_proposals(
     // Date range filter (CR L-2: parameterized via concatenation in SQL)
     if let Some(days) = date_range_days {
         if days > 0 {
-            conditions.push(format!("created_at >= datetime('now', '-' || ?{} || ' days')", param_values.len() + 1));
+            conditions.push(format!(
+                "created_at >= datetime('now', '-' || ?{} || ' days')",
+                param_values.len() + 1
+            ));
             param_values.push(Box::new(days.to_string()));
         }
     }
@@ -264,12 +270,12 @@ pub fn search_proposals(
 
     // Count query for total filtered results
     let count_sql = format!("SELECT COUNT(*) FROM proposals WHERE {}", where_clause);
-    let param_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+        param_values.iter().map(|p| p.as_ref()).collect();
 
-    let total_count: u32 = conn
-        .query_row(&count_sql, param_refs.as_slice(), |row| {
-            row.get::<_, i64>(0)
-        })? as u32;
+    let total_count: u32 = conn.query_row(&count_sql, param_refs.as_slice(), |row| {
+        row.get::<_, i64>(0)
+    })? as u32;
 
     // Data query with pagination (CR L-2: limit/offset parameterized)
     let data_sql = format!(
@@ -279,13 +285,16 @@ pub fn search_proposals(
          FROM proposals WHERE {} \
          ORDER BY created_at DESC, id DESC \
          LIMIT ?{} OFFSET ?{}",
-        where_clause, param_values.len() + 1, param_values.len() + 2
+        where_clause,
+        param_values.len() + 1,
+        param_values.len() + 2
     );
 
     // Add limit and offset as params
     param_values.push(Box::new(limit as i64));
     param_values.push(Box::new(offset as i64));
-    let param_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+        param_values.iter().map(|p| p.as_ref()).collect();
 
     let mut stmt = conn.prepare(&data_sql)?;
     let proposals = stmt
@@ -384,7 +393,10 @@ pub struct ProposalDetail {
 /// Get full proposal detail by ID (Story 7.4 AC-1).
 /// LEFT JOINs job_posts to get job title (client_name or raw_content substr).
 /// Includes a subquery count of proposal_revisions.
-pub fn get_proposal_detail(conn: &Connection, id: i64) -> Result<Option<ProposalDetail>, rusqlite::Error> {
+pub fn get_proposal_detail(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<ProposalDetail>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT \
             p.id, \
@@ -493,7 +505,9 @@ pub struct WeeklyActivity {
 /// Get proposal analytics summary (Story 7.5 AC-1).
 /// Returns aggregate metrics: total proposals, response rate, best strategy, monthly count.
 /// Filters: status != 'draft'.
-pub fn get_proposal_analytics_summary(conn: &Connection) -> Result<AnalyticsSummary, rusqlite::Error> {
+pub fn get_proposal_analytics_summary(
+    conn: &Connection,
+) -> Result<AnalyticsSummary, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT \
             COUNT(*) as total_proposals, \
@@ -504,14 +518,15 @@ pub fn get_proposal_analytics_summary(conn: &Connection) -> Result<AnalyticsSumm
         WHERE status != 'draft'"
     )?;
 
-    let (total_proposals, positive_outcomes, resolved_proposals, proposals_this_month) = stmt.query_row([], |row| {
-        Ok((
-            row.get::<_, i64>(0)?,
-            row.get::<_, i64>(1)?,
-            row.get::<_, i64>(2)?,
-            row.get::<_, i64>(3)?,
-        ))
-    })?;
+    let (total_proposals, positive_outcomes, resolved_proposals, proposals_this_month) = stmt
+        .query_row([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, i64>(3)?,
+            ))
+        })?;
 
     // Calculate response rate: positive / resolved * 100
     let response_rate = if resolved_proposals > 0 {
@@ -564,7 +579,7 @@ pub fn get_outcome_distribution(conn: &Connection) -> Result<Vec<OutcomeCount>, 
         FROM proposals \
         WHERE status != 'draft' \
         GROUP BY outcome_status \
-        ORDER BY count DESC"
+        ORDER BY count DESC",
     )?;
 
     let outcomes = stmt
@@ -583,7 +598,9 @@ pub fn get_outcome_distribution(conn: &Connection) -> Result<Vec<OutcomeCount>, 
 /// Returns performance metrics per strategy, sorted by response rate descending.
 /// Filters: status != 'draft'.
 /// COALESCE(hook_strategy_id, 'none') handles NULL strategies.
-pub fn get_response_rate_by_strategy(conn: &Connection) -> Result<Vec<StrategyPerformance>, rusqlite::Error> {
+pub fn get_response_rate_by_strategy(
+    conn: &Connection,
+) -> Result<Vec<StrategyPerformance>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT \
             COALESCE(hook_strategy_id, 'none') as strategy, \
@@ -621,7 +638,10 @@ pub fn get_response_rate_by_strategy(conn: &Connection) -> Result<Vec<StrategyPe
 /// Returns proposal count and response rate per week for the last N weeks.
 /// Filters: status != 'draft'.
 /// weeks: number of weeks to look back (default 12).
-pub fn get_weekly_activity(conn: &Connection, weeks: u32) -> Result<Vec<WeeklyActivity>, rusqlite::Error> {
+pub fn get_weekly_activity(
+    conn: &Connection,
+    weeks: u32,
+) -> Result<Vec<WeeklyActivity>, rusqlite::Error> {
     let days = weeks * 7;
     let mut stmt = conn.prepare(
         "SELECT \
@@ -759,7 +779,13 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        insert_proposal(&conn, "Job", "Long generated text that should not be in summary", None).unwrap();
+        insert_proposal(
+            &conn,
+            "Job",
+            "Long generated text that should not be in summary",
+            None,
+        )
+        .unwrap();
 
         let proposals = list_proposals(&conn).unwrap();
 
@@ -776,7 +802,13 @@ mod tests {
 
         // Insert 105 proposals
         for i in 0..105 {
-            insert_proposal(&conn, &format!("Job {}", i), &format!("Proposal {}", i), None).unwrap();
+            insert_proposal(
+                &conn,
+                &format!("Job {}", i),
+                &format!("Proposal {}", i),
+                None,
+            )
+            .unwrap();
         }
 
         let proposals = list_proposals(&conn).unwrap();
@@ -819,7 +851,13 @@ mod tests {
 
         // Insert 105 proposals
         for i in 0..105 {
-            insert_proposal(&conn, &format!("Job {}", i), &format!("Proposal {}", i), None).unwrap();
+            insert_proposal(
+                &conn,
+                &format!("Job {}", i),
+                &format!("Proposal {}", i),
+                None,
+            )
+            .unwrap();
         }
 
         let proposals = get_all_proposals(&conn).unwrap();
@@ -1055,7 +1093,10 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(outcome_status, "pending", "AC-6: default outcome_status should be 'pending'");
+        assert_eq!(
+            outcome_status, "pending",
+            "AC-6: default outcome_status should be 'pending'"
+        );
     }
 
     #[test]
@@ -1074,7 +1115,10 @@ mod tests {
             )
             .unwrap();
 
-        assert!(outcome_updated_at.is_none(), "AC-1: outcome_updated_at should be NULL by default");
+        assert!(
+            outcome_updated_at.is_none(),
+            "AC-1: outcome_updated_at should be NULL by default"
+        );
     }
 
     #[test]
@@ -1093,7 +1137,10 @@ mod tests {
             )
             .unwrap();
 
-        assert!(hook_strategy_id.is_none(), "AC-1: hook_strategy_id should be NULL by default");
+        assert!(
+            hook_strategy_id.is_none(),
+            "AC-1: hook_strategy_id should be NULL by default"
+        );
     }
 
     #[test]
@@ -1112,7 +1159,10 @@ mod tests {
             )
             .unwrap();
 
-        assert!(job_post_id.is_none(), "AC-1: job_post_id should be NULL by default");
+        assert!(
+            job_post_id.is_none(),
+            "AC-1: job_post_id should be NULL by default"
+        );
     }
 
     // =========================================================================
@@ -1296,7 +1346,10 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert!(updated_at.is_some(), "outcome_updated_at should be set after update");
+        assert!(
+            updated_at.is_some(),
+            "outcome_updated_at should be set after update"
+        );
     }
 
     #[test]
@@ -1356,7 +1409,8 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Create a proposal
-        let proposal_id = insert_proposal(&conn, "Job with revisions", "Original text", None).unwrap();
+        let proposal_id =
+            insert_proposal(&conn, "Job with revisions", "Original text", None).unwrap();
 
         // Insert revisions directly (proposal_revisions table from V8 migration)
         conn.execute(
@@ -1369,11 +1423,13 @@ mod tests {
         ).unwrap();
 
         // Verify revisions exist
-        let revision_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM proposal_revisions WHERE proposal_id = ?1",
-            params![proposal_id],
-            |row| row.get(0),
-        ).unwrap();
+        let revision_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM proposal_revisions WHERE proposal_id = ?1",
+                params![proposal_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(revision_count, 2, "Should have 2 revisions before delete");
 
         // Delete the proposal
@@ -1381,12 +1437,17 @@ mod tests {
         assert!(deleted);
 
         // Verify revisions are CASCADE deleted
-        let revision_count_after: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM proposal_revisions WHERE proposal_id = ?1",
-            params![proposal_id],
-            |row| row.get(0),
-        ).unwrap();
-        assert_eq!(revision_count_after, 0, "Revisions should be CASCADE deleted");
+        let revision_count_after: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM proposal_revisions WHERE proposal_id = ?1",
+                params![proposal_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            revision_count_after, 0,
+            "Revisions should be CASCADE deleted"
+        );
     }
 
     // =========================================================================
@@ -1429,7 +1490,13 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        insert_proposal(&conn, "Job A", "I have extensive experience with Rust", None).unwrap();
+        insert_proposal(
+            &conn,
+            "Job A",
+            "I have extensive experience with Rust",
+            None,
+        )
+        .unwrap();
         insert_proposal(&conn, "Job B", "Python is my forte", None).unwrap();
 
         let result = search_proposals(&conn, Some("Rust"), None, None, None, 50, 0).unwrap();
@@ -1447,7 +1514,10 @@ mod tests {
 
         let result = search_proposals(&conn, Some("react"), None, None, None, 50, 0).unwrap();
 
-        assert_eq!(result.total_count, 1, "Text search should be case-insensitive");
+        assert_eq!(
+            result.total_count, 1,
+            "Text search should be case-insensitive"
+        );
     }
 
     #[test]
@@ -1478,10 +1548,16 @@ mod tests {
         insert_proposal(&conn, "Job A", "Text A", None).unwrap();
 
         let result = search_proposals(&conn, None, None, Some(7), None, 50, 0).unwrap();
-        assert_eq!(result.total_count, 1, "Proposal created 'now' should be within 7 days");
+        assert_eq!(
+            result.total_count, 1,
+            "Proposal created 'now' should be within 7 days"
+        );
 
         let result_all = search_proposals(&conn, None, None, Some(0), None, 50, 0).unwrap();
-        assert_eq!(result_all.total_count, 1, "date_range_days=0 means no date filter");
+        assert_eq!(
+            result_all.total_count, 1,
+            "date_range_days=0 means no date filter"
+        );
     }
 
     #[test]
@@ -1489,14 +1565,20 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        insert_proposal_with_context(&conn, "Job A", "Text A", None, Some("social_proof"), None).unwrap();
-        insert_proposal_with_context(&conn, "Job B", "Text B", None, Some("contrarian"), None).unwrap();
+        insert_proposal_with_context(&conn, "Job A", "Text A", None, Some("social_proof"), None)
+            .unwrap();
+        insert_proposal_with_context(&conn, "Job B", "Text B", None, Some("contrarian"), None)
+            .unwrap();
         insert_proposal(&conn, "Job C", "Text C", None).unwrap();
 
-        let result = search_proposals(&conn, None, None, None, Some("social_proof"), 50, 0).unwrap();
+        let result =
+            search_proposals(&conn, None, None, None, Some("social_proof"), 50, 0).unwrap();
 
         assert_eq!(result.total_count, 1);
-        assert_eq!(result.proposals[0].hook_strategy_id.as_deref(), Some("social_proof"));
+        assert_eq!(
+            result.proposals[0].hook_strategy_id.as_deref(),
+            Some("social_proof")
+        );
     }
 
     #[test]
@@ -1504,9 +1586,33 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        let id1 = insert_proposal_with_context(&conn, "React developer needed", "I love React", None, Some("social_proof"), None).unwrap();
-        insert_proposal_with_context(&conn, "React job", "React text", None, Some("contrarian"), None).unwrap();
-        insert_proposal_with_context(&conn, "Python job", "Python text", None, Some("social_proof"), None).unwrap();
+        let id1 = insert_proposal_with_context(
+            &conn,
+            "React developer needed",
+            "I love React",
+            None,
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
+        insert_proposal_with_context(
+            &conn,
+            "React job",
+            "React text",
+            None,
+            Some("contrarian"),
+            None,
+        )
+        .unwrap();
+        insert_proposal_with_context(
+            &conn,
+            "Python job",
+            "Python text",
+            None,
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
 
         update_proposal_outcome(&conn, id1, "hired").unwrap();
 
@@ -1533,7 +1639,8 @@ mod tests {
 
         insert_proposal(&conn, "Job A", "Text A", None).unwrap();
 
-        let result = search_proposals(&conn, Some("nonexistent_xyz"), None, None, None, 50, 0).unwrap();
+        let result =
+            search_proposals(&conn, Some("nonexistent_xyz"), None, None, None, 50, 0).unwrap();
 
         assert_eq!(result.total_count, 0);
         assert_eq!(result.proposals.len(), 0);
@@ -1566,14 +1673,30 @@ mod tests {
 
         let long_job = "X".repeat(500);
         let long_text = "Y".repeat(500);
-        insert_proposal_with_context(&conn, &long_job, &long_text, None, Some("social_proof"), None).unwrap();
+        insert_proposal_with_context(
+            &conn,
+            &long_job,
+            &long_text,
+            None,
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
 
         let result = search_proposals(&conn, None, None, None, None, 50, 0).unwrap();
 
         assert_eq!(result.proposals.len(), 1);
         let p = &result.proposals[0];
-        assert_eq!(p.job_excerpt.len(), 100, "job_excerpt should be truncated to 100 chars");
-        assert_eq!(p.preview_text.len(), 200, "preview_text should be truncated to 200 chars");
+        assert_eq!(
+            p.job_excerpt.len(),
+            100,
+            "job_excerpt should be truncated to 100 chars"
+        );
+        assert_eq!(
+            p.preview_text.len(),
+            200,
+            "preview_text should be truncated to 200 chars"
+        );
         assert!(!p.created_at.is_empty());
         assert_eq!(p.outcome_status, "pending");
         assert_eq!(p.hook_strategy_id.as_deref(), Some("social_proof"));
@@ -1604,12 +1727,18 @@ mod tests {
 
         // Searching "100%" should only match the literal "100%", not "100X"
         let result = search_proposals(&conn, Some("100%"), None, None, None, 50, 0).unwrap();
-        assert_eq!(result.total_count, 1, "% should be escaped: only literal '100%' matches");
+        assert_eq!(
+            result.total_count, 1,
+            "% should be escaped: only literal '100%' matches"
+        );
         assert!(result.proposals[0].job_excerpt.contains("100%"));
 
         // Searching "data_field" should only match the literal "data_field", not "dataXfield"
         let result2 = search_proposals(&conn, Some("data_field"), None, None, None, 50, 0).unwrap();
-        assert_eq!(result2.total_count, 1, "_ should be escaped: only literal 'data_field' matches");
+        assert_eq!(
+            result2.total_count, 1,
+            "_ should be escaped: only literal 'data_field' matches"
+        );
         assert!(result2.proposals[0].job_excerpt.contains("data_field"));
     }
 
@@ -1653,7 +1782,8 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        let id = insert_proposal(&conn, "Job content here", "Generated proposal text", None).unwrap();
+        let id =
+            insert_proposal(&conn, "Job content here", "Generated proposal text", None).unwrap();
 
         let detail = get_proposal_detail(&conn, id).unwrap().unwrap();
 
@@ -1715,17 +1845,26 @@ mod tests {
         conn.execute(
             "INSERT INTO job_posts (raw_content, client_name) VALUES (?1, ?2)",
             params!["Full job content here", "Acme Corp"],
-        ).unwrap();
-        let job_post_id: i64 = conn.query_row(
-            "SELECT id FROM job_posts ORDER BY id DESC LIMIT 1",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        )
+        .unwrap();
+        let job_post_id: i64 = conn
+            .query_row(
+                "SELECT id FROM job_posts ORDER BY id DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
 
         // Insert proposal linked to job post
         let id = insert_proposal_with_context(
-            &conn, "Job", "Text", None, Some("social_proof"), Some(job_post_id),
-        ).unwrap();
+            &conn,
+            "Job",
+            "Text",
+            None,
+            Some("social_proof"),
+            Some(job_post_id),
+        )
+        .unwrap();
 
         let detail = get_proposal_detail(&conn, id).unwrap().unwrap();
 
@@ -1744,21 +1883,27 @@ mod tests {
             "INSERT INTO job_posts (raw_content) VALUES (?1)",
             params!["Looking for a React developer with 5 years experience in building web applications and dashboards"],
         ).unwrap();
-        let job_post_id: i64 = conn.query_row(
-            "SELECT id FROM job_posts ORDER BY id DESC LIMIT 1",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        let job_post_id: i64 = conn
+            .query_row(
+                "SELECT id FROM job_posts ORDER BY id DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
 
-        let id = insert_proposal_with_context(
-            &conn, "Job", "Text", None, None, Some(job_post_id),
-        ).unwrap();
+        let id = insert_proposal_with_context(&conn, "Job", "Text", None, None, Some(job_post_id))
+            .unwrap();
 
         let detail = get_proposal_detail(&conn, id).unwrap().unwrap();
 
         assert_eq!(detail.job_post_id, Some(job_post_id));
         // Should be first 80 chars of raw_content
-        assert_eq!(detail.job_title.as_deref(), Some("Looking for a React developer with 5 years experience in building web applicatio"));
+        assert_eq!(
+            detail.job_title.as_deref(),
+            Some(
+                "Looking for a React developer with 5 years experience in building web applicatio"
+            )
+        );
     }
 
     #[test]
@@ -1767,7 +1912,8 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Proposal with no hook_strategy, no job_post, no revisions, no outcome update
-        let id = insert_proposal(&conn, "Simple job", "Simple proposal", Some("completed")).unwrap();
+        let id =
+            insert_proposal(&conn, "Simple job", "Simple proposal", Some("completed")).unwrap();
 
         let detail = get_proposal_detail(&conn, id).unwrap().unwrap();
 
@@ -1880,9 +2026,33 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        let id1 = insert_proposal_with_context(&conn, "J1", "T1", Some("completed"), Some("social_proof"), None).unwrap();
-        let id2 = insert_proposal_with_context(&conn, "J2", "T2", Some("completed"), Some("social_proof"), None).unwrap();
-        let id3 = insert_proposal_with_context(&conn, "J3", "T3", Some("completed"), Some("contrarian"), None).unwrap();
+        let id1 = insert_proposal_with_context(
+            &conn,
+            "J1",
+            "T1",
+            Some("completed"),
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
+        let id2 = insert_proposal_with_context(
+            &conn,
+            "J2",
+            "T2",
+            Some("completed"),
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
+        let id3 = insert_proposal_with_context(
+            &conn,
+            "J3",
+            "T3",
+            Some("completed"),
+            Some("contrarian"),
+            None,
+        )
+        .unwrap();
 
         update_proposal_outcome(&conn, id1, "hired").unwrap();
         update_proposal_outcome(&conn, id2, "hired").unwrap();
@@ -1927,7 +2097,10 @@ mod tests {
         assert_eq!(outcomes[0].outcome_status, "hired");
         assert_eq!(outcomes[0].count, 2);
         // Find pending
-        let pending = outcomes.iter().find(|o| o.outcome_status == "pending").unwrap();
+        let pending = outcomes
+            .iter()
+            .find(|o| o.outcome_status == "pending")
+            .unwrap();
         assert_eq!(pending.count, 1);
     }
 
@@ -1960,11 +2133,51 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        let id1 = insert_proposal_with_context(&conn, "J1", "T1", Some("completed"), Some("social_proof"), None).unwrap();
-        let id2 = insert_proposal_with_context(&conn, "J2", "T2", Some("completed"), Some("social_proof"), None).unwrap();
-        let id3 = insert_proposal_with_context(&conn, "J3", "T3", Some("completed"), Some("contrarian"), None).unwrap();
-        let id4 = insert_proposal_with_context(&conn, "J4", "T4", Some("completed"), Some("contrarian"), None).unwrap();
-        let id5 = insert_proposal_with_context(&conn, "J5", "T5", Some("completed"), Some("contrarian"), None).unwrap();
+        let id1 = insert_proposal_with_context(
+            &conn,
+            "J1",
+            "T1",
+            Some("completed"),
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
+        let id2 = insert_proposal_with_context(
+            &conn,
+            "J2",
+            "T2",
+            Some("completed"),
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
+        let id3 = insert_proposal_with_context(
+            &conn,
+            "J3",
+            "T3",
+            Some("completed"),
+            Some("contrarian"),
+            None,
+        )
+        .unwrap();
+        let id4 = insert_proposal_with_context(
+            &conn,
+            "J4",
+            "T4",
+            Some("completed"),
+            Some("contrarian"),
+            None,
+        )
+        .unwrap();
+        let id5 = insert_proposal_with_context(
+            &conn,
+            "J5",
+            "T5",
+            Some("completed"),
+            Some("contrarian"),
+            None,
+        )
+        .unwrap();
 
         update_proposal_outcome(&conn, id1, "hired").unwrap();
         update_proposal_outcome(&conn, id2, "hired").unwrap();
@@ -2012,8 +2225,24 @@ mod tests {
         let db = create_test_db();
         let conn = db.conn.lock().unwrap();
 
-        insert_proposal_with_context(&conn, "Draft", "Text", Some("draft"), Some("social_proof"), None).unwrap();
-        let id = insert_proposal_with_context(&conn, "Complete", "Text", Some("completed"), Some("social_proof"), None).unwrap();
+        insert_proposal_with_context(
+            &conn,
+            "Draft",
+            "Text",
+            Some("draft"),
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
+        let id = insert_proposal_with_context(
+            &conn,
+            "Complete",
+            "Text",
+            Some("completed"),
+            Some("social_proof"),
+            None,
+        )
+        .unwrap();
         update_proposal_outcome(&conn, id, "hired").unwrap();
 
         let strategies = get_response_rate_by_strategy(&conn).unwrap();
@@ -2085,7 +2314,7 @@ mod tests {
         assert_eq!(activities.len(), 1);
         assert_eq!(activities[0].proposal_count, 3); // all 3 counted
         assert_eq!(activities[0].positive_count, 1); // only hired
-        // Rate = 1/2 * 100 = 50.0 (denominator is 2 resolved, not 3 total)
+                                                     // Rate = 1/2 * 100 = 50.0 (denominator is 2 resolved, not 3 total)
         assert_eq!(activities[0].response_rate, 50.0);
     }
 

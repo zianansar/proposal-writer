@@ -1,10 +1,10 @@
 // ImportArchiveDialog — Multi-step wizard for importing encrypted .urb archives (Story 7.7)
 
-import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
-import { listen } from '@tauri-apps/api/event';
-import './ImportArchiveDialog.css';
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
+import { useState, useEffect, useCallback } from "react";
+import "./ImportArchiveDialog.css";
 
 interface ArchiveMetadata {
   formatVersion: number;
@@ -21,7 +21,7 @@ interface ArchiveMetadata {
 
 interface ImportPreview {
   metadata: ArchiveMetadata;
-  schemaCompatibility: 'compatible' | 'older' | 'newer';
+  schemaCompatibility: "compatible" | "older" | "newer";
   archiveVersion: number | null;
   currentVersion: number;
   warnings: string[];
@@ -45,8 +45,8 @@ interface ImportSummary {
   totalRecords: number;
 }
 
-type ImportStep = 'select' | 'metadata' | 'decrypt' | 'mode' | 'importing' | 'complete' | 'error';
-type ImportMode = 'replace' | 'merge';
+type ImportStep = "select" | "metadata" | "decrypt" | "mode" | "importing" | "complete" | "error";
+type ImportMode = "replace" | "merge";
 
 interface ImportArchiveDialogProps {
   onClose: () => void;
@@ -54,22 +54,22 @@ interface ImportArchiveDialogProps {
 }
 
 export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchiveDialogProps) {
-  const [step, setStep] = useState<ImportStep>('select');
-  const [archivePath, setArchivePath] = useState<string>('');
+  const [step, setStep] = useState<ImportStep>("select");
+  const [archivePath, setArchivePath] = useState<string>("");
   const [metadata, setMetadata] = useState<ArchiveMetadata | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
-  const [passphrase, setPassphrase] = useState('');
+  const [passphrase, setPassphrase] = useState("");
   const [showPassphrase, setShowPassphrase] = useState(false);
-  const [mode, setMode] = useState<ImportMode>('merge');
+  const [mode, setMode] = useState<ImportMode>("merge");
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Listen for import progress events
   useEffect(() => {
-    const unlisten = listen<ImportProgress>('import-progress', (event) => {
+    const unlisten = listen<ImportProgress>("import-progress", (event) => {
       setProgress(event.payload);
     });
 
@@ -82,34 +82,34 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
   const handleSelectFile = useCallback(async () => {
     try {
       const selected = await open({
-        title: 'Select Archive File',
-        filters: [{ name: 'Upwork Research Backup', extensions: ['urb'] }],
+        title: "Select Archive File",
+        filters: [{ name: "Upwork Research Backup", extensions: ["urb"] }],
         multiple: false,
       });
 
-      if (selected && typeof selected === 'string') {
+      if (selected && typeof selected === "string") {
         setArchivePath(selected);
         setIsProcessing(true);
-        setError('');
+        setError("");
 
         try {
           // Task 5.3: Read metadata
-          const meta = await invoke<ArchiveMetadata>('read_archive_metadata', {
+          const meta = await invoke<ArchiveMetadata>("read_archive_metadata", {
             archivePath: selected,
           });
 
           setMetadata(meta);
-          setStep('metadata');
+          setStep("metadata");
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to read archive');
-          setStep('error');
+          setError(err instanceof Error ? err.message : "Failed to read archive");
+          setStep("error");
         } finally {
           setIsProcessing(false);
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to open file picker');
-      setStep('error');
+      setError(err instanceof Error ? err.message : "Failed to open file picker");
+      setStep("error");
     }
   }, []);
 
@@ -118,18 +118,18 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
     if (!passphrase || !archivePath) return;
 
     setIsProcessing(true);
-    setError('');
+    setError("");
 
     try {
-      const previewData = await invoke<ImportPreview>('decrypt_archive', {
+      const previewData = await invoke<ImportPreview>("decrypt_archive", {
         archivePath,
         passphrase,
       });
 
       setPreview(previewData);
-      setStep('mode');
+      setStep("mode");
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Decryption failed';
+      const errorMsg = err instanceof Error ? err.message : "Decryption failed";
       setError(errorMsg);
       // Stay on decrypt step for retry
     } finally {
@@ -142,29 +142,29 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
     if (!archivePath || !passphrase) return;
 
     // Task 6.6: Validate Replace All confirmation
-    if (mode === 'replace' && !replaceConfirmed) {
-      setError('Please confirm that you understand this will delete your current data');
+    if (mode === "replace" && !replaceConfirmed) {
+      setError("Please confirm that you understand this will delete your current data");
       return;
     }
 
     setIsProcessing(true);
-    setError('');
-    setStep('importing');
+    setError("");
+    setStep("importing");
 
     try {
-      const result = await invoke<ImportSummary>('execute_import', {
+      const result = await invoke<ImportSummary>("execute_import", {
         archivePath,
         passphrase,
         mode,
       });
 
       setSummary(result);
-      setStep('complete');
+      setStep("complete");
       // Cache invalidation happens when user clicks "Done" (onImportComplete in Done handler)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Import failed';
+      const errorMsg = err instanceof Error ? err.message : "Import failed";
       setError(errorMsg);
-      setStep('error');
+      setStep("error");
     } finally {
       setIsProcessing(false);
     }
@@ -180,22 +180,32 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
 
   const getStepNumber = (): number => {
     switch (step) {
-      case 'select': return 1;
-      case 'metadata': return 2;
-      case 'decrypt': return 3;
-      case 'mode': return 4;
-      case 'importing': return 5;
-      case 'complete': return 5;
-      case 'error': return 0;
+      case "select":
+        return 1;
+      case "metadata":
+        return 2;
+      case "decrypt":
+        return 3;
+      case "mode":
+        return 4;
+      case "importing":
+        return 5;
+      case "complete":
+        return 5;
+      case "error":
+        return 0;
     }
   };
 
   return (
-    <div className="import-dialog-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="import-dialog-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="import-dialog" role="dialog" aria-labelledby="import-dialog-title">
         <div className="import-dialog-header">
           <h2 id="import-dialog-title">Import from Archive</h2>
-          {step !== 'importing' && (
+          {step !== "importing" && (
             <button
               className="import-dialog-close"
               onClick={onClose}
@@ -207,12 +217,12 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
         </div>
 
         {/* Multi-step indicator */}
-        {step !== 'error' && step !== 'complete' && (
+        {step !== "error" && step !== "complete" && (
           <div className="import-steps-indicator">
             {[1, 2, 3, 4, 5].map((num) => (
               <div
                 key={num}
-                className={`step-circle ${num <= getStepNumber() ? 'active' : ''} ${num < getStepNumber() ? 'completed' : ''}`}
+                className={`step-circle ${num <= getStepNumber() ? "active" : ""} ${num < getStepNumber() ? "completed" : ""}`}
               >
                 {num}
               </div>
@@ -222,7 +232,7 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
 
         <div className="import-dialog-content">
           {/* Step 1: File Selection */}
-          {step === 'select' && (
+          {step === "select" && (
             <div className="import-step">
               <h3>Select Archive File</h3>
               <p>Choose an encrypted .urb backup file to import.</p>
@@ -231,13 +241,13 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                 onClick={handleSelectFile}
                 disabled={isProcessing}
               >
-                {isProcessing ? 'Loading...' : 'Select Archive File'}
+                {isProcessing ? "Loading..." : "Select Archive File"}
               </button>
             </div>
           )}
 
           {/* Step 2: Metadata Display */}
-          {step === 'metadata' && metadata && (
+          {step === "metadata" && metadata && (
             <div className="import-step">
               <h3>Archive Information</h3>
               <div className="metadata-display">
@@ -281,33 +291,28 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                   )}
                 </div>
               </div>
-              <button
-                className="import-button-primary"
-                onClick={() => setStep('decrypt')}
-              >
+              <button className="import-button-primary" onClick={() => setStep("decrypt")}>
                 Next: Enter Passphrase
               </button>
             </div>
           )}
 
           {/* Step 3: Passphrase Entry & Preview */}
-          {step === 'decrypt' && (
+          {step === "decrypt" && (
             <div className="import-step">
               <h3>Decrypt Archive</h3>
               {metadata?.passphraseHint && (
-                <div className="passphrase-hint-reminder">
-                  Hint: "{metadata.passphraseHint}"
-                </div>
+                <div className="passphrase-hint-reminder">Hint: "{metadata.passphraseHint}"</div>
               )}
               <div className="passphrase-input-group">
                 <label htmlFor="import-passphrase">Archive Passphrase:</label>
                 <div className="passphrase-input-wrapper">
                   <input
                     id="import-passphrase"
-                    type={showPassphrase ? 'text' : 'password'}
+                    type={showPassphrase ? "text" : "password"}
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleDecrypt()}
+                    onKeyDown={(e) => e.key === "Enter" && handleDecrypt()}
                     placeholder="Enter passphrase"
                     autoFocus
                   />
@@ -315,9 +320,9 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                     type="button"
                     className="toggle-passphrase"
                     onClick={() => setShowPassphrase(!showPassphrase)}
-                    aria-label={showPassphrase ? 'Hide passphrase' : 'Show passphrase'}
+                    aria-label={showPassphrase ? "Hide passphrase" : "Show passphrase"}
                   >
-                    {showPassphrase ? '👁️' : '👁️‍🗨️'}
+                    {showPassphrase ? "👁️" : "👁️‍🗨️"}
                   </button>
                 </div>
               </div>
@@ -327,13 +332,13 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                 onClick={handleDecrypt}
                 disabled={!passphrase || isProcessing}
               >
-                {isProcessing ? 'Decrypting...' : 'Decrypt Archive'}
+                {isProcessing ? "Decrypting..." : "Decrypt Archive"}
               </button>
             </div>
           )}
 
           {/* Step 4: Import Mode Selection */}
-          {step === 'mode' && preview && (
+          {step === "mode" && preview && (
             <div className="import-step">
               <h3>Import Preview</h3>
 
@@ -341,7 +346,9 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
               {preview.warnings.length > 0 && (
                 <div className="compatibility-warnings">
                   {preview.warnings.map((warning, idx) => (
-                    <div key={idx} className="warning-item">{warning}</div>
+                    <div key={idx} className="warning-item">
+                      {warning}
+                    </div>
                   ))}
                 </div>
               )}
@@ -349,43 +356,45 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
               <h4>Choose Import Mode</h4>
               <div className="import-modes">
                 {/* Task 6.5: Merge mode */}
-                <label className={`mode-card ${mode === 'merge' ? 'selected' : ''}`}>
+                <label className={`mode-card ${mode === "merge" ? "selected" : ""}`}>
                   <input
                     type="radio"
                     name="import-mode"
                     value="merge"
-                    checked={mode === 'merge'}
+                    checked={mode === "merge"}
                     onChange={() => {
-                      setMode('merge');
+                      setMode("merge");
                       setReplaceConfirmed(false);
                     }}
                   />
                   <div className="mode-icon">🔀</div>
                   <div className="mode-title">Merge (Skip Duplicates)</div>
                   <div className="mode-description">
-                    Add archive data alongside current data. Existing records and settings are kept; only new records are added.
+                    Add archive data alongside current data. Existing records and settings are kept;
+                    only new records are added.
                   </div>
                 </label>
 
                 {/* Task 6.5: Replace All mode */}
-                <label className={`mode-card ${mode === 'replace' ? 'selected' : ''}`}>
+                <label className={`mode-card ${mode === "replace" ? "selected" : ""}`}>
                   <input
                     type="radio"
                     name="import-mode"
                     value="replace"
-                    checked={mode === 'replace'}
-                    onChange={() => setMode('replace')}
+                    checked={mode === "replace"}
+                    onChange={() => setMode("replace")}
                   />
                   <div className="mode-icon">🔄</div>
                   <div className="mode-title">Replace All</div>
                   <div className="mode-description">
-                    Delete current data and replace with archive. A backup of your current data will be created first.
+                    Delete current data and replace with archive. A backup of your current data will
+                    be created first.
                   </div>
                 </label>
               </div>
 
               {/* Task 6.6: Replace All confirmation */}
-              {mode === 'replace' && (
+              {mode === "replace" && (
                 <div className="replace-confirmation">
                   <label className="confirmation-checkbox">
                     <input
@@ -408,15 +417,15 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
               <button
                 className="import-button-primary"
                 onClick={handleImport}
-                disabled={isProcessing || (mode === 'replace' && !replaceConfirmed)}
+                disabled={isProcessing || (mode === "replace" && !replaceConfirmed)}
               >
-                {isProcessing ? 'Starting Import...' : 'Start Import'}
+                {isProcessing ? "Starting Import..." : "Start Import"}
               </button>
             </div>
           )}
 
           {/* Step 5: Import Progress */}
-          {step === 'importing' && (
+          {step === "importing" && (
             <div className="import-step">
               <h3>Importing Data</h3>
               {progress && (
@@ -427,7 +436,9 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                   <div className="progress-bar">
                     <div
                       className="progress-fill"
-                      style={{ width: `${Math.round((progress.current / Math.max(progress.total, 1)) * 100)}%` }}
+                      style={{
+                        width: `${Math.round((progress.current / Math.max(progress.total, 1)) * 100)}%`,
+                      }}
                     />
                   </div>
                   <div className="progress-count">
@@ -440,7 +451,7 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
           )}
 
           {/* Step 6: Complete */}
-          {step === 'complete' && summary && (
+          {step === "complete" && summary && (
             <div className="import-step">
               <h3 className="success-title">✅ Import Complete</h3>
               <div className="import-summary">
@@ -490,7 +501,7 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
           )}
 
           {/* Error State */}
-          {step === 'error' && (
+          {step === "error" && (
             <div className="import-step">
               <h3 className="error-title">❌ Import Failed</h3>
               <div className="error-message">{error}</div>
@@ -501,7 +512,7 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                   <button
                     className="import-button-primary"
                     onClick={() => {
-                      setError('');
+                      setError("");
                       handleImport();
                     }}
                   >
@@ -511,20 +522,17 @@ export function ImportArchiveDialog({ onClose, onImportComplete }: ImportArchive
                 <button
                   className="import-button-secondary"
                   onClick={() => {
-                    setStep('select');
-                    setError('');
-                    setArchivePath('');
+                    setStep("select");
+                    setError("");
+                    setArchivePath("");
                     setMetadata(null);
                     setPreview(null);
-                    setPassphrase('');
+                    setPassphrase("");
                   }}
                 >
                   Start Over
                 </button>
-                <button
-                  className="import-button-secondary"
-                  onClick={onClose}
-                >
+                <button className="import-button-secondary" onClick={onClose}>
                   Cancel
                 </button>
               </div>

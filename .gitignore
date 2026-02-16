@@ -99,6 +99,9 @@ secrets/
 credentials.json
 config/secrets.yml
 
+# Tauri signing keys (Story 9.6)
+.tauri/
+
 # Build outputs
 dist/
 build/

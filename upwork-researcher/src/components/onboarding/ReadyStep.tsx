@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
+
 import { useOnboardingStore } from "../../stores/useOnboardingStore";
 
 function ReadyStep() {
@@ -36,11 +37,7 @@ function ReadyStep() {
         Paste a job post to get started with your first proposal.
       </p>
 
-      {saveError && (
-        <p className="onboarding-step__error">
-          {saveError}
-        </p>
-      )}
+      {saveError && <p className="onboarding-step__error">{saveError}</p>}
 
       <div className="onboarding-step__actions">
         <button

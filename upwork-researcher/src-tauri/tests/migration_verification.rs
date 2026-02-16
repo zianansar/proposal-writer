@@ -10,8 +10,7 @@ use upwork_research_agent_lib::migration;
 
 /// Helper: Create test database with data
 fn create_test_database(db_path: &PathBuf) -> Database {
-    let db = Database::new(db_path.clone(), None)
-        .expect("Failed to create test database");
+    let db = Database::new(db_path.clone(), None).expect("Failed to create test database");
 
     // Insert test data
     let conn = db.conn.lock().unwrap();
@@ -79,7 +78,9 @@ fn test_get_migration_verification_constructs_correct_paths() {
         .expect("Failed to get verification data");
 
     // Check old_db_path contains expected filename
-    assert!(verification.old_db_path.contains("upwork-researcher.db.old"));
+    assert!(verification
+        .old_db_path
+        .contains("upwork-researcher.db.old"));
 
     // Check backup_path contains expected directory
     assert!(verification.backup_path.contains("backups"));
@@ -218,8 +219,7 @@ fn test_old_database_remains_if_keep_both() {
     let old_db_path = temp_dir.path().join("keep-both-test.db.old");
 
     // Create old database file
-    fs::write(&old_db_path, b"DATABASE TO KEEP")
-        .expect("Failed to create old database file");
+    fs::write(&old_db_path, b"DATABASE TO KEEP").expect("Failed to create old database file");
 
     // Verify file exists
     assert!(old_db_path.exists());
@@ -250,8 +250,7 @@ fn test_e2e_verification_delete_flow() {
     let db = create_test_database(&db_path);
 
     // Setup: Create .old file (simulating post-migration state)
-    fs::write(&old_db_path, b"OLD UNENCRYPTED DATA")
-        .expect("Failed to create old database");
+    fs::write(&old_db_path, b"OLD UNENCRYPTED DATA").expect("Failed to create old database");
 
     // Step 1: Get verification data
     let verification = migration::get_migration_verification(&db, temp_dir.path())

@@ -7,12 +7,13 @@
 // - Playwright browser automation
 // - Mocked Claude API with realistic latency
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import { NFR_THRESHOLDS } from './config';
-import { measureTiming, assertTiming } from './helpers/timing';
-import { mockClaudeAPIWithLatency } from './helpers/apiMocks';
+import { describe, it, expect, beforeAll } from "vitest";
 
-describe('NFR-5 & NFR-6: Generation Performance', () => {
+import { NFR_THRESHOLDS } from "./config";
+import { mockClaudeAPIWithLatency } from "./helpers/apiMocks";
+import { measureTiming, assertTiming } from "./helpers/timing";
+
+describe("NFR-5 & NFR-6: Generation Performance", () => {
   beforeAll(async () => {
     // TODO: Set up API mocking once E2E infrastructure is ready
     //
@@ -28,7 +29,7 @@ describe('NFR-5 & NFR-6: Generation Performance', () => {
     // });
   });
 
-  it.skip('shows first token in <1.5s (NFR-5)', async () => {
+  it.skip("shows first token in <1.5s (NFR-5)", async () => {
     // TODO: Implement once Story 8.9 E2E infrastructure is ready
     //
     // Implementation plan:
@@ -52,11 +53,11 @@ describe('NFR-5 & NFR-6: Generation Performance', () => {
     // );
     // assertTiming(result);
 
-    console.log('[PERF] First token benchmark requires E2E infrastructure (Story 8.9)');
+    console.log("[PERF] First token benchmark requires E2E infrastructure (Story 8.9)");
     expect(true).toBe(true); // Placeholder
   });
 
-  it.skip('completes generation in <8s (NFR-6)', async () => {
+  it.skip("completes generation in <8s (NFR-6)", async () => {
     // TODO: Implement once Story 8.9 E2E infrastructure is ready
     //
     // Implementation plan:
@@ -85,11 +86,11 @@ describe('NFR-5 & NFR-6: Generation Performance', () => {
     // );
     // assertTiming(result);
 
-    console.log('[PERF] Full generation benchmark requires E2E infrastructure (Story 8.9)');
+    console.log("[PERF] Full generation benchmark requires E2E infrastructure (Story 8.9)");
     expect(true).toBe(true); // Placeholder
   });
 
-  it.skip('streaming performance is consistent', async () => {
+  it.skip("streaming performance is consistent", async () => {
     // Verify streaming rate stays consistent:
     // - No long pauses between tokens
     // - Smooth visual updates
@@ -97,11 +98,11 @@ describe('NFR-5 & NFR-6: Generation Performance', () => {
     //
     // Measure token receive rate over time
 
-    console.log('[PERF] Streaming consistency benchmark requires E2E infrastructure');
+    console.log("[PERF] Streaming consistency benchmark requires E2E infrastructure");
     expect(true).toBe(true); // Placeholder
   });
 
-  it.skip('generation scales with proposal length', async () => {
+  it.skip("generation scales with proposal length", async () => {
     // Test generation with different lengths:
     // - Short (150 tokens) - should be ~4s
     // - Medium (300 tokens) - should be ~7s
@@ -109,7 +110,7 @@ describe('NFR-5 & NFR-6: Generation Performance', () => {
     //
     // Verify timing scales linearly with token count
 
-    console.log('[PERF] Scaling benchmark requires E2E infrastructure');
+    console.log("[PERF] Scaling benchmark requires E2E infrastructure");
     expect(true).toBe(true); // Placeholder
   });
 });

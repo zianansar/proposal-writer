@@ -1,8 +1,8 @@
 // Network allowlist enforcement module
 // Implements AR-14: Dual-layer network security (Rust-side domain validation)
 
-use thiserror::Error;
 use tauri::{AppHandle, Emitter, Manager};
+use thiserror::Error;
 
 /// Allowlisted domains for network requests.
 /// SYNC REQUIRED: This list MUST match the `connect-src` directive in
@@ -45,11 +45,12 @@ pub fn validate_url(url: &str) -> Result<(), NetworkError> {
     // Runtime enforcement comes from CSP in the WebView layer.
 
     // Parse URL
-    let parsed = url::Url::parse(url)
-        .map_err(|e| NetworkError::InvalidUrl(format!("{}: {}", e, url)))?;
+    let parsed =
+        url::Url::parse(url).map_err(|e| NetworkError::InvalidUrl(format!("{}: {}", e, url)))?;
 
     // Extract host
-    let host = parsed.host_str()
+    let host = parsed
+        .host_str()
         .ok_or_else(|| NetworkError::InvalidUrl(format!("No host in URL: {}", url)))?;
 
     // Check against allowlist
@@ -70,7 +71,10 @@ pub fn validate_url(url: &str) -> Result<(), NetworkError> {
             domain = %host,
             "Blocked non-HTTPS request - downgrade attack prevention"
         );
-        return Err(NetworkError::BlockedDomain(format!("{}:// not allowed (HTTPS required)", scheme)));
+        return Err(NetworkError::BlockedDomain(format!(
+            "{}:// not allowed (HTTPS required)",
+            scheme
+        )));
     }
 
     Ok(())
@@ -103,7 +107,9 @@ pub fn emit_blocked_event(app_handle: &AppHandle, domain: String, url: String) {
     if let Some(blocked_state) = app_handle.try_state::<crate::BlockedRequestsState>() {
         blocked_state.add(domain, url);
     } else {
-        tracing::error!("BlockedRequestsState not registered in app state - blocked request not recorded");
+        tracing::error!(
+            "BlockedRequestsState not registered in app state - blocked request not recorded"
+        );
     }
 }
 
@@ -163,8 +169,12 @@ mod tests {
     #[test]
     fn test_validate_url_with_path_and_query() {
         // AC: allowlisted domain with complex path/query should pass
-        let result = validate_url("https://api.anthropic.com/v1/messages?model=claude-3-5-sonnet-20241022");
-        assert!(result.is_ok(), "Anthropic API with query params should be allowed");
+        let result =
+            validate_url("https://api.anthropic.com/v1/messages?model=claude-3-5-sonnet-20241022");
+        assert!(
+            result.is_ok(),
+            "Anthropic API with query params should be allowed"
+        );
     }
 
     #[test]
@@ -179,6 +189,9 @@ mod tests {
         // Task 3.4: Sanity check that ANTHROPIC_API_URL constant passes validation
         const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
         let result = validate_url(ANTHROPIC_API_URL);
-        assert!(result.is_ok(), "ANTHROPIC_API_URL constant should pass validation");
+        assert!(
+            result.is_ok(),
+            "ANTHROPIC_API_URL constant should pass validation"
+        );
     }
 }

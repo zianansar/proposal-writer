@@ -1,6 +1,6 @@
 // Database seeding utilities for performance benchmarks
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 export interface SeedOptions {
   proposals?: number;
@@ -19,15 +19,15 @@ export async function seedDatabase(options: SeedOptions = {}): Promise<void> {
 
   // Seed proposals
   if (proposalCount > 0) {
-    await invoke('seed_proposals', { count: proposalCount });
+    await invoke("seed_proposals", { count: proposalCount });
   }
 
   // Seed job posts
   if (jobCount > 0) {
-    await invoke('seed_job_posts', { count: jobCount });
+    await invoke("seed_job_posts", { count: jobCount });
   }
 
-  console.log('[PERF] Database seeding complete');
+  console.log("[PERF] Database seeding complete");
 }
 
 /**
@@ -35,7 +35,7 @@ export async function seedDatabase(options: SeedOptions = {}): Promise<void> {
  * Use with caution - only for test databases
  */
 export async function clearDatabase(): Promise<void> {
-  console.log('[PERF] Clearing database');
-  await invoke('clear_test_data');
-  console.log('[PERF] Database cleared');
+  console.log("[PERF] Clearing database");
+  await invoke("clear_test_data");
+  console.log("[PERF] Database cleared");
 }

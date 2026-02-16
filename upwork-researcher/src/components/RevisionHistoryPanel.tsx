@@ -1,12 +1,13 @@
 // src/components/RevisionHistoryPanel.tsx
 // Revision history UI for viewing and restoring previous versions (Story 6.3)
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import DOMPurify from 'dompurify';
-import type { RevisionSummary, ProposalRevision, ArchivedRevision } from '../types/revisions';
-import { formatRelativeTime } from '../utils/dateUtils';
-import './RevisionHistoryPanel.css';
+import { invoke } from "@tauri-apps/api/core";
+import DOMPurify from "dompurify";
+import { useState, useEffect, useCallback, useRef } from "react";
+
+import type { RevisionSummary, ProposalRevision, ArchivedRevision } from "../types/revisions";
+import { formatRelativeTime } from "../utils/dateUtils";
+import "./RevisionHistoryPanel.css";
 
 interface Props {
   proposalId: number;
@@ -39,7 +40,7 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
   useEffect(() => {
     async function loadRevisions() {
       try {
-        const data = await invoke<RevisionSummary[]>('get_proposal_revisions', { proposalId });
+        const data = await invoke<RevisionSummary[]>("get_proposal_revisions", { proposalId });
         setRevisions(data);
       } catch (err) {
         setError(err as string);
@@ -54,10 +55,10 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
   useEffect(() => {
     async function loadArchived() {
       try {
-        const data = await invoke<ArchivedRevision[]>('get_archived_revisions', { proposalId });
+        const data = await invoke<ArchivedRevision[]>("get_archived_revisions", { proposalId });
         setArchivedRevisions(data);
       } catch (err) {
-        console.error('Failed to load archived revisions:', err);
+        console.error("Failed to load archived revisions:", err);
       }
     }
     loadArchived();
@@ -66,7 +67,7 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
   // Body scroll lock when panel is open (L1)
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = originalOverflow;
     };
@@ -75,12 +76,12 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
   // Handle Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         handleClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleClose]);
 
   // Load full revision content for preview
@@ -88,7 +89,7 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
   const handleSelectRevision = useCallback(async (revisionId: number) => {
     try {
       setSelectedArchived(null); // Clear archived selection to prevent dual preview
-      const revision = await invoke<ProposalRevision>('get_revision_content', { revisionId });
+      const revision = await invoke<ProposalRevision>("get_revision_content", { revisionId });
       setSelectedRevision(revision);
     } catch (err) {
       setError(err as string);
@@ -100,12 +101,12 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
     if (!selectedRevision) return;
 
     const confirmed = window.confirm(
-      'Restore this version? A new revision will be created with the restored content.'
+      "Restore this version? A new revision will be created with the restored content.",
     );
     if (!confirmed) return;
 
     try {
-      await invoke('restore_revision', {
+      await invoke("restore_revision", {
         proposalId,
         sourceRevisionId: selectedRevision.id,
       });
@@ -120,16 +121,16 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
   const handleRestoreArchived = useCallback(async () => {
     if (!selectedArchived) return;
 
-    const index = archivedRevisions.findIndex(r => r.id === selectedArchived.id);
+    const index = archivedRevisions.findIndex((r) => r.id === selectedArchived.id);
     if (index === -1) return;
 
     const confirmed = window.confirm(
-      'Restore this archived version? A new revision will be created.'
+      "Restore this archived version? A new revision will be created.",
     );
     if (!confirmed) return;
 
     try {
-      await invoke('restore_archived_revision', {
+      await invoke("restore_archived_revision", {
         proposalId,
         archivedIndex: index,
       });
@@ -143,7 +144,27 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
   // Sanitize HTML content to prevent XSS (H1 fix)
   const sanitizeHtml = useCallback((html: string): string => {
     return DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre'],
+      ALLOWED_TAGS: [
+        "p",
+        "br",
+        "strong",
+        "em",
+        "b",
+        "i",
+        "u",
+        "ul",
+        "ol",
+        "li",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "blockquote",
+        "code",
+        "pre",
+      ],
       ALLOWED_ATTR: [],
     });
   }, []);
@@ -151,10 +172,17 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
   const showWarning = revisions.length > 5;
 
   return (
-    <div className="revision-history-panel" role="dialog" aria-label="Revision History" ref={panelRef}>
+    <div
+      className="revision-history-panel"
+      role="dialog"
+      aria-label="Revision History"
+      ref={panelRef}
+    >
       <div className="revision-history-header">
         <h2>Revision History</h2>
-        <button onClick={handleClose} className="close-button" aria-label="Close history panel">×</button>
+        <button onClick={handleClose} className="close-button" aria-label="Close history panel">
+          ×
+        </button>
       </div>
 
       {showWarning && (
@@ -178,13 +206,13 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
           {revisions.map((rev, index) => (
             <button
               key={rev.id}
-              className={`revision-item ${selectedRevision?.id === rev.id ? 'selected' : ''}`}
+              className={`revision-item ${selectedRevision?.id === rev.id ? "selected" : ""}`}
               onClick={() => handleSelectRevision(rev.id)}
             >
               <span className="revision-time">{formatRelativeTime(rev.createdAt)}</span>
               <span className="revision-type">
-                {index === 0 ? 'Current' : rev.revisionType}
-                {rev.revisionType === 'restore' && ' (restored)'}
+                {index === 0 ? "Current" : rev.revisionType}
+                {rev.revisionType === "restore" && " (restored)"}
               </span>
               <span className="revision-preview">{rev.contentPreview}...</span>
             </button>
@@ -198,8 +226,11 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
                 onClick={() => setArchivedExpanded(!archivedExpanded)}
               >
                 <span className="archive-icon">📦</span>
-                <span>{archivedRevisions.length} archived revision{archivedRevisions.length !== 1 ? 's' : ''}</span>
-                <span className="expand-icon">{archivedExpanded ? '▼' : '▶'}</span>
+                <span>
+                  {archivedRevisions.length} archived revision
+                  {archivedRevisions.length !== 1 ? "s" : ""}
+                </span>
+                <span className="expand-icon">{archivedExpanded ? "▼" : "▶"}</span>
               </button>
 
               {archivedExpanded && (
@@ -207,7 +238,7 @@ export function RevisionHistoryPanel({ proposalId, onRestore, onClose, onFocusEd
                   {archivedRevisions.map((rev) => (
                     <button
                       key={rev.id}
-                      className={`revision-item archived ${selectedArchived?.id === rev.id ? 'selected' : ''}`}
+                      className={`revision-item archived ${selectedArchived?.id === rev.id ? "selected" : ""}`}
                       onClick={() => {
                         setSelectedRevision(null); // M1 fix: Clear active selection to prevent dual preview
                         setSelectedArchived(rev);

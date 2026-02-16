@@ -3,9 +3,10 @@
  * Uses TanStack Query's useInfiniteQuery for pagination
  */
 
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { invoke } from '@tauri-apps/api/core';
-import type { JobQueueResponse, SortField, ScoreFilter } from '../types';
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { invoke } from "@tauri-apps/api/core";
+
+import type { JobQueueResponse, SortField, ScoreFilter } from "../types";
 
 interface UseInfiniteJobQueueParams {
   sortBy: SortField;
@@ -17,15 +18,11 @@ interface UseInfiniteJobQueueParams {
  * Infinite scroll job queue hook
  * AC-9: Automatically loads next page when user scrolls near bottom
  */
-export function useInfiniteJobQueue({
-  sortBy,
-  filter,
-  limit = 50,
-}: UseInfiniteJobQueueParams) {
+export function useInfiniteJobQueue({ sortBy, filter, limit = 50 }: UseInfiniteJobQueueParams) {
   return useInfiniteQuery({
-    queryKey: ['jobQueue', 'infinite', sortBy, filter],
+    queryKey: ["jobQueue", "infinite", sortBy, filter],
     queryFn: async ({ pageParam = 0 }) => {
-      const response = await invoke<JobQueueResponse>('get_job_queue', {
+      const response = await invoke<JobQueueResponse>("get_job_queue", {
         sortBy,
         filter,
         limit,

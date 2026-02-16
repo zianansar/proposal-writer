@@ -114,8 +114,8 @@ pub fn cleanup_old_logs(logs_dir: &Path) -> Result<usize, String> {
     let now = SystemTime::now();
     let mut deleted_count = 0;
 
-    let entries = fs::read_dir(logs_dir)
-        .map_err(|e| format!("Failed to read logs directory: {}", e))?;
+    let entries =
+        fs::read_dir(logs_dir).map_err(|e| format!("Failed to read logs directory: {}", e))?;
 
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
@@ -234,7 +234,10 @@ mod tests {
 
         // Create a recent log file
         let log_file = logs_dir.join("app-2026-02-04.log");
-        File::create(&log_file).unwrap().write_all(b"test log").unwrap();
+        File::create(&log_file)
+            .unwrap()
+            .write_all(b"test log")
+            .unwrap();
 
         let deleted = cleanup_old_logs(&logs_dir).unwrap();
 
@@ -250,11 +253,18 @@ mod tests {
 
         // Create a log file
         let log_file = logs_dir.join("app-2026-01-01.log");
-        File::create(&log_file).unwrap().write_all(b"old log").unwrap();
+        File::create(&log_file)
+            .unwrap()
+            .write_all(b"old log")
+            .unwrap();
 
         // Set file modification time to 8 days ago
         let eight_days_ago = SystemTime::now() - Duration::from_secs(8 * 24 * 60 * 60);
-        filetime::set_file_mtime(&log_file, filetime::FileTime::from_system_time(eight_days_ago)).unwrap();
+        filetime::set_file_mtime(
+            &log_file,
+            filetime::FileTime::from_system_time(eight_days_ago),
+        )
+        .unwrap();
 
         let deleted = cleanup_old_logs(&logs_dir).unwrap();
 
@@ -271,13 +281,24 @@ mod tests {
         // Create non-log files
         let txt_file = logs_dir.join("readme.txt");
         let json_file = logs_dir.join("config.json");
-        File::create(&txt_file).unwrap().write_all(b"readme").unwrap();
+        File::create(&txt_file)
+            .unwrap()
+            .write_all(b"readme")
+            .unwrap();
         File::create(&json_file).unwrap().write_all(b"{}").unwrap();
 
         // Set files to old dates
         let eight_days_ago = SystemTime::now() - Duration::from_secs(8 * 24 * 60 * 60);
-        filetime::set_file_mtime(&txt_file, filetime::FileTime::from_system_time(eight_days_ago)).unwrap();
-        filetime::set_file_mtime(&json_file, filetime::FileTime::from_system_time(eight_days_ago)).unwrap();
+        filetime::set_file_mtime(
+            &txt_file,
+            filetime::FileTime::from_system_time(eight_days_ago),
+        )
+        .unwrap();
+        filetime::set_file_mtime(
+            &json_file,
+            filetime::FileTime::from_system_time(eight_days_ago),
+        )
+        .unwrap();
 
         let deleted = cleanup_old_logs(&logs_dir).unwrap();
 

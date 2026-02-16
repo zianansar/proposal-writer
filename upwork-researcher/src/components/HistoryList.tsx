@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect, useRef } from "react";
+
 import { useArrowKeyNavigation } from "../hooks/useArrowKeyNavigation";
+
 import HistoryItem, { type ProposalSummary } from "./HistoryItem";
 
 function HistoryList() {
@@ -40,11 +42,7 @@ function HistoryList() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="history-list history-list--loading">
-        Loading proposals...
-      </div>
-    );
+    return <div className="history-list history-list--loading">Loading proposals...</div>;
   }
 
   if (error) {

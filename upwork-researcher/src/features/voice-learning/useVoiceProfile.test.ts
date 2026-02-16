@@ -1,14 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { useVoiceProfile } from './useVoiceProfile';
-import type { VoiceProfile } from './types';
+import { renderHook, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import type { VoiceProfile } from "./types";
+import { useVoiceProfile } from "./useVoiceProfile";
 
 // Mock Tauri API
-vi.mock('@tauri-apps/api/core', () => ({
+vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 const mockProfile: VoiceProfile = {
   tone_score: 6,
@@ -25,15 +26,15 @@ const mockProfile: VoiceProfile = {
     "I can deliver within your timeline",
   ],
   sample_count: 5,
-  calibration_source: 'GoldenSet',
+  calibration_source: "GoldenSet",
 };
 
-describe('useVoiceProfile', () => {
+describe("useVoiceProfile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('loads profile from database on mount', async () => {
+  it("loads profile from database on mount", async () => {
     vi.mocked(invoke).mockResolvedValue(mockProfile);
 
     const { result } = renderHook(() => useVoiceProfile());
@@ -46,10 +47,10 @@ describe('useVoiceProfile', () => {
 
     expect(result.current.profile).toEqual(mockProfile);
     expect(result.current.error).toBe(null);
-    expect(invoke).toHaveBeenCalledWith('get_voice_profile');
+    expect(invoke).toHaveBeenCalledWith("get_voice_profile");
   });
 
-  it('handles null profile (no calibration yet)', async () => {
+  it("handles null profile (no calibration yet)", async () => {
     vi.mocked(invoke).mockResolvedValue(null);
 
     const { result } = renderHook(() => useVoiceProfile());
@@ -62,8 +63,8 @@ describe('useVoiceProfile', () => {
     expect(result.current.error).toBe(null);
   });
 
-  it('handles errors gracefully', async () => {
-    const errorMessage = 'Database connection failed';
+  it("handles errors gracefully", async () => {
+    const errorMessage = "Database connection failed";
     vi.mocked(invoke).mockRejectedValue(errorMessage);
 
     const { result } = renderHook(() => useVoiceProfile());
@@ -76,7 +77,7 @@ describe('useVoiceProfile', () => {
     expect(result.current.error).toBe(errorMessage);
   });
 
-  it('refetch reloads profile data', async () => {
+  it("refetch reloads profile data", async () => {
     vi.mocked(invoke).mockResolvedValue(mockProfile);
 
     const { result } = renderHook(() => useVoiceProfile());
@@ -100,7 +101,7 @@ describe('useVoiceProfile', () => {
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 
-  it('sets loading to false after refetch completes', async () => {
+  it("sets loading to false after refetch completes", async () => {
     vi.mocked(invoke).mockResolvedValue(mockProfile);
 
     const { result } = renderHook(() => useVoiceProfile());
@@ -116,13 +117,13 @@ describe('useVoiceProfile', () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it('clears error on successful refetch', async () => {
-    vi.mocked(invoke).mockRejectedValueOnce('Initial error');
+  it("clears error on successful refetch", async () => {
+    vi.mocked(invoke).mockRejectedValueOnce("Initial error");
 
     const { result } = renderHook(() => useVoiceProfile());
 
     await waitFor(() => {
-      expect(result.current.error).toBe('Initial error');
+      expect(result.current.error).toBe("Initial error");
     });
 
     vi.mocked(invoke).mockResolvedValue(mockProfile);

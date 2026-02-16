@@ -1,17 +1,23 @@
 // ProposalHistoryList component for Story 8.7 + Story 7.2 + Story 7.3
 // Virtualized list with infinite scroll, search, and filters
-import { useEffect, useState, useCallback } from 'react';
-import { VirtualizedList, VirtualizedListSkeleton, useInfiniteScroll } from '../../lib/virtualization';
-import { ProposalHistoryCard } from './ProposalHistoryCard';
-import { SearchFilterBar } from './SearchFilterBar';
-import { DatabaseExportButton } from './DatabaseExportButton'; // Story 7.6
-import { useSearchProposals, DEFAULT_FILTERS, hasActiveFilters } from './useSearchProposals';
-import { useHookStrategies } from './useHookStrategies';
-import { useUpdateProposalOutcome } from './useUpdateProposalOutcome';
-import type { ProposalFilters } from './useSearchProposals';
-import type { ProposalListItem } from './types';
-import type { OutcomeStatus } from './useUpdateProposalOutcome';
-import './ProposalHistoryList.css';
+import { useEffect, useState, useCallback } from "react";
+
+import {
+  VirtualizedList,
+  VirtualizedListSkeleton,
+  useInfiniteScroll,
+} from "../../lib/virtualization";
+
+import { DatabaseExportButton } from "./DatabaseExportButton"; // Story 7.6
+import { ProposalHistoryCard } from "./ProposalHistoryCard";
+import { SearchFilterBar } from "./SearchFilterBar";
+import type { ProposalListItem } from "./types";
+import { useHookStrategies } from "./useHookStrategies";
+import { useSearchProposals, DEFAULT_FILTERS, hasActiveFilters } from "./useSearchProposals";
+import type { ProposalFilters } from "./useSearchProposals";
+import { useUpdateProposalOutcome } from "./useUpdateProposalOutcome";
+import type { OutcomeStatus } from "./useUpdateProposalOutcome";
+import "./ProposalHistoryList.css";
 
 // Layout constants
 const SIDEBAR_WIDTH = 240;
@@ -24,7 +30,7 @@ const TOAST_SUCCESS_MS = 3000;
 const TOAST_ERROR_MS = 5000;
 
 interface ToastState {
-  type: 'success' | 'error';
+  type: "success" | "error";
   message: string;
 }
 
@@ -43,8 +49,11 @@ interface ProposalHistoryListProps {
 export function ProposalHistoryList({ onProposalSelect }: ProposalHistoryListProps = {}) {
   // Window dimensions for responsive sizing
   const [dimensions, setDimensions] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth - SIDEBAR_WIDTH : DEFAULT_WIDTH,
-    height: typeof window !== 'undefined' ? window.innerHeight - HEADER_HEIGHT - FILTER_BAR_HEIGHT : DEFAULT_HEIGHT,
+    width: typeof window !== "undefined" ? window.innerWidth - SIDEBAR_WIDTH : DEFAULT_WIDTH,
+    height:
+      typeof window !== "undefined"
+        ? window.innerHeight - HEADER_HEIGHT - FILTER_BAR_HEIGHT
+        : DEFAULT_HEIGHT,
   });
 
   useEffect(() => {
@@ -55,10 +64,10 @@ export function ProposalHistoryList({ onProposalSelect }: ProposalHistoryListPro
       });
     };
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleResize);
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", handleResize);
       handleResize();
-      return () => window.removeEventListener('resize', handleResize);
+      return () => window.removeEventListener("resize", handleResize);
     }
   }, []);
 
@@ -66,13 +75,8 @@ export function ProposalHistoryList({ onProposalSelect }: ProposalHistoryListPro
   const [filters, setFilters] = useState<ProposalFilters>(DEFAULT_FILTERS);
 
   // Story 7.3: Search/filter query (backward compatible — empty filters = same as useProposalHistory)
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useSearchProposals(filters);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useSearchProposals(filters);
 
   // Story 7.3: Fetch distinct hook strategies for filter dropdown
   const { data: hookStrategies } = useHookStrategies();
@@ -84,7 +88,7 @@ export function ProposalHistoryList({ onProposalSelect }: ProposalHistoryListPro
   // Story 7.2 AC-2/AC-5: Toast auto-dismiss
   useEffect(() => {
     if (!toast) return;
-    const ms = toast.type === 'success' ? TOAST_SUCCESS_MS : TOAST_ERROR_MS;
+    const ms = toast.type === "success" ? TOAST_SUCCESS_MS : TOAST_ERROR_MS;
     const timeoutId = setTimeout(() => setToast(null), ms);
     return () => clearTimeout(timeoutId);
   }, [toast]);
@@ -96,23 +100,23 @@ export function ProposalHistoryList({ onProposalSelect }: ProposalHistoryListPro
         { proposalId, outcomeStatus },
         {
           onSuccess: () => {
-            const label = outcomeStatus.replace(/_/g, ' ');
-            setToast({ type: 'success', message: `Outcome updated to '${label}'` });
+            const label = outcomeStatus.replace(/_/g, " ");
+            setToast({ type: "success", message: `Outcome updated to '${label}'` });
           },
           onError: (error) => {
-            setToast({ type: 'error', message: error.message || 'Failed to update outcome' });
+            setToast({ type: "error", message: error.message || "Failed to update outcome" });
           },
-        }
+        },
       );
     },
-    [updateOutcomeMutate]
+    [updateOutcomeMutate],
   );
 
   // Story 7.3: Handle filter changes (CR R2 L-1: setFilters is already stable)
   const handleFilterChange = setFilters;
 
   // Flatten all pages into single array
-  const allProposals: ProposalListItem[] = data?.pages.flatMap(page => page.proposals) ?? [];
+  const allProposals: ProposalListItem[] = data?.pages.flatMap((page) => page.proposals) ?? [];
 
   // Total count from first page
   const totalCount = data?.pages[0]?.totalCount ?? 0;

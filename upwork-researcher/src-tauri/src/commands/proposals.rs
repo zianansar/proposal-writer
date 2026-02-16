@@ -2,8 +2,8 @@
 //!
 //! Provides Tauri commands for querying proposal history with pagination and virtualization support.
 
-use crate::db::AppDatabase;
 use crate::db::queries::proposals::ProposalListItem;
+use crate::db::AppDatabase;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -26,12 +26,11 @@ fn query_proposal_history_internal(
     offset: u32,
 ) -> Result<ProposalHistoryResponse, String> {
     // Count total proposals
-    let total_count: u32 = conn
-        .query_row("SELECT COUNT(*) as count FROM proposals", [], |row| {
+    let total_count: u32 =
+        conn.query_row("SELECT COUNT(*) as count FROM proposals", [], |row| {
             row.get::<_, i64>(0)
         })
-        .map_err(|e| format!("Failed to count proposals: {}", e))?
-        as u32;
+        .map_err(|e| format!("Failed to count proposals: {}", e))? as u32;
 
     // AC-6: Select ONLY lightweight columns (NOT generated_text, full_job_content, revision_history)
     // AC-4: Use indexed created_at column with DESC order
@@ -242,8 +241,12 @@ pub async fn update_proposal_outcome(
         .lock()
         .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
 
-    crate::db::queries::proposals::update_proposal_outcome(&conn_guard, proposal_id, &outcome_status)
-        .map_err(|e| format!("Failed to update proposal outcome: {}", e))
+    crate::db::queries::proposals::update_proposal_outcome(
+        &conn_guard,
+        proposal_id,
+        &outcome_status,
+    )
+    .map_err(|e| format!("Failed to update proposal outcome: {}", e))
 }
 
 // =========================================================================

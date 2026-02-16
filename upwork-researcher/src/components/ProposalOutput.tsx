@@ -1,11 +1,13 @@
-import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Editor } from "@tiptap/react";
+import { useState, useCallback, useEffect } from "react";
+
+import { getPlainTextFromEditor } from "../utils/editorUtils";
+
 import CopyButton from "./CopyButton";
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
-import ProposalEditor from "./ProposalEditor";
 import PipelineIndicator from "./PipelineIndicator";
-import { getPlainTextFromEditor } from "../utils/editorUtils";
+import ProposalEditor from "./ProposalEditor";
 
 interface ProposalOutputProps {
   proposal: string | null;
@@ -93,10 +95,9 @@ function ProposalOutput({
     setDeleteError(null);
 
     try {
-      const result = await invoke<{ success: boolean; message: string }>(
-        "delete_proposal",
-        { proposalId }
-      );
+      const result = await invoke<{ success: boolean; message: string }>("delete_proposal", {
+        proposalId,
+      });
 
       if (result.success) {
         setShowDeleteConfirm(false);
@@ -106,9 +107,7 @@ function ProposalOutput({
         setDeleteError(result.message);
       }
     } catch (err) {
-      setDeleteError(
-        err instanceof Error ? err.message : "Failed to delete proposal"
-      );
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete proposal");
     } finally {
       setDeleting(false);
     }
@@ -116,7 +115,11 @@ function ProposalOutput({
   // Show streaming content with indicator while loading
   if (loading && proposal) {
     return (
-      <div className="proposal-output proposal-output--streaming" aria-live="polite" aria-busy="true">
+      <div
+        className="proposal-output proposal-output--streaming"
+        aria-live="polite"
+        aria-busy="true"
+      >
         <label>Generating Proposal...</label>
         {/* Story 8.4: Show pipeline stage indicators during generation */}
         <PipelineIndicator />
@@ -182,7 +185,11 @@ function ProposalOutput({
       <div className="proposal-output" aria-live="polite">
         <div className="proposal-header">
           <label>Generated Proposal</label>
-          {isSaved && <span className="saved-indicator" aria-label="Saved to database">Saved</span>}
+          {isSaved && (
+            <span className="saved-indicator" aria-label="Saved to database">
+              Saved
+            </span>
+          )}
         </div>
 
         {/* Story 6.1: TipTap editor for saved proposals, plain text otherwise */}
@@ -225,10 +232,7 @@ function ProposalOutput({
 
       {/* Story 6.8: Delete confirmation dialog */}
       {showDeleteConfirm && (
-        <DeleteConfirmDialog
-          onCancel={handleDeleteCancel}
-          onConfirm={handleDeleteConfirm}
-        />
+        <DeleteConfirmDialog onCancel={handleDeleteCancel} onConfirm={handleDeleteConfirm} />
       )}
     </>
   );

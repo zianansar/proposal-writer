@@ -9,7 +9,7 @@
  * - Theme preferences
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class SettingsPage {
   readonly page: Page;
@@ -57,43 +57,43 @@ export class SettingsPage {
     this.page = page;
 
     // Navigation
-    this.settingsButton = page.getByRole('button', { name: /settings/i });
-    this.settingsModal = page.getByTestId('settings-modal');
-    this.closeButton = page.getByRole('button', { name: /close/i });
+    this.settingsButton = page.getByRole("button", { name: /settings/i });
+    this.settingsModal = page.getByTestId("settings-modal");
+    this.closeButton = page.getByRole("button", { name: /close/i });
 
     // Tabs
-    this.generalTab = page.getByRole('tab', { name: /general/i });
-    this.apiTab = page.getByRole('tab', { name: /api/i });
-    this.safetyTab = page.getByRole('tab', { name: /safety/i });
-    this.profileTab = page.getByRole('tab', { name: /profile/i });
-    this.voiceTab = page.getByRole('tab', { name: /voice/i });
-    this.appearanceTab = page.getByRole('tab', { name: /appearance/i });
+    this.generalTab = page.getByRole("tab", { name: /general/i });
+    this.apiTab = page.getByRole("tab", { name: /api/i });
+    this.safetyTab = page.getByRole("tab", { name: /safety/i });
+    this.profileTab = page.getByRole("tab", { name: /profile/i });
+    this.voiceTab = page.getByRole("tab", { name: /voice/i });
+    this.appearanceTab = page.getByRole("tab", { name: /appearance/i });
 
     // API Key
-    this.apiKeyInput = page.getByTestId('api-key-input');
-    this.apiKeyUpdateButton = page.getByRole('button', { name: /update.*key/i });
-    this.apiKeyStatus = page.getByTestId('api-key-status');
+    this.apiKeyInput = page.getByTestId("api-key-input");
+    this.apiKeyUpdateButton = page.getByRole("button", { name: /update.*key/i });
+    this.apiKeyStatus = page.getByTestId("api-key-status");
 
     // Safety
-    this.safetyThresholdSlider = page.getByTestId('safety-threshold-slider');
-    this.thresholdValue = page.getByTestId('threshold-value');
-    this.resetThresholdButton = page.getByRole('button', { name: /reset.*threshold/i });
+    this.safetyThresholdSlider = page.getByTestId("safety-threshold-slider");
+    this.thresholdValue = page.getByTestId("threshold-value");
+    this.resetThresholdButton = page.getByRole("button", { name: /reset.*threshold/i });
 
     // Profile
-    this.skillsInput = page.getByTestId('skills-input');
-    this.addSkillButton = page.getByRole('button', { name: /add skill/i });
+    this.skillsInput = page.getByTestId("skills-input");
+    this.addSkillButton = page.getByRole("button", { name: /add skill/i });
     this.skillTags = page.getByTestId(/skill-tag-/);
-    this.hourlyRateInput = page.getByTestId('hourly-rate-input');
-    this.minimumRateInput = page.getByTestId('minimum-rate-input');
+    this.hourlyRateInput = page.getByTestId("hourly-rate-input");
+    this.minimumRateInput = page.getByTestId("minimum-rate-input");
 
     // Voice
-    this.voiceSettingsSection = page.getByTestId('voice-settings');
-    this.startCalibrationButton = page.getByRole('button', { name: /start.*calibration/i });
-    this.uploadGoldenSetButton = page.getByRole('button', { name: /upload.*proposals/i });
-    this.voiceProfileDisplay = page.getByTestId('voice-profile-display');
+    this.voiceSettingsSection = page.getByTestId("voice-settings");
+    this.startCalibrationButton = page.getByRole("button", { name: /start.*calibration/i });
+    this.uploadGoldenSetButton = page.getByRole("button", { name: /upload.*proposals/i });
+    this.voiceProfileDisplay = page.getByTestId("voice-profile-display");
 
     // Theme
-    this.darkModeToggle = page.getByTestId('dark-mode-toggle');
+    this.darkModeToggle = page.getByTestId("dark-mode-toggle");
   }
 
   /**
@@ -116,7 +116,7 @@ export class SettingsPage {
    * Navigate to specific tab
    */
   async goToTab(
-    tab: 'general' | 'api' | 'safety' | 'profile' | 'voice' | 'appearance'
+    tab: "general" | "api" | "safety" | "profile" | "voice" | "appearance",
   ): Promise<void> {
     const tabMap = {
       general: this.generalTab,
@@ -134,7 +134,7 @@ export class SettingsPage {
    * Update API key
    */
   async updateApiKey(newKey: string): Promise<void> {
-    await this.goToTab('api');
+    await this.goToTab("api");
     await this.apiKeyInput.fill(newKey);
     await this.apiKeyUpdateButton.click();
   }
@@ -143,7 +143,7 @@ export class SettingsPage {
    * Set safety threshold
    */
   async setSafetyThreshold(value: number): Promise<void> {
-    await this.goToTab('safety');
+    await this.goToTab("safety");
     await this.safetyThresholdSlider.fill(value.toString());
   }
 
@@ -151,7 +151,7 @@ export class SettingsPage {
    * Get current safety threshold
    */
   async getSafetyThreshold(): Promise<number> {
-    const valueText = (await this.thresholdValue.textContent()) ?? '0';
+    const valueText = (await this.thresholdValue.textContent()) ?? "0";
     return parseInt(valueText, 10);
   }
 
@@ -159,7 +159,7 @@ export class SettingsPage {
    * Reset safety threshold to default
    */
   async resetSafetyThreshold(): Promise<void> {
-    await this.goToTab('safety');
+    await this.goToTab("safety");
     await this.resetThresholdButton.click();
   }
 
@@ -167,7 +167,7 @@ export class SettingsPage {
    * Add skill to profile
    */
   async addSkill(skill: string): Promise<void> {
-    await this.goToTab('profile');
+    await this.goToTab("profile");
     await this.skillsInput.fill(skill);
     await this.addSkillButton.click();
   }
@@ -176,16 +176,16 @@ export class SettingsPage {
    * Get list of skills
    */
   async getSkills(): Promise<string[]> {
-    await this.goToTab('profile');
+    await this.goToTab("profile");
     const tags = await this.skillTags.all();
-    return Promise.all(tags.map((tag) => tag.textContent().then((t) => t?.trim() ?? '')));
+    return Promise.all(tags.map((tag) => tag.textContent().then((t) => t?.trim() ?? "")));
   }
 
   /**
    * Set hourly rate
    */
   async setHourlyRate(rate: number): Promise<void> {
-    await this.goToTab('profile');
+    await this.goToTab("profile");
     await this.hourlyRateInput.fill(rate.toString());
   }
 
@@ -193,7 +193,7 @@ export class SettingsPage {
    * Navigate to voice learning
    */
   async navigateToVoiceLearning(): Promise<void> {
-    await this.goToTab('voice');
+    await this.goToTab("voice");
     await expect(this.voiceSettingsSection).toBeVisible();
   }
 
@@ -228,7 +228,7 @@ export class SettingsPage {
    * Toggle dark mode
    */
   async toggleDarkMode(): Promise<void> {
-    await this.goToTab('appearance');
+    await this.goToTab("appearance");
     await this.darkModeToggle.click();
   }
 
@@ -236,7 +236,7 @@ export class SettingsPage {
    * Check if dark mode is enabled
    */
   async isDarkModeEnabled(): Promise<boolean> {
-    await this.goToTab('appearance');
+    await this.goToTab("appearance");
     return this.darkModeToggle.isChecked();
   }
 }

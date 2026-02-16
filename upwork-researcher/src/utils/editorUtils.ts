@@ -1,9 +1,9 @@
-import { Editor } from '@tiptap/react';
+import { Editor } from "@tiptap/react";
 
 /**
  * Block types for tracking separator logic
  */
-type BlockType = 'paragraph' | 'heading' | 'listItem' | 'other';
+type BlockType = "paragraph" | "heading" | "listItem" | "other";
 
 /**
  * Extracts plain text from TipTap editor with list formatting preserved.
@@ -27,45 +27,45 @@ export function getPlainTextFromEditor(editor: Editor): string {
     if (node.isBlock) {
       const parentType = parent?.type.name;
 
-      if (node.type.name === 'listItem') {
+      if (node.type.name === "listItem") {
         const text = node.textContent.trim();
         if (!text) return false; // Skip empty list items
 
-        if (parentType === 'bulletList') {
-          blocks.push({ text: `• ${text}`, type: 'listItem' });
-        } else if (parentType === 'orderedList') {
+        if (parentType === "bulletList") {
+          blocks.push({ text: `• ${text}`, type: "listItem" });
+        } else if (parentType === "orderedList") {
           // Reset counter when entering a new ordered list
-          if (currentListType !== 'orderedList') {
+          if (currentListType !== "orderedList") {
             listCounter = 0;
-            currentListType = 'orderedList';
+            currentListType = "orderedList";
           }
           listCounter++;
-          blocks.push({ text: `${listCounter}. ${text}`, type: 'listItem' });
+          blocks.push({ text: `${listCounter}. ${text}`, type: "listItem" });
         }
         return false; // Don't descend into list item children
-      } else if (node.type.name === 'paragraph') {
+      } else if (node.type.name === "paragraph") {
         const text = node.textContent.trim();
         if (text) {
-          blocks.push({ text, type: 'paragraph' });
+          blocks.push({ text, type: "paragraph" });
         }
         // Reset list tracking when not in a list
-        if (parentType !== 'orderedList') {
+        if (parentType !== "orderedList") {
           currentListType = null;
         }
-      } else if (node.type.name === 'heading') {
+      } else if (node.type.name === "heading") {
         const text = node.textContent.trim();
         if (text) {
-          blocks.push({ text, type: 'heading' });
+          blocks.push({ text, type: "heading" });
         }
         // Reset list tracking
         currentListType = null;
-      } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList') {
+      } else if (node.type.name === "bulletList" || node.type.name === "orderedList") {
         // Reset counter when entering a new ordered list
-        if (node.type.name === 'orderedList') {
+        if (node.type.name === "orderedList") {
           listCounter = 0;
-          currentListType = 'orderedList';
+          currentListType = "orderedList";
         } else {
-          currentListType = 'bulletList';
+          currentListType = "bulletList";
         }
       } else {
         // Reset list tracking for other block types
@@ -78,7 +78,7 @@ export function getPlainTextFromEditor(editor: Editor): string {
   // Join blocks with appropriate separators:
   // - Single newline between consecutive list items
   // - Double newline between paragraphs, headings, or when transitioning block types
-  if (blocks.length === 0) return '';
+  if (blocks.length === 0) return "";
 
   let result = blocks[0].text;
   for (let i = 1; i < blocks.length; i++) {
@@ -86,8 +86,8 @@ export function getPlainTextFromEditor(editor: Editor): string {
     const curr = blocks[i];
 
     // Single newline only when both are list items (consecutive list items)
-    const useSingleNewline = prev.type === 'listItem' && curr.type === 'listItem';
-    result += useSingleNewline ? '\n' : '\n\n';
+    const useSingleNewline = prev.type === "listItem" && curr.type === "listItem";
+    result += useSingleNewline ? "\n" : "\n\n";
     result += curr.text;
   }
 

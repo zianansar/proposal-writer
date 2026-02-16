@@ -37,12 +37,14 @@ The E2E test workflow (`.github/workflows/e2e.yml`) runs automatically on:
 ### Matrix Strategy
 
 Tests run in parallel on:
+
 - macOS-latest (WebKit WebView)
 - windows-latest (Edge WebView2)
 
 ### Failure Handling
 
 If tests fail:
+
 - PR merge is blocked
 - Artifacts uploaded:
   - Test results (playwright-report/)
@@ -71,12 +73,14 @@ npm run test:e2e
 ### Platform-Specific Testing
 
 **macOS:**
+
 ```bash
 npm run tauri build
 npm run test:e2e
 ```
 
 **Windows:**
+
 ```powershell
 npm run tauri build
 npm run test:e2e

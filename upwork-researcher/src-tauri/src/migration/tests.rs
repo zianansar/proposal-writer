@@ -15,7 +15,7 @@ fn create_test_database(db_path: &Path) -> rusqlite::Result<()> {
         "
         PRAGMA journal_mode = WAL;
         PRAGMA foreign_keys = ON;
-        "
+        ",
     )?;
 
     // Create schema (simplified version of migrations)
@@ -50,7 +50,7 @@ fn create_test_database(db_path: &Path) -> rusqlite::Result<()> {
             applied_on TEXT,
             checksum TEXT
         );
-        "
+        ",
     )?;
 
     // Insert test data (Subtask 11.1: 5 proposals, 10 settings, 3 job_posts)
@@ -60,7 +60,7 @@ fn create_test_database(db_path: &Path) -> rusqlite::Result<()> {
             [
                 format!("Job content {}", i),
                 format!("Generated proposal {}", i),
-                "completed".to_string()
+                "completed".to_string(),
             ],
         )?;
     }
@@ -133,13 +133,21 @@ fn test_successful_migration() {
     let passphrase = "test_passphrase_123!";
     let result = migrate_to_encrypted_database(app_data_dir, passphrase, &backup_path);
 
-    assert!(result.is_ok(), "Migration should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Migration should succeed: {:?}",
+        result.err()
+    );
 
     let metadata = result.unwrap();
     assert_eq!(metadata.proposals_count, 5);
     assert_eq!(metadata.settings_count, 12); // 2 defaults + 10 test
     assert_eq!(metadata.job_posts_count, 3);
-    assert!(metadata.refinery_history_count >= 12, "Expected at least 12 migrations (V1-V12), got {}", metadata.refinery_history_count);
+    assert!(
+        metadata.refinery_history_count >= 12,
+        "Expected at least 12 migrations (V1-V12), got {}",
+        metadata.refinery_history_count
+    );
     assert!(metadata.duration_ms > 0);
 
     // Verify migration marker created
@@ -170,17 +178,31 @@ fn test_attach_database_encryption_boundary() {
     let passphrase = "test_passphrase_123!";
     let mut encryption_key = passphrase::verify_passphrase(passphrase, app_data_dir).unwrap();
 
-    let new_db = Database::new(new_db_path.clone(), Some(std::mem::take(&mut *encryption_key))).unwrap();
+    let new_db = Database::new(
+        new_db_path.clone(),
+        Some(std::mem::take(&mut *encryption_key)),
+    )
+    .unwrap();
     let new_conn = new_db.conn.lock().unwrap();
 
     // Test ATTACH works from encrypted to unencrypted (requires KEY clause for SQLCipher)
-    let attach_sql = format!("ATTACH DATABASE '{}' AS old_db KEY ''", old_db_path.display());
+    let attach_sql = format!(
+        "ATTACH DATABASE '{}' AS old_db KEY ''",
+        old_db_path.display()
+    );
     let attach_result = new_conn.execute(&attach_sql, []);
 
-    assert!(attach_result.is_ok(), "ATTACH should work across encryption boundary");
+    assert!(
+        attach_result.is_ok(),
+        "ATTACH should work across encryption boundary"
+    );
 
     // Verify we can query the attached database
-    let count: i64 = new_conn.query_row("SELECT COUNT(*) FROM old_db.proposals", [], |row| row.get(0)).unwrap();
+    let count: i64 = new_conn
+        .query_row("SELECT COUNT(*) FROM old_db.proposals", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
     assert_eq!(count, 5);
 
     // Cleanup
@@ -204,7 +226,9 @@ fn test_row_count_verification_mismatch() {
 
     // Delete one row from new database to create mismatch
     let new_conn = Connection::open(&new_db_path).unwrap();
-    new_conn.execute("DELETE FROM proposals WHERE id = 1", []).unwrap();
+    new_conn
+        .execute("DELETE FROM proposals WHERE id = 1", [])
+        .unwrap();
 
     // Attach old database to new
     let attach_sql = format!("ATTACH DATABASE '{}' AS old_db", old_db_path.display());
@@ -281,11 +305,17 @@ fn test_old_database_renamed() {
 
     // Verify old database was renamed to .old extension
     let old_backup_path = app_data_dir.join("upwork-researcher.db.old");
-    assert!(old_backup_path.exists(), "Old database should exist with .old extension");
+    assert!(
+        old_backup_path.exists(),
+        "Old database should exist with .old extension"
+    );
 
     // Verify new encrypted database exists at original path
     let new_db_path = app_data_dir.join("upwork-researcher.db");
-    assert!(new_db_path.exists(), "New encrypted database should be at original path");
+    assert!(
+        new_db_path.exists(),
+        "New encrypted database should be at original path"
+    );
 
     // Verify the files are different sizes (encrypted DB will be larger due to encryption overhead)
     let old_size = std::fs::metadata(&old_backup_path).unwrap().len();
@@ -347,8 +377,16 @@ fn test_migration_with_empty_database() {
     ).unwrap();
 
     // Insert default settings (would be present in real database from migrations)
-    conn.execute("INSERT INTO settings (key, value) VALUES ('theme', 'dark')", []).unwrap();
-    conn.execute("INSERT INTO settings (key, value) VALUES ('api_provider', 'anthropic')", []).unwrap();
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('theme', 'dark')",
+        [],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('api_provider', 'anthropic')",
+        [],
+    )
+    .unwrap();
 
     // Insert refinery history (would be present in real database from migrations)
     // Use RFC3339 format for refinery compatibility, u64 checksums
@@ -368,13 +406,20 @@ fn test_migration_with_empty_database() {
     let passphrase = "test_passphrase_123!";
     let result = migrate_to_encrypted_database(app_data_dir, passphrase, &backup_path);
 
-    assert!(result.is_ok(), "Migration should succeed even with empty database");
+    assert!(
+        result.is_ok(),
+        "Migration should succeed even with empty database"
+    );
 
     let metadata = result.unwrap();
     assert_eq!(metadata.proposals_count, 0);
     assert_eq!(metadata.settings_count, 2); // Default settings from migrations
     assert_eq!(metadata.job_posts_count, 0);
-    assert!(metadata.refinery_history_count >= 12, "Expected at least 12 migrations (V1-V12), got {}", metadata.refinery_history_count);
+    assert!(
+        metadata.refinery_history_count >= 12,
+        "Expected at least 12 migrations (V1-V12), got {}",
+        metadata.refinery_history_count
+    );
 }
 
 /// Test migration fails if old database doesn't exist
@@ -415,7 +460,9 @@ fn test_old_database_intact_after_rollback() {
 
     // Count rows before migration attempt
     let old_conn = Connection::open(&old_db_path).unwrap();
-    let original_proposals: i64 = old_conn.query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0)).unwrap();
+    let original_proposals: i64 = old_conn
+        .query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0))
+        .unwrap();
     drop(old_conn);
 
     // Attempt migration with intentionally wrong passphrase (will fail at key derivation)
@@ -430,15 +477,26 @@ fn test_old_database_intact_after_rollback() {
 
     // Now try with wrong passphrase (will fail verification)
     let result = migrate_to_encrypted_database(app_data_dir, "wrong_pass", &backup_path);
-    assert!(result.is_err(), "Migration should fail with wrong passphrase");
+    assert!(
+        result.is_err(),
+        "Migration should fail with wrong passphrase"
+    );
 
     // Verify old database still exists and has data
-    assert!(old_db_path.exists(), "Old database should still exist after failed migration");
+    assert!(
+        old_db_path.exists(),
+        "Old database should still exist after failed migration"
+    );
 
     let old_conn = Connection::open(&old_db_path).unwrap();
-    let current_proposals: i64 = old_conn.query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0)).unwrap();
+    let current_proposals: i64 = old_conn
+        .query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0))
+        .unwrap();
 
-    assert_eq!(original_proposals, current_proposals, "Old database should have same data after failed migration");
+    assert_eq!(
+        original_proposals, current_proposals,
+        "Old database should have same data after failed migration"
+    );
 }
 
 /// Test cleanup_failed_migration removes incomplete encrypted database (Story 2.5)
@@ -451,13 +509,19 @@ fn test_cleanup_failed_migration() {
     let incomplete_db_path = app_data_dir.join("upwork-researcher-encrypted.db");
     std::fs::write(&incomplete_db_path, "incomplete data").unwrap();
 
-    assert!(incomplete_db_path.exists(), "Incomplete database should exist before cleanup");
+    assert!(
+        incomplete_db_path.exists(),
+        "Incomplete database should exist before cleanup"
+    );
 
     // Call cleanup
     cleanup_failed_migration(app_data_dir);
 
     // Verify incomplete database was deleted
-    assert!(!incomplete_db_path.exists(), "Incomplete database should be deleted after cleanup");
+    assert!(
+        !incomplete_db_path.exists(),
+        "Incomplete database should be deleted after cleanup"
+    );
 }
 
 /// Test verify_old_database_intact function (Story 2.5)
@@ -474,7 +538,10 @@ fn test_verify_old_database_intact() {
 
     // Verification should pass for valid database
     let result = verify_old_database_intact(&old_conn);
-    assert!(result.is_ok(), "Verification should pass for intact database");
+    assert!(
+        result.is_ok(),
+        "Verification should pass for intact database"
+    );
 }
 
 /// Test recovery error messages include safety information (Story 2.5)
@@ -483,16 +550,25 @@ fn test_recovery_error_messages_include_safety() {
     // Test that error messages include recovery context
     let copy_error = MigrationError::CopyFailed("test error".to_string());
     let error_message = format!("{}", copy_error);
-    assert!(error_message.contains("rolled back") || error_message.contains("safe"),
-        "Copy error should mention rollback: {}", error_message);
+    assert!(
+        error_message.contains("rolled back") || error_message.contains("safe"),
+        "Copy error should mention rollback: {}",
+        error_message
+    );
 
     let verify_error = MigrationError::VerificationFailed("test error".to_string());
     let error_message = format!("{}", verify_error);
-    assert!(error_message.contains("rolled back") || error_message.contains("safe"),
-        "Verification error should mention safety: {}", error_message);
+    assert!(
+        error_message.contains("rolled back") || error_message.contains("safe"),
+        "Verification error should mention safety: {}",
+        error_message
+    );
 
     let old_db_error = MigrationError::OldDatabaseOpenFailed("test error".to_string());
     let error_message = format!("{}", old_db_error);
-    assert!(error_message.contains("safe") || error_message.contains("unchanged"),
-        "Old DB error should mention data safety: {}", error_message);
+    assert!(
+        error_message.contains("safe") || error_message.contains("unchanged"),
+        "Old DB error should mention data safety: {}",
+        error_message
+    );
 }

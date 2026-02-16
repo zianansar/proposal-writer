@@ -1,0 +1,11 @@
+#\!/usr/bin/env sh
+set -e
+
+cd upwork-researcher || exit 1
+
+# Run frontend tests
+npm run test
+
+# Run Rust tests (lib only - skip integration tests)
+cd src-tauri || exit 1
+cargo test --lib

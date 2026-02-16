@@ -8,11 +8,12 @@
  * - Setup completes in <30s (AC-1)
  */
 
-import { test, expect } from '@playwright/test';
-import { launchTauriApp, closeTauriApp, isAppRunning } from './helpers/tauriDriver';
-import { clearDatabase } from './helpers/dbUtils';
+import { test, expect } from "@playwright/test";
 
-test.describe('E2E Infrastructure Smoke Test', () => {
+import { clearDatabase } from "./helpers/dbUtils";
+import { launchTauriApp, closeTauriApp, isAppRunning } from "./helpers/tauriDriver";
+
+test.describe("E2E Infrastructure Smoke Test", () => {
   test.beforeAll(async () => {
     clearDatabase();
 
@@ -30,16 +31,16 @@ test.describe('E2E Infrastructure Smoke Test', () => {
     await closeTauriApp();
   });
 
-  test('app launches and process is running', async () => {
+  test("app launches and process is running", async () => {
     // L3 FIX: Real assertion — verify the Tauri app process is alive
     expect(isAppRunning()).toBe(true);
   });
 
-  test.skip('can interact with UI elements', async ({ page }) => {
+  test.skip("can interact with UI elements", async ({ page }) => {
     // Skipped until Playwright is connected to Tauri WebView via tauri-driver.
     // Once C5 (WebDriver connection) is integrated in Playwright config,
     // this test should navigate to the app and verify a visible element.
-    await page.goto('tauri://localhost');
-    await expect(page.locator('body')).toBeVisible();
+    await page.goto("tauri://localhost");
+    await expect(page.locator("body")).toBeVisible();
   });
 });

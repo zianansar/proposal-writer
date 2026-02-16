@@ -5,7 +5,7 @@
  * This enables real-time progress feedback during proposal generation.
  */
 
-export type StageStatus = 'pending' | 'active' | 'complete' | 'error';
+export type StageStatus = "pending" | "active" | "complete" | "error";
 
 export interface PipelineStage {
   id: string;
@@ -26,9 +26,9 @@ export interface PipelineStage {
  * - 'voice': "Loading your voice profile..." (voice parameters)
  */
 export const PIPELINE_STAGES = [
-  { id: 'preparing', label: 'Preparing...' },
-  { id: 'generating', label: 'Generating proposal...' },
-  { id: 'complete', label: 'Complete!' },
+  { id: "preparing", label: "Preparing..." },
+  { id: "generating", label: "Generating proposal..." },
+  { id: "complete", label: "Complete!" },
 ] as const;
 
-export type StageId = typeof PIPELINE_STAGES[number]['id'];
+export type StageId = (typeof PIPELINE_STAGES)[number]["id"];

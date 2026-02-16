@@ -7,12 +7,7 @@ interface GenerateButtonProps {
   cooldownSeconds?: number; // Story 3.8: Remaining cooldown time
 }
 
-function GenerateButton({
-  onClick,
-  disabled,
-  loading,
-  cooldownSeconds = 0,
-}: GenerateButtonProps) {
+function GenerateButton({ onClick, disabled, loading, cooldownSeconds = 0 }: GenerateButtonProps) {
   const isCoolingDown = cooldownSeconds > 0;
 
   // Story 3.9: Shortcut hint for tooltip

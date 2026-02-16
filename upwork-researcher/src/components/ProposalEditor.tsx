@@ -1,10 +1,12 @@
-import { useEffect, useState, useCallback } from "react";
 import { EditorContent, type Editor } from "@tiptap/react";
+import { useEffect, useState, useCallback } from "react";
+
 import { useProposalEditor, type SaveStatus } from "../hooks/useProposalEditor";
+import { countCharacters, countWords } from "../utils/textStats";
+
+import { EditorStatusBar } from "./EditorStatusBar";
 import EditorToolbar from "./EditorToolbar";
 import { RevisionHistoryPanel } from "./RevisionHistoryPanel";
-import { EditorStatusBar } from "./EditorStatusBar";
-import { countCharacters, countWords } from "../utils/textStats";
 import "./ProposalEditor.css";
 
 interface ProposalEditorProps {
@@ -82,12 +84,15 @@ function ProposalEditor({
   }, [editor]);
 
   // Handle revision restore (Story 6.3)
-  const handleRestore = useCallback((restoredContent: string) => {
-    if (editor) {
-      editor.commands.setContent(restoredContent);
-      onContentChange?.(restoredContent);
-    }
-  }, [editor, onContentChange]);
+  const handleRestore = useCallback(
+    (restoredContent: string) => {
+      if (editor) {
+        editor.commands.setContent(restoredContent);
+        onContentChange?.(restoredContent);
+      }
+    },
+    [editor, onContentChange],
+  );
 
   // Return focus to editor after history panel closes (AC-7)
   const handleFocusEditor = useCallback(() => {

@@ -30,7 +30,10 @@ pub fn add_user_skill(conn: &Connection, skill: &str) -> Result<i64, rusqlite::E
     if trimmed.len() > MAX_SKILL_LENGTH {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
-            Some(format!("Skill name exceeds {} characters", MAX_SKILL_LENGTH)),
+            Some(format!(
+                "Skill name exceeds {} characters",
+                MAX_SKILL_LENGTH
+            )),
         ));
     }
 
@@ -50,10 +53,7 @@ pub fn add_user_skill(conn: &Connection, skill: &str) -> Result<i64, rusqlite::E
     }
 
     // Subtask 2.1: Insert new skill
-    conn.execute(
-        "INSERT INTO user_skills (skill) VALUES (?)",
-        params![skill],
-    )?;
+    conn.execute("INSERT INTO user_skills (skill) VALUES (?)", params![skill])?;
 
     // Subtask 2.3: Return skill ID on success
     Ok(conn.last_insert_rowid())
@@ -149,7 +149,10 @@ mod tests {
 
         // Try to add duplicate with different case
         let result = add_user_skill(&conn, "javascript");
-        assert!(result.is_err(), "Should reject duplicate (case-insensitive)");
+        assert!(
+            result.is_err(),
+            "Should reject duplicate (case-insensitive)"
+        );
 
         // Try exact duplicate
         let result2 = add_user_skill(&conn, "JavaScript");
@@ -182,7 +185,10 @@ mod tests {
         let conn = setup_test_db();
 
         let result = remove_user_skill(&conn, 99999);
-        assert!(result.is_err(), "Should return error for non-existent skill");
+        assert!(
+            result.is_err(),
+            "Should return error for non-existent skill"
+        );
     }
 
     #[test]
@@ -243,11 +249,17 @@ mod tests {
 
         let long_skill = "a".repeat(101);
         let result = add_user_skill(&conn, &long_skill);
-        assert!(result.is_err(), "Should reject skill name over 100 characters");
+        assert!(
+            result.is_err(),
+            "Should reject skill name over 100 characters"
+        );
 
         // 100 chars should be allowed
         let max_skill = "b".repeat(100);
         let result2 = add_user_skill(&conn, &max_skill);
-        assert!(result2.is_ok(), "Should allow skill name of exactly 100 characters");
+        assert!(
+            result2.is_ok(),
+            "Should allow skill name of exactly 100 characters"
+        );
     }
 }

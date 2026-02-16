@@ -9,10 +9,7 @@ use tauri::State;
 /// Creates realistic proposal data matching production schema
 #[tauri::command]
 #[specta::specta]
-pub async fn seed_proposals(
-    database: State<'_, AppDatabase>,
-    count: i64,
-) -> Result<(), String> {
+pub async fn seed_proposals(database: State<'_, AppDatabase>, count: i64) -> Result<(), String> {
     let database = database.get()?;
     let mut conn = database
         .conn
@@ -26,10 +23,7 @@ pub async fn seed_proposals(
 /// Seeds the database with test job posts for performance benchmarks
 #[tauri::command]
 #[specta::specta]
-pub async fn seed_job_posts(
-    database: State<'_, AppDatabase>,
-    count: i64,
-) -> Result<(), String> {
+pub async fn seed_job_posts(database: State<'_, AppDatabase>, count: i64) -> Result<(), String> {
     let database = database.get()?;
     let mut conn = database
         .conn
@@ -89,7 +83,9 @@ pub async fn clear_test_data(database: State<'_, AppDatabase>) -> Result<(), Str
 // Internal seeding functions
 
 fn seed_proposals_internal(conn: &mut Connection, count: usize) -> Result<(), String> {
-    let tx = conn.transaction().map_err(|e| format!("Transaction error: {}", e))?;
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("Transaction error: {}", e))?;
 
     for i in 0..count {
         let title = format!("Test Proposal {}", i + 1);
@@ -108,11 +104,16 @@ fn seed_proposals_internal(conn: &mut Connection, count: usize) -> Result<(), St
 }
 
 fn seed_job_posts_internal(conn: &mut Connection, count: usize) -> Result<(), String> {
-    let tx = conn.transaction().map_err(|e| format!("Transaction error: {}", e))?;
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("Transaction error: {}", e))?;
 
     for i in 0..count {
         let title = format!("Test Job {}", i + 1);
-        let description = format!("Test job description for benchmark #{}. Looking for skilled developer.", i + 1);
+        let description = format!(
+            "Test job description for benchmark #{}. Looking for skilled developer.",
+            i + 1
+        );
         let client_name = format!("Client{}", i % 50); // 50 unique clients
         let skills = format!("Rust,TypeScript,React");
 

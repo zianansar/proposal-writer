@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import ThresholdAdjustmentNotification, {
   ThresholdSuggestion,
 } from "./ThresholdAdjustmentNotification";
@@ -54,7 +55,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(screen.getByText("Adjust Your Safety Threshold?")).toBeInTheDocument();
@@ -69,7 +70,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(screen.getByText("Current")).toBeInTheDocument();
@@ -85,11 +86,11 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(
-        screen.getByText("This will reduce false warnings while maintaining safety.")
+        screen.getByText("This will reduce false warnings while maintaining safety."),
       ).toBeInTheDocument();
     });
 
@@ -100,7 +101,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(screen.getByText("Yes, Adjust to 190")).toBeInTheDocument();
@@ -117,11 +118,11 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(
-        screen.getByText(/Your threshold hasn't been challenged recently/)
+        screen.getByText(/Your threshold hasn't been challenged recently/),
       ).toBeInTheDocument();
     });
 
@@ -132,7 +133,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(screen.getByText("Yes, Lower to 180")).toBeInTheDocument();
@@ -146,11 +147,11 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(
-        screen.getByText("Lowering your threshold provides more protection against AI detection.")
+        screen.getByText("Lowering your threshold provides more protection against AI detection."),
       ).toBeInTheDocument();
     });
   });
@@ -171,12 +172,10 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
-      expect(
-        screen.getByText(/approaching the maximum safety threshold/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/approaching the maximum safety threshold/)).toBeInTheDocument();
     });
 
     it("does not show warning for non-maximum suggestions", () => {
@@ -186,11 +185,11 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(
-        screen.queryByText(/approaching the maximum safety threshold/)
+        screen.queryByText(/approaching the maximum safety threshold/),
       ).not.toBeInTheDocument();
     });
   });
@@ -203,7 +202,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(screen.getByText("Maximum Threshold Reached")).toBeInTheDocument();
@@ -217,7 +216,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(screen.getByText("Current")).toBeInTheDocument();
@@ -233,7 +232,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(screen.getByText("Got It")).toBeInTheDocument();
@@ -249,7 +248,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const gotItButton = screen.getByText("Got It");
@@ -265,7 +264,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       expect(screen.getByText("⚠️")).toBeInTheDocument();
@@ -280,7 +279,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const acceptButton = screen.getByText("Yes, Adjust to 190");
@@ -304,7 +303,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const rejectButton = screen.getByText("No, Keep 180");
@@ -326,7 +325,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const remindButton = screen.getByText("Remind Me Later");
@@ -345,7 +344,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       fireEvent.keyDown(window, { key: "Escape" });
@@ -362,7 +361,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const notification = screen.getByRole("alert");
@@ -377,7 +376,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const acceptButton = screen.getByText("Yes, Adjust to 190");
@@ -396,7 +395,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const acceptButton = screen.getByText("Yes, Adjust to 190");
@@ -405,7 +404,7 @@ describe("ThresholdAdjustmentNotification", () => {
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           "Failed to apply threshold adjustment:",
-          expect.any(Error)
+          expect.any(Error),
         );
       });
 
@@ -422,17 +421,14 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const rejectButton = screen.getByText("No, Keep 180");
       fireEvent.click(rejectButton);
 
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to dismiss suggestion:",
-          expect.any(Error)
-        );
+        expect(consoleSpy).toHaveBeenCalledWith("Failed to dismiss suggestion:", expect.any(Error));
       });
 
       consoleSpy.mockRestore();
@@ -448,7 +444,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const acceptButton = screen.getByText("Yes, Adjust to 190");
@@ -456,7 +452,7 @@ describe("ThresholdAdjustmentNotification", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText("Failed to update threshold. Please try again.")
+          screen.getByText("Failed to update threshold. Please try again."),
         ).toBeInTheDocument();
       });
     });
@@ -471,7 +467,7 @@ describe("ThresholdAdjustmentNotification", () => {
           onAccept={mockOnAccept}
           onReject={mockOnReject}
           onRemindLater={mockOnRemindLater}
-        />
+        />,
       );
 
       const rejectButton = screen.getByText("No, Keep 180");
@@ -479,7 +475,7 @@ describe("ThresholdAdjustmentNotification", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText("Failed to save preference. Please try again.")
+          screen.getByText("Failed to save preference. Please try again."),
         ).toBeInTheDocument();
       });
     });

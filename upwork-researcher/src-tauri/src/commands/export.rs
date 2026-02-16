@@ -177,7 +177,10 @@ pub async fn export_encrypted_archive(
 ) -> Result<ExportArchiveResult, String> {
     // AC-6: Rate limit check (60s cooldown)
     {
-        let last_export = rate_limit.0.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let last_export = rate_limit
+            .0
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
         if let Some(last) = *last_export {
             let elapsed = last.elapsed();
             if elapsed < Duration::from_secs(60) {
@@ -192,10 +195,7 @@ pub async fn export_encrypted_archive(
                     job_post_count: 0,
                     settings_count: 0,
                     voice_profile_count: 0,
-                    message: format!(
-                        "Please wait {} seconds before exporting again",
-                        remaining
-                    ),
+                    message: format!("Please wait {} seconds before exporting again", remaining),
                 });
             }
         }
@@ -269,32 +269,28 @@ pub async fn export_encrypted_archive(
 
         // Read encrypted database file while holding the lock
         let db_path = &database.path;
-        let db_bytes = fs::read(db_path)
-            .map_err(|e| {
-                let msg = format!("Failed to read database file: {}", e);
-                tracing::warn!("Export failed — {}", msg);
-                msg
-            })?;
+        let db_bytes = fs::read(db_path).map_err(|e| {
+            let msg = format!("Failed to read database file: {}", e);
+            tracing::warn!("Export failed — {}", msg);
+            msg
+        })?;
 
         // Lock released here when conn drops
         drop(conn);
 
         // Read salt file (not protected by DB lock — salt is immutable after creation)
         let salt_path = app_data_dir.join(".salt");
-        let salt_base64 = fs::read_to_string(&salt_path)
-            .map_err(|e| {
-                let msg = format!("Failed to read salt file: {}", e);
-                tracing::warn!("Export failed — {}", msg);
-                msg
-            })?;
+        let salt_base64 = fs::read_to_string(&salt_path).map_err(|e| {
+            let msg = format!("Failed to read salt file: {}", e);
+            tracing::warn!("Export failed — {}", msg);
+            msg
+        })?;
 
-        let salt_bytes = BASE64_STANDARD
-            .decode(salt_base64.trim())
-            .map_err(|e| {
-                let msg = format!("Failed to decode salt: {}", e);
-                tracing::warn!("Export failed — {}", msg);
-                msg
-            })?;
+        let salt_bytes = BASE64_STANDARD.decode(salt_base64.trim()).map_err(|e| {
+            let msg = format!("Failed to decode salt: {}", e);
+            tracing::warn!("Export failed — {}", msg);
+            msg
+        })?;
 
         (counts, db_bytes, salt_bytes)
     };
@@ -314,13 +310,12 @@ pub async fn export_encrypted_archive(
     // Write to temp file first (atomic pattern)
     let temp_path = path.with_extension("urb.tmp");
 
-    write_archive(&temp_path, &metadata, &salt_bytes, &db_bytes)
-        .map_err(|e| {
-            let _ = fs::remove_file(&temp_path);
-            let msg = format!("Failed to write archive: {}", e);
-            tracing::warn!("Export failed — {}", msg);
-            msg
-        })?;
+    write_archive(&temp_path, &metadata, &salt_bytes, &db_bytes).map_err(|e| {
+        let _ = fs::remove_file(&temp_path);
+        let msg = format!("Failed to write archive: {}", e);
+        tracing::warn!("Export failed — {}", msg);
+        msg
+    })?;
 
     // AC-2: Emit progress event — Verifying
     let _ = app_handle.emit("export-progress", "Verifying...");
@@ -334,12 +329,11 @@ pub async fn export_encrypted_archive(
     })?;
 
     // Atomic rename: .tmp → final path
-    fs::rename(&temp_path, &path)
-        .map_err(|e| {
-            let msg = format!("Failed to finalize archive: {}", e);
-            tracing::warn!("Export failed — {}", msg);
-            msg
-        })?;
+    fs::rename(&temp_path, &path).map_err(|e| {
+        let msg = format!("Failed to finalize archive: {}", e);
+        tracing::warn!("Export failed — {}", msg);
+        msg
+    })?;
 
     // Get final file size
     let file_size = fs::metadata(&path)
@@ -358,7 +352,10 @@ pub async fn export_encrypted_archive(
 
     // Update rate limit timestamp (only after successful export)
     {
-        let mut last_export = rate_limit.0.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut last_export = rate_limit
+            .0
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
         *last_export = Some(Instant::now());
     }
 
@@ -427,16 +424,7 @@ mod tests {
         use tempfile::NamedTempFile;
 
         // Create a valid archive
-        let metadata = ArchiveMetadata::new(
-            "1.0.0".to_string(),
-            None,
-            10,
-            20,
-            5,
-            3,
-            1,
-            2048,
-        );
+        let metadata = ArchiveMetadata::new("1.0.0".to_string(), None, 10, 20, 5, 3, 1, 2048);
         let salt = vec![0u8; 16]; // 16-byte salt
         let db = vec![0xFF; 2048]; // 2KB fake DB
 
@@ -452,16 +440,7 @@ mod tests {
         use tempfile::NamedTempFile;
 
         // Create archive with wrong salt length
-        let metadata = ArchiveMetadata::new(
-            "1.0.0".to_string(),
-            None,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1024,
-        );
+        let metadata = ArchiveMetadata::new("1.0.0".to_string(), None, 0, 0, 0, 0, 0, 1024);
         let salt = vec![0u8; 8]; // Wrong length (should be 16)
         let db = vec![0xFF; 1024];
 
@@ -479,16 +458,7 @@ mod tests {
         use tempfile::NamedTempFile;
 
         // Create archive with suspiciously small DB
-        let metadata = ArchiveMetadata::new(
-            "1.0.0".to_string(),
-            None,
-            0,
-            0,
-            0,
-            0,
-            0,
-            100,
-        );
+        let metadata = ArchiveMetadata::new("1.0.0".to_string(), None, 0, 0, 0, 0, 0, 100);
         let salt = vec![0u8; 16];
         let db = vec![0xFF; 100]; // Only 100 bytes (suspiciously small)
 

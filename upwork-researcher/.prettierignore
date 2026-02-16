@@ -1,0 +1,24 @@
+# Build outputs
+dist/
+node_modules/
+
+# GitHub workflows (managed separately)
+.github/
+
+# Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
+
+# Generated bindings
+src/shared/types/generated/
+
+# Package lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Coverage reports
+coverage/
+
+# Markdown files (optional - uncomment to skip formatting markdown)
+# *.md

@@ -10,7 +10,7 @@
  * - Cancel and regenerate
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class SafetyWarningModal {
   readonly page: Page;
@@ -50,34 +50,34 @@ export class SafetyWarningModal {
     this.page = page;
 
     // Modal
-    this.modal = page.getByTestId('safety-warning-modal');
-    this.modalOverlay = page.locator('[data-modal-overlay]');
-    this.closeButton = page.getByRole('button', { name: /close/i });
+    this.modal = page.getByTestId("safety-warning-modal");
+    this.modalOverlay = page.locator("[data-modal-overlay]");
+    this.closeButton = page.getByRole("button", { name: /close/i });
 
     // Content
-    this.heading = page.getByRole('heading', { name: /ai detection.*warning/i });
-    this.perplexityScore = page.getByTestId('perplexity-score');
-    this.explanation = page.getByTestId('warning-explanation');
-    this.flaggedSentences = page.getByTestId('flagged-sentences-section');
+    this.heading = page.getByRole("heading", { name: /ai detection.*warning/i });
+    this.perplexityScore = page.getByTestId("perplexity-score");
+    this.explanation = page.getByTestId("warning-explanation");
+    this.flaggedSentences = page.getByTestId("flagged-sentences-section");
     this.flaggedSentencesList = page.getByTestId(/flagged-sentence-/);
 
     // Threshold
-    this.currentThreshold = page.getByTestId('current-threshold');
-    this.adjustThresholdLink = page.getByRole('link', { name: /adjust.*threshold/i });
+    this.currentThreshold = page.getByTestId("current-threshold");
+    this.adjustThresholdLink = page.getByRole("link", { name: /adjust.*threshold/i });
 
     // Actions
-    this.cancelButton = page.getByRole('button', { name: /cancel|go back/i });
-    this.rehumanizeButton = page.getByRole('button', { name: /rehumanize/i });
-    this.overrideButton = page.getByRole('button', { name: /override|copy anyway/i });
+    this.cancelButton = page.getByRole("button", { name: /cancel|go back/i });
+    this.rehumanizeButton = page.getByRole("button", { name: /rehumanize/i });
+    this.overrideButton = page.getByRole("button", { name: /override|copy anyway/i });
 
     // Override confirmation
-    this.overrideConfirmDialog = page.getByTestId('override-confirm-dialog');
+    this.overrideConfirmDialog = page.getByTestId("override-confirm-dialog");
     this.overrideConfirmText = page.getByText(/are you sure.*override/i);
-    this.confirmOverrideButton = page.getByRole('button', { name: /yes.*override|confirm/i });
-    this.cancelOverrideButton = page.getByRole('button', { name: /cancel/i });
+    this.confirmOverrideButton = page.getByRole("button", { name: /yes.*override|confirm/i });
+    this.cancelOverrideButton = page.getByRole("button", { name: /cancel/i });
 
     // Feedback
-    this.reportFeedbackButton = page.getByRole('button', { name: /report.*feedback/i });
+    this.reportFeedbackButton = page.getByRole("button", { name: /report.*feedback/i });
     this.overrideSuccessMessage = page.getByText(/copied.*clipboard/i);
   }
 
@@ -92,7 +92,7 @@ export class SafetyWarningModal {
    * Get perplexity score from modal
    */
   async getPerplexityScore(): Promise<number> {
-    const scoreText = (await this.perplexityScore.textContent()) ?? '0';
+    const scoreText = (await this.perplexityScore.textContent()) ?? "0";
     const match = scoreText.match(/[\d.]+/);
     return match ? parseFloat(match[0]) : 0;
   }
@@ -102,14 +102,14 @@ export class SafetyWarningModal {
    */
   async getFlaggedSentences(): Promise<string[]> {
     const sentences = await this.flaggedSentencesList.all();
-    return Promise.all(sentences.map((s) => s.textContent().then((t) => t?.trim() ?? '')));
+    return Promise.all(sentences.map((s) => s.textContent().then((t) => t?.trim() ?? "")));
   }
 
   /**
    * Get current threshold value
    */
   async getCurrentThreshold(): Promise<number> {
-    const thresholdText = (await this.currentThreshold.textContent()) ?? '0';
+    const thresholdText = (await this.currentThreshold.textContent()) ?? "0";
     const match = thresholdText.match(/\d+/);
     return match ? parseInt(match[0], 10) : 0;
   }
@@ -197,7 +197,7 @@ export class SafetyWarningModal {
    * Close modal using Escape key
    */
   async closeWithEscape(): Promise<void> {
-    await this.page.keyboard.press('Escape');
+    await this.page.keyboard.press("Escape");
     await expect(this.modal).toBeHidden();
   }
 }

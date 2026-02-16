@@ -66,7 +66,9 @@
   border-radius: 6px;
   color: #e0e0e0;
   font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .password-input:focus {
@@ -116,7 +118,9 @@
 
 .strength-bar {
   height: 100%;
-  transition: width 0.3s ease, background-color 0.3s ease;
+  transition:
+    width 0.3s ease,
+    background-color 0.3s ease;
   border-radius: 4px;
 }
 

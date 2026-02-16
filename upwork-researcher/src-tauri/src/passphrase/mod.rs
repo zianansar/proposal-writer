@@ -13,7 +13,7 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2, ParamsBuilder, Version,
 };
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use rand::Rng;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -58,22 +58,29 @@ pub enum PassphraseError {
 /// Generate a cryptographically secure random salt
 pub fn generate_random_salt() -> Result<[u8; SALT_LENGTH], PassphraseError> {
     let mut salt = [0u8; SALT_LENGTH];
-    OsRng.try_fill(&mut salt).map_err(|e| PassphraseError::SaltGenerationFailed(e.to_string()))?;
+    OsRng
+        .try_fill(&mut salt)
+        .map_err(|e| PassphraseError::SaltGenerationFailed(e.to_string()))?;
     Ok(salt)
 }
 
 /// Store salt to file in app data directory
-pub fn store_salt(salt: &[u8; SALT_LENGTH], app_data_dir: &Path) -> Result<PathBuf, PassphraseError> {
+pub fn store_salt(
+    salt: &[u8; SALT_LENGTH],
+    app_data_dir: &Path,
+) -> Result<PathBuf, PassphraseError> {
     let salt_path = app_data_dir.join(".salt");
 
     // Ensure app data directory exists
-    fs::create_dir_all(app_data_dir)
-        .map_err(|e| PassphraseError::SaltWriteFailed(format!("Failed to create directory: {}", e)))?;
+    fs::create_dir_all(app_data_dir).map_err(|e| {
+        PassphraseError::SaltWriteFailed(format!("Failed to create directory: {}", e))
+    })?;
 
     // Write salt to file (base64 encoded for safe storage)
     let salt_base64 = BASE64_STANDARD.encode(salt);
-    fs::write(&salt_path, salt_base64)
-        .map_err(|e| PassphraseError::SaltWriteFailed(format!("Failed to write salt file: {}", e)))?;
+    fs::write(&salt_path, salt_base64).map_err(|e| {
+        PassphraseError::SaltWriteFailed(format!("Failed to write salt file: {}", e))
+    })?;
 
     tracing::info!("Salt stored at: {}", salt_path.display());
 
@@ -89,7 +96,8 @@ pub fn load_salt(app_data_dir: &Path) -> Result<[u8; SALT_LENGTH], PassphraseErr
         .map_err(|e| PassphraseError::SaltReadFailed(format!("Failed to read salt file: {}", e)))?;
 
     // Decode base64
-    let salt_bytes = BASE64_STANDARD.decode(salt_base64.trim())
+    let salt_bytes = BASE64_STANDARD
+        .decode(salt_base64.trim())
         .map_err(|e| PassphraseError::InvalidSalt(format!("Invalid base64 encoding: {}", e)))?;
 
     // Validate salt length
@@ -123,7 +131,10 @@ pub fn load_salt(app_data_dir: &Path) -> Result<[u8; SALT_LENGTH], PassphraseErr
 /// - 3 iterations (OWASP minimum)
 /// - 4 parallelism (balances security and performance)
 /// - ~200ms derivation time (acceptable for startup)
-pub fn derive_key(passphrase: &str, salt: &[u8; SALT_LENGTH]) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
+pub fn derive_key(
+    passphrase: &str,
+    salt: &[u8; SALT_LENGTH],
+) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
     // Validate passphrase length
     if passphrase.len() < MIN_PASSPHRASE_LENGTH {
         return Err(PassphraseError::TooShort);
@@ -153,7 +164,9 @@ pub fn derive_key(passphrase: &str, salt: &[u8; SALT_LENGTH]) -> Result<Zeroizin
     // accepted limitation — zeroing PasswordHash would require upstream changes.
     let password_hash = argon2
         .hash_password(passphrase.as_bytes(), &salt_string)
-        .map_err(|e| PassphraseError::DerivationFailed(format!("Argon2id derivation failed: {}", e)))?;
+        .map_err(|e| {
+            PassphraseError::DerivationFailed(format!("Argon2id derivation failed: {}", e))
+        })?;
 
     // Extract raw hash bytes — wrapped in Zeroizing for automatic memory zeroing on drop
     let key = Zeroizing::new(
@@ -161,7 +174,7 @@ pub fn derive_key(passphrase: &str, salt: &[u8; SALT_LENGTH]) -> Result<Zeroizin
             .hash
             .ok_or_else(|| PassphraseError::DerivationFailed("No hash produced".to_string()))?
             .as_bytes()
-            .to_vec()
+            .to_vec(),
     );
 
     // Verify key length
@@ -185,7 +198,10 @@ pub fn derive_key(passphrase: &str, salt: &[u8; SALT_LENGTH]) -> Result<Zeroizin
 /// 4. Stores salt for future use
 ///
 /// Returns the derived key for immediate use in SQLCipher initialization.
-pub fn set_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
+pub fn set_passphrase(
+    passphrase: &str,
+    app_data_dir: &Path,
+) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
     // Generate new salt
     let salt = generate_random_salt()?;
 
@@ -204,7 +220,10 @@ pub fn set_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing
 ///
 /// Used during app restart to unlock the encrypted database.
 /// Loads existing salt and derives key to verify correctness.
-pub fn verify_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
+pub fn verify_passphrase(
+    passphrase: &str,
+    app_data_dir: &Path,
+) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
     // Load existing salt
     let salt = load_salt(app_data_dir)?;
 
@@ -226,7 +245,10 @@ pub fn verify_passphrase(passphrase: &str, app_data_dir: &Path) -> Result<Zeroiz
 /// - Argon2id derivation is constant-time by algorithm design
 /// - SQLCipher uses constant-time comparison during PRAGMA key
 /// - No stored key to compare — correctness verified by database unlock
-pub fn verify_passphrase_and_derive_key(passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
+pub fn verify_passphrase_and_derive_key(
+    passphrase: &str,
+    app_data_dir: &Path,
+) -> Result<Zeroizing<Vec<u8>>, PassphraseError> {
     verify_passphrase(passphrase, app_data_dir)
 }
 

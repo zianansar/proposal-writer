@@ -15,13 +15,14 @@
  * - Database contains 4 proposals after journey
  */
 
-import { test, expect } from '@playwright/test';
-import { PassphraseDialog } from '../pages/PassphraseDialog';
-import { HistoryPage } from '../pages/HistoryPage';
-import { MainEditorPage } from '../pages/MainEditorPage';
-import { launchTauriApp, closeTauriApp } from '../helpers/tauriDriver';
-import { seedDatabase, verifyDatabaseState, clearDatabase } from '../helpers/dbUtils';
-import { mockClaudeAPI } from '../helpers/apiMocks';
+import { test, expect } from "@playwright/test";
+
+import { mockClaudeAPI } from "../helpers/apiMocks";
+import { seedDatabase, verifyDatabaseState, clearDatabase } from "../helpers/dbUtils";
+import { launchTauriApp, closeTauriApp } from "../helpers/tauriDriver";
+import { HistoryPage } from "../pages/HistoryPage";
+import { MainEditorPage } from "../pages/MainEditorPage";
+import { PassphraseDialog } from "../pages/PassphraseDialog";
 
 const SAMPLE_JOB = `Senior Full-Stack Engineer needed for SaaS startup.
 
@@ -37,16 +38,16 @@ Remote: Yes
 
 Looking for someone who can work independently and take ownership of features end-to-end.`;
 
-const TEST_PASSPHRASE = 'test-passphrase-12345';
+const TEST_PASSPHRASE = "test-passphrase-12345";
 
-test.describe('Journey 2: Returning User', () => {
+test.describe("Journey 2: Returning User", () => {
   test.beforeAll(async () => {
     // Seed database with existing data
-    seedDatabase('returning-user');
-    console.log('✓ Database seeded with returning user data');
+    seedDatabase("returning-user");
+    console.log("✓ Database seeded with returning user data");
 
     await launchTauriApp({ useBuild: false });
-    console.log('✓ Tauri app launched');
+    console.log("✓ Tauri app launched");
   });
 
   test.afterAll(async () => {
@@ -55,17 +56,17 @@ test.describe('Journey 2: Returning User', () => {
 
   // M5: Per-test isolation — reseed DB before each test
   test.beforeEach(async () => {
-    seedDatabase('returning-user');
+    seedDatabase("returning-user");
   });
 
-  test('completes full returning user flow', async ({ page }) => {
+  test("completes full returning user flow", async ({ page }) => {
     const testStartTime = Date.now();
 
     // Mock API
-    await mockClaudeAPI(page, 'standard');
+    await mockClaudeAPI(page, "standard");
 
     // Navigate to app
-    await page.goto('tauri://localhost');
+    await page.goto("tauri://localhost");
 
     // =====================================================
     // Step 1-2: Passphrase Entry and Unlock (AC-3 Steps 1-2)
@@ -75,11 +76,11 @@ test.describe('Journey 2: Returning User', () => {
     // Verify passphrase prompt appears
     await expect(passphraseDialog.dialog).toBeVisible({ timeout: 5000 });
     expect(await passphraseDialog.isUnlockMode()).toBe(true);
-    console.log('✓ Passphrase prompt displayed');
+    console.log("✓ Passphrase prompt displayed");
 
     // Enter passphrase and unlock
     await passphraseDialog.unlock(TEST_PASSPHRASE);
-    console.log('✓ Database unlocked');
+    console.log("✓ Database unlocked");
 
     // =====================================================
     // Step 3: Navigate to History (AC-3 Step 3)
@@ -87,7 +88,7 @@ test.describe('Journey 2: Returning User', () => {
     const history = new HistoryPage(page);
 
     await history.navigateToHistory();
-    console.log('✓ Navigated to History');
+    console.log("✓ Navigated to History");
 
     // Verify 3 proposals are displayed
     const proposalCount = await history.getProposalCount();
@@ -98,20 +99,20 @@ test.describe('Journey 2: Returning User', () => {
     const firstProposal = await history.getProposalDetails(0);
     expect(firstProposal.preview.length).toBeGreaterThan(0);
     expect(firstProposal.date.length).toBeGreaterThan(0);
-    console.log('✓ Proposal details accessible');
+    console.log("✓ Proposal details accessible");
 
     // =====================================================
     // Step 4: Return to Main View and Analyze Job (AC-3 Step 4)
     // =====================================================
     await history.returnToEditor();
-    console.log('✓ Returned to main editor');
+    console.log("✓ Returned to main editor");
 
     const editor = new MainEditorPage(page);
 
     await editor.pasteJobContent(SAMPLE_JOB);
     await editor.analyzeJob();
     await editor.waitForAnalysisComplete();
-    console.log('✓ Job analysis complete');
+    console.log("✓ Job analysis complete");
 
     // =====================================================
     // Step 5: Generate Proposal (AC-3 Step 5)
@@ -126,19 +127,19 @@ test.describe('Journey 2: Returning User', () => {
     // =====================================================
     // Step 6: Edit Proposal Text (AC-3 Step 6)
     // =====================================================
-    const editedText = generatedText + '\n\nAdditional note: Available for a call this week.';
+    const editedText = generatedText + "\n\nAdditional note: Available for a call this week.";
     await editor.editProposalText(editedText);
 
     // Verify edit persisted
     const currentText = await editor.getProposalText();
-    expect(currentText).toContain('Available for a call this week');
-    console.log('✓ Proposal edited and changes persisted');
+    expect(currentText).toContain("Available for a call this week");
+    console.log("✓ Proposal edited and changes persisted");
 
     // =====================================================
     // Step 7: Copy Edited Text (AC-3 Step 7)
     // =====================================================
     await editor.copyToClipboard();
-    console.log('✓ Edited proposal copied to clipboard');
+    console.log("✓ Edited proposal copied to clipboard");
 
     // =====================================================
     // Verify Database State (AC-3 Final Assertion)
@@ -147,7 +148,7 @@ test.describe('Journey 2: Returning User', () => {
     await verifyDatabaseState(page, {
       proposalCount: 4,
     });
-    console.log('✓ Database contains 4 proposals');
+    console.log("✓ Database contains 4 proposals");
 
     // =====================================================
     // AC-3: Complete within 90 seconds
@@ -157,27 +158,27 @@ test.describe('Journey 2: Returning User', () => {
     console.log(`✓ Journey completed in ${totalTime}ms (< 90s)`);
   });
 
-  test('shows error for incorrect passphrase', async ({ page }) => {
-    seedDatabase('returning-user');
-    await page.goto('tauri://localhost');
+  test("shows error for incorrect passphrase", async ({ page }) => {
+    seedDatabase("returning-user");
+    await page.goto("tauri://localhost");
 
     const passphraseDialog = new PassphraseDialog(page);
     await expect(passphraseDialog.dialog).toBeVisible({ timeout: 5000 });
 
     // Enter wrong passphrase
-    await passphraseDialog.enterPassphrase('wrong-passphrase');
+    await passphraseDialog.enterPassphrase("wrong-passphrase");
     await passphraseDialog.submitUnlock();
 
     // Verify error message
     await expect(passphraseDialog.errorMessage).toBeVisible({ timeout: 3000 });
     const errorText = await passphraseDialog.getErrorMessage();
-    expect(errorText.toLowerCase()).toContain('incorrect');
-    console.log('✓ Incorrect passphrase error displayed');
+    expect(errorText.toLowerCase()).toContain("incorrect");
+    console.log("✓ Incorrect passphrase error displayed");
   });
 
-  test('can view and navigate proposal history', async ({ page }) => {
-    seedDatabase('returning-user');
-    await page.goto('tauri://localhost');
+  test("can view and navigate proposal history", async ({ page }) => {
+    seedDatabase("returning-user");
+    await page.goto("tauri://localhost");
 
     const passphraseDialog = new PassphraseDialog(page);
     await passphraseDialog.unlock(TEST_PASSPHRASE);
@@ -190,15 +191,15 @@ test.describe('Journey 2: Returning User', () => {
 
     // Should navigate to proposal view
     // (Implementation depends on app routing)
-    console.log('✓ Can navigate to proposal details');
+    console.log("✓ Can navigate to proposal details");
   });
 
-  test('persists proposals across app restarts', async ({ page }) => {
+  test("persists proposals across app restarts", async ({ page }) => {
     // This test verifies data persistence
-    seedDatabase('returning-user');
+    seedDatabase("returning-user");
 
     // First session: unlock and verify
-    await page.goto('tauri://localhost');
+    await page.goto("tauri://localhost");
     const passphraseDialog = new PassphraseDialog(page);
     await passphraseDialog.unlock(TEST_PASSPHRASE);
 
@@ -217,6 +218,6 @@ test.describe('Journey 2: Returning User', () => {
     await history.navigateToHistory();
     const secondCount = await history.getProposalCount();
     expect(secondCount).toBe(3);
-    console.log('✓ Data persists across restarts');
+    console.log("✓ Data persists across restarts");
   });
 });

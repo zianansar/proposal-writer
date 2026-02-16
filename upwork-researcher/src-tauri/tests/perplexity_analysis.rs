@@ -27,10 +27,7 @@ mod tests {
 
     #[test]
     fn test_parse_prefixed_label() {
-        assert_eq!(
-            claude::parse_perplexity_score("Score: 150").unwrap(),
-            150.0
-        );
+        assert_eq!(claude::parse_perplexity_score("Score: 150").unwrap(), 150.0);
     }
 
     #[test]
@@ -88,7 +85,11 @@ mod tests {
     #[test]
     fn test_threshold_risky_score_at_180() {
         let score = claude::parse_perplexity_score("180").unwrap();
-        assert!(score >= 180.0, "Score {} should be at/above threshold", score);
+        assert!(
+            score >= 180.0,
+            "Score {} should be at/above threshold",
+            score
+        );
     }
 
     #[test]
@@ -111,9 +112,14 @@ mod tests {
 
     #[test]
     fn test_extract_json_from_code_block() {
-        let input = "Here is the analysis:\n```json\n{\"score\": 185.5, \"flagged_sentences\": []}\n```";
+        let input =
+            "Here is the analysis:\n```json\n{\"score\": 185.5, \"flagged_sentences\": []}\n```";
         let result = claude::extract_json_from_response(input);
-        assert!(result.starts_with('{'), "Expected JSON object, got: {}", result);
+        assert!(
+            result.starts_with('{'),
+            "Expected JSON object, got: {}",
+            result
+        );
         assert!(serde_json::from_str::<serde_json::Value>(result).is_ok());
     }
 
@@ -121,7 +127,11 @@ mod tests {
     fn test_extract_json_from_untagged_code_block() {
         let input = "```\n{\"score\": 190.0, \"flagged_sentences\": []}\n```";
         let result = claude::extract_json_from_response(input);
-        assert!(result.starts_with('{'), "Expected JSON object, got: {}", result);
+        assert!(
+            result.starts_with('{'),
+            "Expected JSON object, got: {}",
+            result
+        );
     }
 
     #[test]
@@ -177,13 +187,11 @@ mod tests {
         let analysis = claude::PerplexityAnalysis {
             score: 185.5,
             threshold: 180.0,
-            flagged_sentences: vec![
-                claude::FlaggedSentence {
-                    text: "Test sentence".to_string(),
-                    suggestion: "Fix it".to_string(),
-                    index: 0,
-                },
-            ],
+            flagged_sentences: vec![claude::FlaggedSentence {
+                text: "Test sentence".to_string(),
+                suggestion: "Fix it".to_string(),
+                index: 0,
+            }],
         };
 
         // Verify serialization includes all fields
@@ -194,7 +202,10 @@ mod tests {
 
         // Verify camelCase for frontend: flaggedSentences not flagged_sentences
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert!(value.get("flaggedSentences").is_some(), "Expected camelCase 'flaggedSentences' key");
+        assert!(
+            value.get("flaggedSentences").is_some(),
+            "Expected camelCase 'flaggedSentences' key"
+        );
     }
 
     #[test]
@@ -284,8 +295,13 @@ mod tests {
 
         assert!((analysis.score - 195.5).abs() < f32::EPSILON);
         assert_eq!(analysis.flagged_sentences.len(), 3);
-        assert_eq!(analysis.flagged_sentences[0].text, "I am delighted to delve into this opportunity.");
-        assert!(analysis.flagged_sentences[0].suggestion.contains("excited to work on"));
+        assert_eq!(
+            analysis.flagged_sentences[0].text,
+            "I am delighted to delve into this opportunity."
+        );
+        assert!(analysis.flagged_sentences[0]
+            .suggestion
+            .contains("excited to work on"));
         assert_eq!(analysis.flagged_sentences[1].index, 3);
         assert_eq!(analysis.flagged_sentences[2].index, 5);
 
@@ -295,7 +311,10 @@ mod tests {
             threshold: 180.0,
             flagged_sentences: analysis.flagged_sentences,
         };
-        assert!(result.score >= result.threshold, "195.5 should exceed threshold 180");
+        assert!(
+            result.score >= result.threshold,
+            "195.5 should exceed threshold 180"
+        );
         assert_eq!(result.flagged_sentences.len(), 3);
     }
 
@@ -319,15 +338,16 @@ mod tests {
         match result {
             Ok(score) => {
                 assert!(score >= 0.0, "Score should be non-negative, got {}", score);
-                assert!(score <= 500.0, "Score should be reasonable (<500), got {}", score);
+                assert!(
+                    score <= 500.0,
+                    "Score should be reasonable (<500), got {}",
+                    score
+                );
                 println!("Perplexity score: {}", score);
             }
             Err(e) => {
                 // API rate limits or transient failures are acceptable in integration tests
-                assert!(
-                    !e.is_empty(),
-                    "Error message should not be empty"
-                );
+                assert!(!e.is_empty(), "Error message should not be empty");
                 eprintln!("Perplexity analysis error (may be expected in CI): {}", e);
             }
         }

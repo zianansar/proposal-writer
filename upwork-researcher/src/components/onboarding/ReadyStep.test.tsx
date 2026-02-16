@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
 import { useOnboardingStore } from "../../stores/useOnboardingStore";
+
 import ReadyStep from "./ReadyStep";
 
 // Mock Tauri invoke
@@ -26,15 +28,13 @@ describe("ReadyStep", () => {
   it("displays instruction to paste job post", () => {
     render(<ReadyStep />);
     expect(
-      screen.getByText("Paste a job post to get started with your first proposal.")
+      screen.getByText("Paste a job post to get started with your first proposal."),
     ).toBeInTheDocument();
   });
 
   it("has Start Using App button", () => {
     render(<ReadyStep />);
-    expect(
-      screen.getByRole("button", { name: /start using app/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start using app/i })).toBeInTheDocument();
   });
 
   it("calls set_setting and closes wizard on complete", async () => {

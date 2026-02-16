@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect, useCallback } from "react";
 import "./UserSkillsConfig.css";
 
 interface UserSkill {
@@ -121,9 +121,7 @@ function UserSkillsConfig() {
       // M-2: Navigate down in suggestions (NFR-14 keyboard nav)
       e.preventDefault();
       if (showSuggestions && suggestions.length > 0) {
-        setSelectedIndex((prev) =>
-          prev < suggestions.length - 1 ? prev + 1 : prev
-        );
+        setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
       }
     } else if (e.key === "ArrowUp") {
       // M-2: Navigate up in suggestions (NFR-14 keyboard nav)

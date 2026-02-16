@@ -1,7 +1,8 @@
 // Hook for fetching full proposal detail (Story 7.4 AC-1)
-import { useQuery } from '@tanstack/react-query';
-import { invoke } from '@tauri-apps/api/core';
-import type { ProposalDetail } from './types';
+import { useQuery } from "@tanstack/react-query";
+import { invoke } from "@tauri-apps/api/core";
+
+import type { ProposalDetail } from "./types";
 
 /**
  * Fetch a single proposal's full detail by ID.
@@ -10,8 +11,8 @@ import type { ProposalDetail } from './types';
  */
 export function useProposalDetail(id: number | null | undefined) {
   return useQuery<ProposalDetail>({
-    queryKey: ['proposal', id],
-    queryFn: () => invoke<ProposalDetail>('get_proposal_detail', { id }),
+    queryKey: ["proposal", id],
+    queryFn: () => invoke<ProposalDetail>("get_proposal_detail", { id }),
     enabled: !!id,
   });
 }

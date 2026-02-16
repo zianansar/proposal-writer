@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import { useKeyboardShortcuts } from "../useKeyboardShortcuts";
 
 describe("useKeyboardShortcuts", () => {
@@ -44,7 +45,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: true,
           canCopy: false,
-        })
+        }),
       );
 
       const event = dispatchKeyDown({ key: "Enter", metaKey: true });
@@ -61,7 +62,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: false,
-        })
+        }),
       );
 
       dispatchKeyDown({ key: "Enter", metaKey: true });
@@ -76,7 +77,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: true,
-        })
+        }),
       );
 
       const event = dispatchKeyDown({ key: "C", metaKey: true, shiftKey: true });
@@ -93,7 +94,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: false,
-        })
+        }),
       );
 
       dispatchKeyDown({ key: "C", metaKey: true, shiftKey: true });
@@ -108,7 +109,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: true,
           canCopy: false,
-        })
+        }),
       );
 
       // Ctrl+Enter should not work on Mac
@@ -133,7 +134,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: true,
           canCopy: false,
-        })
+        }),
       );
 
       const event = dispatchKeyDown({ key: "Enter", ctrlKey: true });
@@ -150,7 +151,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: false,
-        })
+        }),
       );
 
       dispatchKeyDown({ key: "Enter", ctrlKey: true });
@@ -165,7 +166,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: true,
-        })
+        }),
       );
 
       const event = dispatchKeyDown({ key: "C", ctrlKey: true, shiftKey: true });
@@ -182,7 +183,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: false,
-        })
+        }),
       );
 
       dispatchKeyDown({ key: "C", ctrlKey: true, shiftKey: true });
@@ -197,7 +198,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: true,
           canCopy: false,
-        })
+        }),
       );
 
       // Meta+Enter should not work on Windows
@@ -222,7 +223,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: true,
-        })
+        }),
       );
 
       const event = dispatchKeyDown({ key: "c", ctrlKey: true });
@@ -239,7 +240,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: true,
-        })
+        }),
       );
 
       const event = dispatchKeyDown({ key: "v", ctrlKey: true });
@@ -259,15 +260,12 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: true,
           canCopy: true,
-        })
+        }),
       );
 
       unmount();
 
-      expect(removeEventListenerSpy).toHaveBeenCalledWith(
-        "keydown",
-        expect.any(Function)
-      );
+      expect(removeEventListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
 
       removeEventListenerSpy.mockRestore();
     });
@@ -288,7 +286,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: true,
           canCopy: false,
-        })
+        }),
       );
 
       // Create and focus a textarea to simulate typing context
@@ -319,7 +317,7 @@ describe("useKeyboardShortcuts", () => {
           onCopy,
           canGenerate: false,
           canCopy: true,
-        })
+        }),
       );
 
       const textarea = document.createElement("textarea");

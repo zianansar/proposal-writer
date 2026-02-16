@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import "./OverrideConfirmDialog.css";
 
@@ -20,11 +21,7 @@ interface OverrideConfirmDialogProps {
  * - Enter does NOT auto-confirm (safety: prevent accidental confirm)
  * - Escape key calls cancel
  */
-function OverrideConfirmDialog({
-  onCancel,
-  onConfirm,
-  triggerRef,
-}: OverrideConfirmDialogProps) {
+function OverrideConfirmDialog({ onCancel, onConfirm, triggerRef }: OverrideConfirmDialogProps) {
   // Story 8.2: Focus trap for keyboard navigation
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, { triggerRef });
@@ -50,26 +47,17 @@ function OverrideConfirmDialog({
     >
       <div ref={modalRef} className="override-confirm">
         <p id="override-confirm-desc" className="override-confirm__warning">
-          <span aria-hidden="true">⚠️</span> This proposal may be detected as
-          AI-generated.
+          <span aria-hidden="true">⚠️</span> This proposal may be detected as AI-generated.
         </p>
-        <p className="override-confirm__consequence">
-          Upwork may penalize your account.
-        </p>
+        <p className="override-confirm__consequence">Upwork may penalize your account.</p>
         <p className="override-confirm__question">
           <strong>Are you sure you want to copy it?</strong>
         </p>
         <div className="override-confirm__actions">
-          <button
-            className="override-confirm__button button--secondary"
-            onClick={onCancel}
-          >
+          <button className="override-confirm__button button--secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button
-            className="override-confirm__button button--danger"
-            onClick={onConfirm}
-          >
+          <button className="override-confirm__button button--danger" onClick={onConfirm}>
             Copy Anyway
           </button>
         </div>

@@ -1,0 +1,55 @@
+/* Health Check Modal Styles (Story 9.9) */
+
+.health-check-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.health-check-modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 2rem;
+  min-width: 400px;
+  text-align: center;
+}
+
+.health-check-modal h2 {
+  margin: 0 0 1rem 0;
+  color: var(--color-text-primary);
+}
+
+.health-check-status {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  color: var(--color-text-secondary);
+}
+
+.health-check-name {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0.5rem 0 1.5rem 0;
+}
+
+.health-check-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--color-background-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.health-check-progress-bar {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}

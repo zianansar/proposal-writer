@@ -14,16 +14,17 @@
  * AC-7: Semantic HTML for screen reader navigation
  */
 
-import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import SkillTags from './SkillTags';
-import HiddenNeedsDisplay from './HiddenNeedsDisplay';
-import SkillsMatchBadge from './SkillsMatchBadge';
-import ClientQualityBadge from './ClientQualityBadge';
-import BudgetAlignmentBadge from './BudgetAlignmentBadge';
-import { JobScoreBadge } from './JobScoreBadge';
-import ScoringBreakdownCard from './ScoringBreakdown';
-import './JobAnalysisPanel.css';
+import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect } from "react";
+
+import BudgetAlignmentBadge from "./BudgetAlignmentBadge";
+import ClientQualityBadge from "./ClientQualityBadge";
+import HiddenNeedsDisplay from "./HiddenNeedsDisplay";
+import { JobScoreBadge } from "./JobScoreBadge";
+import ScoringBreakdownCard from "./ScoringBreakdown";
+import SkillsMatchBadge from "./SkillsMatchBadge";
+import SkillTags from "./SkillTags";
+import "./JobAnalysisPanel.css";
 
 // Story 4b.6: Scoring breakdown data structure (matches Rust ScoringBreakdown)
 interface ScoringBreakdown {
@@ -51,21 +52,21 @@ interface JobAnalysisPanelProps {
   visible: boolean;
   isGenerating?: boolean;
   skillsMatchPercentage?: number | null;
-  skillsMatchReason?: 'no-user-skills' | 'no-job-skills' | null;
+  skillsMatchReason?: "no-user-skills" | "no-job-skills" | null;
   matchedSkillsCount?: number;
   totalJobSkillsCount?: number;
   clientQualityScore?: number | null;
   // Story 4b.4: Budget alignment props
   budgetAlignmentPct?: number | null;
-  budgetAlignmentStatus?: 'green' | 'yellow' | 'red' | 'gray' | 'mismatch' | null;
+  budgetAlignmentStatus?: "green" | "yellow" | "red" | "gray" | "mismatch" | null;
   budgetMin?: number | null;
   budgetMax?: number | null;
-  budgetType?: 'hourly' | 'fixed' | 'unknown';
+  budgetType?: "hourly" | "fixed" | "unknown";
   userHourlyRate?: number | null;
   userProjectRateMin?: number | null;
   // Story 4b.5: Overall score props
   overallScore?: number | null;
-  colorFlag?: 'green' | 'yellow' | 'red' | 'gray';
+  colorFlag?: "green" | "yellow" | "red" | "gray";
 }
 
 export default function JobAnalysisPanel({
@@ -86,7 +87,7 @@ export default function JobAnalysisPanel({
   budgetAlignmentStatus,
   budgetMin,
   budgetMax,
-  budgetType = 'unknown',
+  budgetType = "unknown",
   userHourlyRate,
   userProjectRateMin,
   // Story 4b.5: Overall score
@@ -102,13 +103,13 @@ export default function JobAnalysisPanel({
   useEffect(() => {
     if (isBreakdownExpanded && jobPostId && !breakdown) {
       setBreakdownLoading(true);
-      invoke<ScoringBreakdown>('get_scoring_breakdown', { jobPostId })
+      invoke<ScoringBreakdown>("get_scoring_breakdown", { jobPostId })
         .then((data) => {
           setBreakdown(data);
           setBreakdownLoading(false);
         })
         .catch((err) => {
-          console.error('Failed to fetch scoring breakdown:', err);
+          console.error("Failed to fetch scoring breakdown:", err);
           setBreakdownLoading(false);
         });
     }
@@ -211,7 +212,7 @@ export default function JobAnalysisPanel({
             />
             {/* Story 4b.6: Scoring Breakdown Card */}
             {breakdownLoading && isBreakdownExpanded && (
-              <div style={{ marginTop: '8px', color: '#9ca3af' }}>Loading breakdown...</div>
+              <div style={{ marginTop: "8px", color: "#9ca3af" }}>Loading breakdown...</div>
             )}
             {breakdown && !breakdownLoading && jobPostId && (
               <ScoringBreakdownCard

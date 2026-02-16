@@ -32,7 +32,8 @@ fn create_test_database() -> (Database, TempDir) {
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )",
         [],
-    ).expect("Failed to create proposals table");
+    )
+    .expect("Failed to create proposals table");
 
     // Create settings table (from Story 1.8 schema)
     conn.execute(
@@ -42,7 +43,8 @@ fn create_test_database() -> (Database, TempDir) {
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )",
         [],
-    ).expect("Failed to create settings table");
+    )
+    .expect("Failed to create settings table");
 
     // Create job_posts table (from Story 1.12 schema)
     conn.execute(
@@ -54,7 +56,8 @@ fn create_test_database() -> (Database, TempDir) {
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )",
         [],
-    ).expect("Failed to create job_posts table");
+    )
+    .expect("Failed to create job_posts table");
 
     // Insert 3 test proposals (Subtask 7.1)
     conn.execute(
@@ -63,7 +66,8 @@ fn create_test_database() -> (Database, TempDir) {
          ('Job 2', 'Proposal 2', 'completed'),
          ('Job 3', 'Proposal 3', 'draft')",
         [],
-    ).expect("Failed to insert test proposals");
+    )
+    .expect("Failed to insert test proposals");
 
     // Insert 5 test settings (Subtask 7.1)
     // Use unique keys to avoid conflicts with auto-initialized settings
@@ -75,7 +79,8 @@ fn create_test_database() -> (Database, TempDir) {
          ('test_setting_4', 'value4'),
          ('test_setting_5', 'value5')",
         [],
-    ).expect("Failed to insert test settings");
+    )
+    .expect("Failed to insert test settings");
 
     // Insert 2 test job_posts (Subtask 7.1)
     conn.execute(
@@ -83,7 +88,8 @@ fn create_test_database() -> (Database, TempDir) {
          ('https://upwork.com/job/123', 'Job post 1 content', 'Client A'),
          (NULL, 'Job post 2 content', 'Client B')",
         [],
-    ).expect("Failed to insert test job_posts");
+    )
+    .expect("Failed to insert test job_posts");
 
     drop(conn);
 
@@ -103,7 +109,10 @@ fn test_backup_creation_with_mock_database() {
 
     // Verify counts match test data
     assert_eq!(metadata.proposal_count, 3, "Should backup 3 proposals");
-    assert!(metadata.settings_count >= 5, "Should backup at least 5 settings");
+    assert!(
+        metadata.settings_count >= 5,
+        "Should backup at least 5 settings"
+    );
     assert_eq!(metadata.job_posts_count, 2, "Should backup 2 job_posts");
 
     // Verify file exists
@@ -116,23 +125,32 @@ fn test_json_structure_validation() {
     let (db, _temp_db_dir) = create_test_database();
     let app_data_dir = tempfile::tempdir().expect("Failed to create app data dir");
 
-    let metadata = create_pre_migration_backup(app_data_dir.path(), &db)
-        .expect("Backup creation failed");
+    let metadata =
+        create_pre_migration_backup(app_data_dir.path(), &db).expect("Backup creation failed");
 
     // Read and parse JSON file
-    let json_content = std::fs::read_to_string(&metadata.file_path)
-        .expect("Failed to read backup file");
+    let json_content =
+        std::fs::read_to_string(&metadata.file_path).expect("Failed to read backup file");
 
-    let backup_data: BackupData = serde_json::from_str(&json_content)
-        .expect("Failed to parse backup JSON");
+    let backup_data: BackupData =
+        serde_json::from_str(&json_content).expect("Failed to parse backup JSON");
 
     // Verify metadata structure
     assert_eq!(backup_data.metadata.backup_type, "pre-migration");
     assert_eq!(backup_data.metadata.proposal_count, 3);
-    assert!(backup_data.metadata.settings_count >= 5, "Should have at least 5 settings (may have auto-initialized ones)");
+    assert!(
+        backup_data.metadata.settings_count >= 5,
+        "Should have at least 5 settings (may have auto-initialized ones)"
+    );
     assert_eq!(backup_data.metadata.job_posts_count, 2);
-    assert!(backup_data.metadata.export_date.contains("T"), "export_date should be ISO 8601");
-    assert!(!backup_data.metadata.app_version.is_empty(), "app_version should be set");
+    assert!(
+        backup_data.metadata.export_date.contains("T"),
+        "export_date should be ISO 8601"
+    );
+    assert!(
+        !backup_data.metadata.app_version.is_empty(),
+        "app_version should be set"
+    );
 
     // Verify proposals array
     assert_eq!(backup_data.proposals.len(), 3, "Should have 3 proposals");
@@ -140,14 +158,23 @@ fn test_json_structure_validation() {
     assert_eq!(backup_data.proposals[0].status, "draft");
 
     // Verify settings array (at least 5 test settings, may have more from auto-init)
-    assert!(backup_data.settings.len() >= 5, "Should have at least 5 settings");
-    let test_setting = backup_data.settings.iter().find(|s| s.key == "test_setting_1");
+    assert!(
+        backup_data.settings.len() >= 5,
+        "Should have at least 5 settings"
+    );
+    let test_setting = backup_data
+        .settings
+        .iter()
+        .find(|s| s.key == "test_setting_1");
     assert!(test_setting.is_some(), "Should have test_setting_1");
     assert_eq!(test_setting.unwrap().value, "value1");
 
     // Verify job_posts array
     assert_eq!(backup_data.job_posts.len(), 2, "Should have 2 job_posts");
-    assert_eq!(backup_data.job_posts[0].client_name, Some("Client A".to_string()));
+    assert_eq!(
+        backup_data.job_posts[0].client_name,
+        Some("Client A".to_string())
+    );
     assert_eq!(backup_data.job_posts[1].url, None);
 }
 
@@ -157,17 +184,25 @@ fn test_timestamp_filename_format() {
     let (db, _temp_db_dir) = create_test_database();
     let app_data_dir = tempfile::tempdir().expect("Failed to create app data dir");
 
-    let metadata = create_pre_migration_backup(app_data_dir.path(), &db)
-        .expect("Backup creation failed");
+    let metadata =
+        create_pre_migration_backup(app_data_dir.path(), &db).expect("Backup creation failed");
 
-    let filename = metadata.file_path.file_name()
+    let filename = metadata
+        .file_path
+        .file_name()
         .expect("Should have filename")
         .to_str()
         .expect("Filename should be valid UTF-8");
 
     // Verify format: pre-encryption-backup-YYYY-MM-DD-HH-MM-SS.json
-    assert!(filename.starts_with("pre-encryption-backup-"), "Filename should start with prefix");
-    assert!(filename.ends_with(".json"), "Filename should end with .json");
+    assert!(
+        filename.starts_with("pre-encryption-backup-"),
+        "Filename should start with prefix"
+    );
+    assert!(
+        filename.ends_with(".json"),
+        "Filename should end with .json"
+    );
 
     // Extract timestamp part (between prefix and .json)
     let timestamp_part = filename
@@ -177,12 +212,20 @@ fn test_timestamp_filename_format() {
         .unwrap();
 
     // Verify timestamp format: YYYY-MM-DD-HH-MM-SS (length: 19 chars)
-    assert_eq!(timestamp_part.len(), 19, "Timestamp should be 19 characters (YYYY-MM-DD-HH-MM-SS)");
+    assert_eq!(
+        timestamp_part.len(),
+        19,
+        "Timestamp should be 19 characters (YYYY-MM-DD-HH-MM-SS)"
+    );
     assert_eq!(&timestamp_part[4..5], "-", "Year should be followed by -");
     assert_eq!(&timestamp_part[7..8], "-", "Month should be followed by -");
     assert_eq!(&timestamp_part[10..11], "-", "Day should be followed by -");
     assert_eq!(&timestamp_part[13..14], "-", "Hour should be followed by -");
-    assert_eq!(&timestamp_part[16..17], "-", "Minute should be followed by -");
+    assert_eq!(
+        &timestamp_part[16..17],
+        "-",
+        "Minute should be followed by -"
+    );
 }
 
 #[test]
@@ -193,7 +236,10 @@ fn test_backup_directory_creation() {
 
     // Verify backups directory doesn't exist initially
     let backups_dir = app_data_dir.path().join("backups");
-    assert!(!backups_dir.exists(), "Backups directory should not exist initially");
+    assert!(
+        !backups_dir.exists(),
+        "Backups directory should not exist initially"
+    );
 
     let metadata = create_pre_migration_backup(app_data_dir.path(), &db)
         .expect("Backup creation should succeed even when directory missing");
@@ -203,7 +249,10 @@ fn test_backup_directory_creation() {
     assert!(backups_dir.is_dir(), "Backups should be a directory");
 
     // Verify backup file is in the backups directory
-    assert!(metadata.file_path.starts_with(&backups_dir), "Backup should be in backups/ directory");
+    assert!(
+        metadata.file_path.starts_with(&backups_dir),
+        "Backup should be in backups/ directory"
+    );
 }
 
 #[test]
@@ -212,19 +261,22 @@ fn test_atomic_write_temp_file_rename() {
     let (db, _temp_db_dir) = create_test_database();
     let app_data_dir = tempfile::tempdir().expect("Failed to create app data dir");
 
-    let metadata = create_pre_migration_backup(app_data_dir.path(), &db)
-        .expect("Backup creation failed");
+    let metadata =
+        create_pre_migration_backup(app_data_dir.path(), &db).expect("Backup creation failed");
 
     // Verify final backup file exists
     assert!(metadata.file_path.exists(), "Backup file should exist");
 
     // Verify temp file does NOT exist (should be renamed)
     let temp_file = metadata.file_path.with_extension("json.tmp");
-    assert!(!temp_file.exists(), "Temp file should be renamed, not left behind");
+    assert!(
+        !temp_file.exists(),
+        "Temp file should be renamed, not left behind"
+    );
 
     // Verify file is readable and valid
-    let content = std::fs::read_to_string(&metadata.file_path)
-        .expect("Backup file should be readable");
+    let content =
+        std::fs::read_to_string(&metadata.file_path).expect("Backup file should be readable");
     assert!(!content.is_empty(), "Backup file should not be empty");
 }
 
@@ -288,7 +340,8 @@ fn test_backup_with_empty_database() {
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )",
         [],
-    ).expect("Failed to create proposals table");
+    )
+    .expect("Failed to create proposals table");
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS settings (
@@ -297,7 +350,8 @@ fn test_backup_with_empty_database() {
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )",
         [],
-    ).expect("Failed to create settings table");
+    )
+    .expect("Failed to create settings table");
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS job_posts (
@@ -308,14 +362,18 @@ fn test_backup_with_empty_database() {
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )",
         [],
-    ).expect("Failed to create job_posts table");
+    )
+    .expect("Failed to create job_posts table");
     drop(conn);
 
     let app_data_dir = tempfile::tempdir().expect("Failed to create app data dir");
 
     let result = create_pre_migration_backup(app_data_dir.path(), &db);
 
-    assert!(result.is_ok(), "Backup should succeed even with empty database");
+    assert!(
+        result.is_ok(),
+        "Backup should succeed even with empty database"
+    );
     let metadata = result.unwrap();
 
     // Note: Database may auto-initialize with default settings (e.g., from migrations)
@@ -341,8 +399,8 @@ fn test_restore_from_backup_success() {
     let app_data_dir = tempfile::tempdir().expect("Failed to create app data dir");
 
     // Create backup
-    let metadata = create_pre_migration_backup(app_data_dir.path(), &db)
-        .expect("Backup creation failed");
+    let metadata =
+        create_pre_migration_backup(app_data_dir.path(), &db).expect("Backup creation failed");
 
     // Clear database
     let conn = db.conn.lock().unwrap();
@@ -360,9 +418,15 @@ fn test_restore_from_backup_success() {
 
     // Verify data was restored
     let conn = db.conn.lock().unwrap();
-    let proposals_count: i64 = conn.query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0)).unwrap();
-    let settings_count: i64 = conn.query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0)).unwrap();
-    let job_posts_count: i64 = conn.query_row("SELECT COUNT(*) FROM job_posts", [], |row| row.get(0)).unwrap();
+    let proposals_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0))
+        .unwrap();
+    let settings_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0))
+        .unwrap();
+    let job_posts_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM job_posts", [], |row| row.get(0))
+        .unwrap();
 
     assert_eq!(proposals_count, 3, "Should restore 3 proposals");
     assert!(settings_count >= 5, "Should restore at least 5 settings");
@@ -378,10 +442,16 @@ fn test_restore_from_nonexistent_backup() {
     let nonexistent_path = app_data_dir.path().join("nonexistent-backup.json");
 
     let result = restore_from_backup(&nonexistent_path, &db);
-    assert!(result.is_err(), "Restore should fail with non-existent file");
+    assert!(
+        result.is_err(),
+        "Restore should fail with non-existent file"
+    );
 
     if let Err(BackupError::VerificationFailed(msg)) = result {
-        assert!(msg.contains("not found"), "Error should mention file not found");
+        assert!(
+            msg.contains("not found"),
+            "Error should mention file not found"
+        );
     } else {
         panic!("Expected VerificationFailed error");
     }
@@ -415,12 +485,14 @@ fn test_restore_transaction_rollback() {
     let app_data_dir = tempfile::tempdir().expect("Failed to create app data dir");
 
     // Create backup with known data (not used, but validates backup creation works)
-    let _metadata = create_pre_migration_backup(app_data_dir.path(), &db)
-        .expect("Backup creation failed");
+    let _metadata =
+        create_pre_migration_backup(app_data_dir.path(), &db).expect("Backup creation failed");
 
     // Count records before restore attempt
     let conn = db.conn.lock().unwrap();
-    let _original_proposals: i64 = conn.query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0)).unwrap();
+    let _original_proposals: i64 = conn
+        .query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0))
+        .unwrap();
     drop(conn);
 
     // Create a backup with invalid data structure (missing required fields)
@@ -452,8 +524,13 @@ fn test_restore_transaction_rollback() {
 
     // Verify data was cleared (empty backup)
     let conn = db.conn.lock().unwrap();
-    let final_proposals: i64 = conn.query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0)).unwrap();
-    assert_eq!(final_proposals, 0, "Should have 0 proposals after empty backup restore");
+    let final_proposals: i64 = conn
+        .query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(
+        final_proposals, 0,
+        "Should have 0 proposals after empty backup restore"
+    );
 }
 
 /// Test restore preserves data integrity (Story 2.5)
@@ -463,16 +540,18 @@ fn test_restore_data_integrity() {
     let app_data_dir = tempfile::tempdir().expect("Failed to create app data dir");
 
     // Create backup
-    let metadata = create_pre_migration_backup(app_data_dir.path(), &db)
-        .expect("Backup creation failed");
+    let metadata =
+        create_pre_migration_backup(app_data_dir.path(), &db).expect("Backup creation failed");
 
     // Read specific values before clearing
     let conn = db.conn.lock().unwrap();
-    let original_proposal_content: String = conn.query_row(
-        "SELECT job_content FROM proposals WHERE id = 1",
-        [],
-        |row| row.get(0)
-    ).unwrap();
+    let original_proposal_content: String = conn
+        .query_row(
+            "SELECT job_content FROM proposals WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
     drop(conn);
 
     // Clear and restore
@@ -484,14 +563,18 @@ fn test_restore_data_integrity() {
 
     // Verify specific content was preserved
     let conn = db.conn.lock().unwrap();
-    let restored_proposal_content: String = conn.query_row(
-        "SELECT job_content FROM proposals WHERE id = 1",
-        [],
-        |row| row.get(0)
-    ).unwrap();
+    let restored_proposal_content: String = conn
+        .query_row(
+            "SELECT job_content FROM proposals WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
 
-    assert_eq!(original_proposal_content, restored_proposal_content,
-        "Restored data should match original exactly");
+    assert_eq!(
+        original_proposal_content, restored_proposal_content,
+        "Restored data should match original exactly"
+    );
 }
 
 // Story 2.9, Task 6.2: Backup export tests
@@ -524,7 +607,11 @@ fn test_export_unencrypted_backup_success() {
 fn test_export_unencrypted_backup_creates_dirs() {
     let (db, _temp_db_dir) = create_test_database();
     let base_dir = tempfile::tempdir().expect("Failed to create dir");
-    let export_path = base_dir.path().join("deep").join("nested").join("backup.json");
+    let export_path = base_dir
+        .path()
+        .join("deep")
+        .join("nested")
+        .join("backup.json");
 
     let result = export_unencrypted_backup(&db, &export_path);
     assert!(result.is_ok(), "Export should create parent dirs");
@@ -543,8 +630,14 @@ fn test_export_unencrypted_backup_metadata() {
     let content = std::fs::read_to_string(&export_path).unwrap();
     let backup_data: BackupData = serde_json::from_str(&content).unwrap();
 
-    assert!(!backup_data.metadata.app_version.is_empty(), "app_version required");
-    assert!(backup_data.metadata.export_date.contains("T"), "export_date should be ISO 8601");
+    assert!(
+        !backup_data.metadata.app_version.is_empty(),
+        "app_version required"
+    );
+    assert!(
+        backup_data.metadata.export_date.contains("T"),
+        "export_date should be ISO 8601"
+    );
     // backup_type overridden to "pre-encryption" for user-initiated export (AC3)
     assert_eq!(backup_data.metadata.backup_type, "pre-encryption");
 }

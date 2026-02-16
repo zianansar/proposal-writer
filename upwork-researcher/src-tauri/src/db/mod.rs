@@ -52,8 +52,8 @@ impl Database {
     /// - SQLCipher 4.10 with AES-256 encryption (AR-2, NFR-7)
     pub fn new(db_path: PathBuf, encryption_key: Option<Vec<u8>>) -> Result<Self, String> {
         // Open or create the database file
-        let mut conn = Connection::open(&db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let mut conn =
+            Connection::open(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
         // If encryption key provided, set up SQLCipher (Story 2.1, Epic 2)
         if let Some(key) = encryption_key {
@@ -153,9 +153,13 @@ impl Database {
     /// # Safety
     /// - Salt file updated atomically (write temp → rename) per AC-5
     /// - On PRAGMA rekey failure, temp salt is cleaned up, old key remains valid
-    pub fn rekey_database(&self, new_passphrase: &str, app_data_dir: &Path) -> Result<Zeroizing<Vec<u8>>, String> {
+    pub fn rekey_database(
+        &self,
+        new_passphrase: &str,
+        app_data_dir: &Path,
+    ) -> Result<Zeroizing<Vec<u8>>, String> {
         use crate::passphrase;
-        use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
+        use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 
         // Backend passphrase strength validation (defense in depth — frontend also validates)
         if new_passphrase.len() < 12 {
@@ -183,11 +187,10 @@ impl Database {
             let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
 
             let pragma = Zeroizing::new(format!("PRAGMA rekey = \"x'{}'\"", &*key_hex));
-            conn.execute_batch(&pragma)
-                .map_err(|e| {
-                    let _ = std::fs::remove_file(&salt_tmp_path);
-                    format!("PRAGMA rekey failed: {}", e)
-                })?;
+            conn.execute_batch(&pragma).map_err(|e| {
+                let _ = std::fs::remove_file(&salt_tmp_path);
+                format!("PRAGMA rekey failed: {}", e)
+            })?;
             // pragma and key_hex zeroed on drop
 
             // Verify database accessible with new key after rekey
@@ -289,7 +292,10 @@ impl AppDatabase {
 /// - `Err(DatabaseError::IncorrectPassphrase)` - Passphrase incorrect, retry
 /// - `Err(DatabaseError::PassphraseError)` - Salt file missing or derivation failed
 /// - `Err(DatabaseError::CorruptedDatabase)` - Database file corrupted
-pub fn open_encrypted_database(app_data_dir: &Path, passphrase: &str) -> Result<Database, DatabaseError> {
+pub fn open_encrypted_database(
+    app_data_dir: &Path,
+    passphrase: &str,
+) -> Result<Database, DatabaseError> {
     use crate::passphrase;
 
     // Subtask 2.2: Call verify_passphrase_and_derive_key() to get encryption key
@@ -301,15 +307,14 @@ pub fn open_encrypted_database(app_data_dir: &Path, passphrase: &str) -> Result<
     // std::mem::take moves bytes out; Zeroizing wrapper zeros the (now-empty) vec on drop.
     // Database::new() re-wraps in Zeroizing internally for hex zeroing (TD-3 AC-2).
     let db_path = app_data_dir.join("upwork-researcher.db");
-    let db = Database::new(db_path, Some(std::mem::take(&mut *encryption_key)))
-        .map_err(|e| {
-            // Check for SQLCipher-specific errors indicating incorrect key
-            if e.contains("file is not a database") || e.contains("database disk image is malformed") {
-                DatabaseError::IncorrectPassphrase
-            } else {
-                DatabaseError::DatabaseError(e)
-            }
-        })?;
+    let db = Database::new(db_path, Some(std::mem::take(&mut *encryption_key))).map_err(|e| {
+        // Check for SQLCipher-specific errors indicating incorrect key
+        if e.contains("file is not a database") || e.contains("database disk image is malformed") {
+            DatabaseError::IncorrectPassphrase
+        } else {
+            DatabaseError::DatabaseError(e)
+        }
+    })?;
 
     // If we reach here, Database::new() succeeded — PRAGMAs and migrations all passed,
     // which confirms the encryption key is correct. No additional test query needed.
@@ -536,11 +541,9 @@ mod tests {
 
         // Check that migrations are recorded
         let migrations_applied: i32 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM refinery_schema_history",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT COUNT(*) FROM refinery_schema_history", [], |row| {
+                row.get(0)
+            })
             .unwrap();
 
         assert!(migrations_applied >= 2); // At least V1 and V2
@@ -558,7 +561,10 @@ mod tests {
         // Should return error message
         assert!(result.is_err());
         if let Err(error_msg) = result {
-            assert!(error_msg.contains("Failed to open database") || error_msg.contains("unable to open"));
+            assert!(
+                error_msg.contains("Failed to open database")
+                    || error_msg.contains("unable to open")
+            );
         }
     }
 
@@ -697,7 +703,7 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(DatabaseError::IncorrectPassphrase) => {}, // Expected
+            Err(DatabaseError::IncorrectPassphrase) => {} // Expected
             Err(e) => panic!("Expected IncorrectPassphrase, got: {:?}", e),
             Ok(_) => panic!("Expected error, got success"),
         }
@@ -714,7 +720,7 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(DatabaseError::PassphraseError(_)) => {}, // Expected
+            Err(DatabaseError::PassphraseError(_)) => {} // Expected
             Err(e) => panic!("Expected PassphraseError, got: {:?}", e),
             Ok(_) => panic!("Expected error, got success"),
         }
@@ -762,7 +768,7 @@ mod tests {
         let result1 = open_encrypted_database(dir.path(), wrong_passphrase);
         assert!(result1.is_err());
         match result1 {
-            Err(DatabaseError::IncorrectPassphrase) => {}, // Expected
+            Err(DatabaseError::IncorrectPassphrase) => {} // Expected
             _ => panic!("Expected IncorrectPassphrase error"),
         }
 
@@ -799,8 +805,15 @@ mod tests {
 
         // NFR-1: Should complete in <2 seconds (release build target)
         // Allow up to 5 seconds in debug build (Argon2id is ~10x slower)
-        println!("Database open took: {:?} (NFR-1 target: <2s in release)", duration);
-        assert!(duration.as_secs() < 5, "Database open took too long: {:?}", duration);
+        println!(
+            "Database open took: {:?} (NFR-1 target: <2s in release)",
+            duration
+        );
+        assert!(
+            duration.as_secs() < 5,
+            "Database open took too long: {:?}",
+            duration
+        );
     }
 
     #[test]
@@ -898,7 +911,10 @@ mod tests {
         );
 
         // Should fail due to foreign key constraint
-        assert!(result.is_err(), "Insert should fail with invalid foreign key");
+        assert!(
+            result.is_err(),
+            "Insert should fail with invalid foreign key"
+        );
 
         // Verify error is foreign key constraint violation
         let error = result.unwrap_err();
@@ -1032,7 +1048,10 @@ mod tests {
             rusqlite::params![999999, 75.0],
         );
 
-        assert!(result.is_err(), "Insert should fail with invalid foreign key");
+        assert!(
+            result.is_err(),
+            "Insert should fail with invalid foreign key"
+        );
     }
 
     #[test]
@@ -1063,7 +1082,10 @@ mod tests {
             "INSERT INTO job_scores (job_post_id, skills_match_percentage) VALUES (?, ?)",
             rusqlite::params![job_id, 80.0],
         );
-        assert!(result.is_err(), "Should fail with UNIQUE constraint violation");
+        assert!(
+            result.is_err(),
+            "Should fail with UNIQUE constraint violation"
+        );
     }
 
     // ====================
@@ -1165,14 +1187,17 @@ mod tests {
             .join(" ");
 
         assert!(
-            plan.to_lowercase().contains("idx_job_posts_overall_score") || plan.to_lowercase().contains("index"),
+            plan.to_lowercase().contains("idx_job_posts_overall_score")
+                || plan.to_lowercase().contains("index"),
             "Query plan should use overall_score index: {}",
             plan
         );
 
         // Test 2: Created_at sort uses index
         let mut stmt = conn
-            .prepare("EXPLAIN QUERY PLAN SELECT id, created_at FROM job_posts ORDER BY created_at DESC")
+            .prepare(
+                "EXPLAIN QUERY PLAN SELECT id, created_at FROM job_posts ORDER BY created_at DESC",
+            )
             .unwrap();
         let plan: String = stmt
             .query_map([], |row| row.get::<_, String>(3))
@@ -1182,14 +1207,17 @@ mod tests {
             .join(" ");
 
         assert!(
-            plan.to_lowercase().contains("idx_job_posts_created_at") || plan.to_lowercase().contains("index"),
+            plan.to_lowercase().contains("idx_job_posts_created_at")
+                || plan.to_lowercase().contains("index"),
             "Query plan should use created_at index: {}",
             plan
         );
 
         // Test 3: Client name sort uses index
         let mut stmt = conn
-            .prepare("EXPLAIN QUERY PLAN SELECT id, client_name FROM job_posts ORDER BY client_name ASC")
+            .prepare(
+                "EXPLAIN QUERY PLAN SELECT id, client_name FROM job_posts ORDER BY client_name ASC",
+            )
             .unwrap();
         let plan: String = stmt
             .query_map([], |row| row.get::<_, String>(3))
@@ -1199,7 +1227,8 @@ mod tests {
             .join(" ");
 
         assert!(
-            plan.to_lowercase().contains("idx_job_posts_client_name") || plan.to_lowercase().contains("index"),
+            plan.to_lowercase().contains("idx_job_posts_client_name")
+                || plan.to_lowercase().contains("index"),
             "Query plan should use client_name index: {}",
             plan
         );
@@ -1264,7 +1293,10 @@ mod tests {
 
         // Reopen with new passphrase (simulates app restart)
         let result = open_encrypted_database(dir.path(), passphrase_b);
-        assert!(result.is_ok(), "Should open with new passphrase after rekey");
+        assert!(
+            result.is_ok(),
+            "Should open with new passphrase after rekey"
+        );
         result.unwrap().health_check().unwrap();
     }
 
@@ -1335,15 +1367,18 @@ mod tests {
             conn.execute(
                 "INSERT INTO proposals (job_content, generated_text) VALUES (?, ?)",
                 ["Job 1", "Proposal 1"],
-            ).unwrap();
+            )
+            .unwrap();
             conn.execute(
                 "INSERT INTO proposals (job_content, generated_text) VALUES (?, ?)",
                 ["Job 2", "Proposal 2"],
-            ).unwrap();
+            )
+            .unwrap();
             conn.execute(
                 "INSERT INTO job_posts (raw_content) VALUES (?)",
                 ["Raw job post"],
-            ).unwrap();
+            )
+            .unwrap();
         }
 
         // Rekey
@@ -1384,7 +1419,10 @@ mod tests {
 
         // Unwrap with recovery key should return new DB key
         let unwrapped_key = recovery::unwrap_db_key(&new_wrapped_key, &recovery_key).unwrap();
-        assert_eq!(unwrapped_key, *new_db_key, "Unwrapped key should match new DB key");
+        assert_eq!(
+            unwrapped_key, *new_db_key,
+            "Unwrapped key should match new DB key"
+        );
 
         // Open DB with unwrapped key should work
         let db_path = dir.path().join("upwork-researcher.db");
@@ -1395,7 +1433,10 @@ mod tests {
         let old_unwrapped = recovery::unwrap_db_key(&wrapped_key, &recovery_key).unwrap();
         let db_path = dir.path().join("upwork-researcher.db");
         let result = Database::new(db_path, Some(old_unwrapped));
-        assert!(result.is_err(), "Old wrapped key should not open re-keyed database");
+        assert!(
+            result.is_err(),
+            "Old wrapped key should not open re-keyed database"
+        );
     }
 
     #[test]
@@ -1414,7 +1455,10 @@ mod tests {
         db.rekey_database(passphrase_b, dir.path()).unwrap();
 
         // .salt.tmp should not exist after successful rekey (renamed to .salt)
-        assert!(!dir.path().join(".salt.tmp").exists(), "Temp salt file should be cleaned up");
+        assert!(
+            !dir.path().join(".salt.tmp").exists(),
+            "Temp salt file should be cleaned up"
+        );
         assert!(dir.path().join(".salt").exists(), "Salt file should exist");
     }
 
@@ -1448,7 +1492,10 @@ mod tests {
         // Attempt rekey with non-existent app_data_dir (forces temp salt write failure — before PRAGMA rekey)
         let bad_dir = dir.path().join("nonexistent_subdir");
         let result = db.rekey_database(passphrase_b, &bad_dir);
-        assert!(result.is_err(), "Rekey should fail with invalid app_data_dir");
+        assert!(
+            result.is_err(),
+            "Rekey should fail with invalid app_data_dir"
+        );
 
         // Verify database still accessible with original data (AC-4)
         assert_eq!(db.query_proposals_count().unwrap(), 1);
@@ -1456,10 +1503,16 @@ mod tests {
 
         // Verify salt file unchanged
         let current_salt = std::fs::read_to_string(dir.path().join(".salt")).unwrap();
-        assert_eq!(original_salt, current_salt, "Salt should be unchanged after failed rekey");
+        assert_eq!(
+            original_salt, current_salt,
+            "Salt should be unchanged after failed rekey"
+        );
 
         // Verify no temp salt file left behind
-        assert!(!dir.path().join(".salt.tmp").exists(), "No temp salt should exist after failure");
+        assert!(
+            !dir.path().join(".salt.tmp").exists(),
+            "No temp salt should exist after failure"
+        );
     }
 
     #[test]
@@ -1521,12 +1574,30 @@ mod tests {
             .collect();
 
         // AC-1: Verify required columns exist
-        assert!(columns.contains(&"id".to_string()), "id column should exist");
-        assert!(columns.contains(&"name".to_string()), "name column should exist");
-        assert!(columns.contains(&"description".to_string()), "description column should exist");
-        assert!(columns.contains(&"examples_json".to_string()), "examples_json column should exist");
-        assert!(columns.contains(&"best_for".to_string()), "best_for column should exist");
-        assert!(columns.contains(&"created_at".to_string()), "created_at column should exist");
+        assert!(
+            columns.contains(&"id".to_string()),
+            "id column should exist"
+        );
+        assert!(
+            columns.contains(&"name".to_string()),
+            "name column should exist"
+        );
+        assert!(
+            columns.contains(&"description".to_string()),
+            "description column should exist"
+        );
+        assert!(
+            columns.contains(&"examples_json".to_string()),
+            "examples_json column should exist"
+        );
+        assert!(
+            columns.contains(&"best_for".to_string()),
+            "best_for column should exist"
+        );
+        assert!(
+            columns.contains(&"created_at".to_string()),
+            "created_at column should exist"
+        );
     }
 
     #[test]
@@ -1543,7 +1614,10 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM hook_strategies", [], |row| row.get(0))
             .unwrap();
 
-        assert_eq!(strategies_count, 5, "Should have exactly 5 default hook strategies");
+        assert_eq!(
+            strategies_count, 5,
+            "Should have exactly 5 default hook strategies"
+        );
 
         // AC-2: Verify each expected strategy exists
         let expected_strategies = vec![
@@ -1551,7 +1625,7 @@ mod tests {
             "Contrarian",
             "Immediate Value",
             "Problem-Aware",
-            "Question-Based"
+            "Question-Based",
         ];
 
         for strategy_name in expected_strategies {

@@ -39,7 +39,8 @@ fn segment_sentences(text: &str) -> Vec<String> {
             // Check if it's an abbreviation
             let words: Vec<&str> = trimmed.split_whitespace().collect();
             if let Some(last_word) = words.last() {
-                let last_word_no_punct = last_word.trim_end_matches(|c| c == '.' || c == '!' || c == '?');
+                let last_word_no_punct =
+                    last_word.trim_end_matches(|c| c == '.' || c == '!' || c == '?');
                 let is_abbreviation = abbrevs.iter().any(|&abbrev| last_word_no_punct == abbrev);
 
                 if !is_abbreviation {
@@ -68,10 +69,7 @@ fn calculate_avg_sentence_length(sentences: &[String]) -> f32 {
         return 0.0;
     }
 
-    let total_words: usize = sentences
-        .iter()
-        .map(|s| s.split_whitespace().count())
-        .sum();
+    let total_words: usize = sentences.iter().map(|s| s.split_whitespace().count()).sum();
 
     total_words as f32 / sentences.len() as f32
 }
@@ -125,8 +123,11 @@ fn count_syllables(word: &str) -> usize {
         }
 
         // Check if the 'e' is part of a vowel group (like "tree", "free")
-        if second_last != 'a' && second_last != 'e' && second_last != 'i'
-            && second_last != 'o' && second_last != 'u'
+        if second_last != 'a'
+            && second_last != 'e'
+            && second_last != 'i'
+            && second_last != 'o'
+            && second_last != 'u'
         {
             syllable_count -= 1;
         }
@@ -184,21 +185,8 @@ fn calculate_tone_score(text: &str) -> f32 {
     ];
 
     let casual_markers = [
-        "hey",
-        "gonna",
-        "wanna",
-        "stuff",
-        "things",
-        "awesome",
-        "cool",
-        "great",
-        "yeah",
-        "yep",
-        "nope",
-        "kinda",
-        "sorta",
-        "lots",
-        "tons",
+        "hey", "gonna", "wanna", "stuff", "things", "awesome", "cool", "great", "yeah", "yep",
+        "nope", "kinda", "sorta", "lots", "tons",
     ];
 
     let words: Vec<&str> = text.split_whitespace().collect();
@@ -219,7 +207,7 @@ fn calculate_tone_score(text: &str) -> f32 {
         .count();
 
     // Also check for contractions (casual indicator)
-    let contraction_count = words.iter().filter(|w| w.contains('\'')). count();
+    let contraction_count = words.iter().filter(|w| w.contains('\'')).count();
 
     // Calculate formality ratio
     let total_markers = formal_count + casual_count + contraction_count;
@@ -227,8 +215,8 @@ fn calculate_tone_score(text: &str) -> f32 {
         return 5.0; // Neutral
     }
 
-    let formality_ratio =
-        (formal_count as f32 - casual_count as f32 - contraction_count as f32) / total_markers as f32;
+    let formality_ratio = (formal_count as f32 - casual_count as f32 - contraction_count as f32)
+        / total_markers as f32;
 
     // Scale to 1-10 (negative ratio = casual, positive = formal)
     let score = 5.0 + (formality_ratio * 5.0);
@@ -296,9 +284,26 @@ fn calculate_technical_depth(text: &str) -> f32 {
 
         // Check for technical/programming terms
         let tech_terms = [
-            "api", "database", "framework", "algorithm", "implementation", "architecture", "backend",
-            "frontend", "deployment", "integration", "optimization", "authentication", "encryption",
-            "server", "client", "protocol", "interface", "repository", "pipeline", "infrastructure",
+            "api",
+            "database",
+            "framework",
+            "algorithm",
+            "implementation",
+            "architecture",
+            "backend",
+            "frontend",
+            "deployment",
+            "integration",
+            "optimization",
+            "authentication",
+            "encryption",
+            "server",
+            "client",
+            "protocol",
+            "interface",
+            "repository",
+            "pipeline",
+            "infrastructure",
         ];
 
         if tech_terms.iter().any(|&term| word_lower.contains(term)) {
@@ -554,7 +559,11 @@ mod tests {
         // Story 5.4: Task 5.4 - Bulleted list
         let text = "- First item\n- Second item\n- Third item";
         let structure = detect_structure(text);
-        assert!(structure.bullets_pct >= 90, "Bullets: {}", structure.bullets_pct);
+        assert!(
+            structure.bullets_pct >= 90,
+            "Bullets: {}",
+            structure.bullets_pct
+        );
     }
 
     #[test]
@@ -572,7 +581,8 @@ mod tests {
     #[test]
     fn test_extract_common_phrases() {
         // Story 5.4: Task 1.8 - Common phrase extraction
-        let text = "I have experience with React. I have experience with Vue. I love working on projects.";
+        let text =
+            "I have experience with React. I have experience with Vue. I love working on projects.";
         let phrases = extract_common_phrases(text);
         assert!(!phrases.is_empty());
         assert!(phrases.iter().any(|p| p.contains("i have experience")));

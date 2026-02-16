@@ -6,11 +6,15 @@
  */
 
 import { useCallback } from "react";
+
 import {
   useSettingsStore,
   getTheme,
   getSafetyThreshold,
   getOnboardingCompleted,
+  getAutoUpdateEnabled,
+  getSkippedVersion,
+  getLastUpdateCheck,
 } from "../stores/useSettingsStore";
 
 /**
@@ -20,34 +24,57 @@ import {
  * const { theme, setTheme, safetyThreshold, setSafetyThreshold } = useSettings();
  */
 export function useSettings() {
-  const { settings, setSetting, isLoading, error, isInitialized } =
-    useSettingsStore();
+  const { settings, setSetting, isLoading, error, isInitialized } = useSettingsStore();
 
   // Typed getters using selectors
   const theme = useSettingsStore(getTheme);
   const safetyThreshold = useSettingsStore(getSafetyThreshold);
   const onboardingCompleted = useSettingsStore(getOnboardingCompleted);
+  const autoUpdateEnabled = useSettingsStore(getAutoUpdateEnabled);
+  const skippedVersion = useSettingsStore(getSkippedVersion);
+  const lastUpdateCheck = useSettingsStore(getLastUpdateCheck);
 
   // Typed setters
   const setTheme = useCallback(
     async (value: "dark" | "light") => {
       await setSetting("theme", value);
     },
-    [setSetting]
+    [setSetting],
   );
 
   const setSafetyThreshold = useCallback(
     async (value: number) => {
       await setSetting("safety_threshold", String(value));
     },
-    [setSetting]
+    [setSetting],
   );
 
   const setOnboardingCompleted = useCallback(
     async (value: boolean) => {
       await setSetting("onboarding_completed", String(value));
     },
-    [setSetting]
+    [setSetting],
+  );
+
+  const setAutoUpdateEnabled = useCallback(
+    async (value: boolean) => {
+      await setSetting("auto_update_enabled", String(value));
+    },
+    [setSetting],
+  );
+
+  const setSkippedVersion = useCallback(
+    async (value: string) => {
+      await setSetting("skipped_version", value);
+    },
+    [setSetting],
+  );
+
+  const setLastUpdateCheck = useCallback(
+    async (value: string) => {
+      await setSetting("last_update_check", value);
+    },
+    [setSetting],
   );
 
   // Generic getter for custom settings
@@ -55,7 +82,7 @@ export function useSettings() {
     (key: string): string | undefined => {
       return settings[key];
     },
-    [settings]
+    [settings],
   );
 
   // Generic setter for custom settings
@@ -63,7 +90,7 @@ export function useSettings() {
     async (key: string, value: string) => {
       await setSetting(key, value);
     },
-    [setSetting]
+    [setSetting],
   );
 
   return {
@@ -79,6 +106,12 @@ export function useSettings() {
     setSafetyThreshold,
     onboardingCompleted,
     setOnboardingCompleted,
+    autoUpdateEnabled,
+    setAutoUpdateEnabled,
+    skippedVersion,
+    setSkippedVersion,
+    lastUpdateCheck,
+    setLastUpdateCheck,
 
     // Generic access
     getSetting,

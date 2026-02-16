@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
 import { listen } from "@tauri-apps/api/event";
-import { useGenerationStream } from "./useGenerationStream";
+import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import { useGenerationStore } from "../stores/useGenerationStore";
+
+import { useGenerationStream } from "./useGenerationStream";
 
 // Get mocked listen function
 const mockListen = vi.mocked(listen);

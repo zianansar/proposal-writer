@@ -15,22 +15,24 @@
  * - Voice profile shows "Based on 3 proposals"
  */
 
-import { test, expect } from '@playwright/test';
-import { SettingsPage } from '../pages/SettingsPage';
-import { VoiceCalibrationPage } from '../pages/VoiceCalibrationPage';
-import { MainEditorPage } from '../pages/MainEditorPage';
-import { launchTauriApp, closeTauriApp } from '../helpers/tauriDriver';
-import { seedDatabase, verifyDatabaseState } from '../helpers/dbUtils';
-import { mockClaudeAPI } from '../helpers/apiMocks';
-import { resolve } from 'path';
-import { getDirname } from '../helpers/esm-utils';
+import { resolve } from "path";
+
+import { test, expect } from "@playwright/test";
+
+import { mockClaudeAPI } from "../helpers/apiMocks";
+import { seedDatabase, verifyDatabaseState } from "../helpers/dbUtils";
+import { getDirname } from "../helpers/esm-utils";
+import { launchTauriApp, closeTauriApp } from "../helpers/tauriDriver";
+import { MainEditorPage } from "../pages/MainEditorPage";
+import { SettingsPage } from "../pages/SettingsPage";
+import { VoiceCalibrationPage } from "../pages/VoiceCalibrationPage";
 
 const __dirname = getDirname(import.meta.url);
 
 // Fixture paths
-const PROPOSAL_1 = resolve(__dirname, '../fixtures/sample-proposals/proposal-1.txt');
-const PROPOSAL_2 = resolve(__dirname, '../fixtures/sample-proposals/proposal-2.txt');
-const PROPOSAL_3 = resolve(__dirname, '../fixtures/sample-proposals/proposal-3.txt');
+const PROPOSAL_1 = resolve(__dirname, "../fixtures/sample-proposals/proposal-1.txt");
+const PROPOSAL_2 = resolve(__dirname, "../fixtures/sample-proposals/proposal-2.txt");
+const PROPOSAL_3 = resolve(__dirname, "../fixtures/sample-proposals/proposal-3.txt");
 
 const SAMPLE_JOB = `Looking for a Python data engineer to build ETL pipelines.
 
@@ -45,14 +47,14 @@ Duration: 4-6 months
 
 We need someone who can design scalable data pipelines and optimize our data warehouse.`;
 
-test.describe('Journey 3: Golden Set Calibration', () => {
+test.describe("Journey 3: Golden Set Calibration", () => {
   test.beforeAll(async () => {
     // Seed with API key but no voice profile
-    seedDatabase('with-api-key');
-    console.log('✓ Database seeded (API key, no voice profile)');
+    seedDatabase("with-api-key");
+    console.log("✓ Database seeded (API key, no voice profile)");
 
     await launchTauriApp({ useBuild: false });
-    console.log('✓ Tauri app launched');
+    console.log("✓ Tauri app launched");
   });
 
   test.afterAll(async () => {
@@ -61,14 +63,14 @@ test.describe('Journey 3: Golden Set Calibration', () => {
 
   // M5: Per-test isolation — reseed DB before each test
   test.beforeEach(async () => {
-    seedDatabase('with-api-key');
+    seedDatabase("with-api-key");
   });
 
-  test('completes golden set calibration flow', async ({ page }) => {
+  test("completes golden set calibration flow", async ({ page }) => {
     const testStartTime = Date.now();
 
-    await mockClaudeAPI(page, 'standard');
-    await page.goto('tauri://localhost');
+    await mockClaudeAPI(page, "standard");
+    await page.goto("tauri://localhost");
 
     // =====================================================
     // Step 1: Navigate to Voice Learning (AC-4 Step 1)
@@ -77,7 +79,7 @@ test.describe('Journey 3: Golden Set Calibration', () => {
 
     await settings.openSettings();
     await settings.navigateToVoiceLearning();
-    console.log('✓ Navigated to Voice Learning settings');
+    console.log("✓ Navigated to Voice Learning settings");
 
     // =====================================================
     // Step 2: Start Calibration (AC-4 Step 2)
@@ -86,13 +88,13 @@ test.describe('Journey 3: Golden Set Calibration', () => {
 
     // Verify golden set upload UI is visible
     await expect(voice.goldenSetContainer).toBeVisible({ timeout: 5000 });
-    console.log('✓ Golden Set upload UI displayed');
+    console.log("✓ Golden Set upload UI displayed");
 
     // =====================================================
     // Step 3: Upload 3 Sample Proposals (AC-4 Step 3)
     // =====================================================
     await voice.uploadProposals([PROPOSAL_1, PROPOSAL_2, PROPOSAL_3]);
-    console.log('✓ 3 proposals uploaded');
+    console.log("✓ 3 proposals uploaded");
 
     // Verify file list shows 3 files
     await expect(voice.fileList).toBeVisible();
@@ -102,11 +104,11 @@ test.describe('Journey 3: Golden Set Calibration', () => {
     // Step 4: Analyze Proposals (AC-4 Step 4)
     // =====================================================
     await voice.analyzeProposals();
-    console.log('✓ Analysis started');
+    console.log("✓ Analysis started");
 
     // Wait for analysis to complete (local processing)
     await voice.waitForAnalysisComplete();
-    console.log('✓ Voice analysis complete');
+    console.log("✓ Voice analysis complete");
 
     // =====================================================
     // Step 5: View Voice Profile (AC-4 Step 5)
@@ -119,12 +121,14 @@ test.describe('Journey 3: Golden Set Calibration', () => {
     expect(profile.length.length).toBeGreaterThan(0);
     expect(profile.complexity.length).toBeGreaterThan(0);
 
-    console.log(`✓ Voice profile created: ${profile.tone}, ${profile.length}, ${profile.complexity}`);
+    console.log(
+      `✓ Voice profile created: ${profile.tone}, ${profile.length}, ${profile.complexity}`,
+    );
     console.log(`✓ Based on ${profile.proposalCount} proposals`);
 
     // Verify privacy indicator
     await voice.verifyPrivacyIndicator();
-    console.log('✓ Privacy indicator visible');
+    console.log("✓ Privacy indicator visible");
 
     // Close settings
     await settings.closeSettings();
@@ -137,7 +141,7 @@ test.describe('Journey 3: Golden Set Calibration', () => {
     await editor.pasteJobContent(SAMPLE_JOB);
     await editor.analyzeJob();
     await editor.waitForAnalysisComplete();
-    console.log('✓ Job analysis complete');
+    console.log("✓ Job analysis complete");
 
     await editor.generateProposal();
     await editor.waitForGenerationComplete();
@@ -156,7 +160,7 @@ test.describe('Journey 3: Golden Set Calibration', () => {
     // the Claude API request or text analysis
 
     // For now, verify generation completed successfully with profile active
-    console.log('✓ Generation completed with active voice profile');
+    console.log("✓ Generation completed with active voice profile");
 
     // =====================================================
     // Verify Database State
@@ -165,7 +169,7 @@ test.describe('Journey 3: Golden Set Calibration', () => {
       hasVoiceProfile: true,
       proposalCount: 1,
     });
-    console.log('✓ Database contains voice profile');
+    console.log("✓ Database contains voice profile");
 
     // =====================================================
     // AC-4: Complete within 120 seconds
@@ -175,9 +179,9 @@ test.describe('Journey 3: Golden Set Calibration', () => {
     console.log(`✓ Journey completed in ${totalTime}ms (< 120s)`);
   });
 
-  test('validates file upload requirements', async ({ page }) => {
-    seedDatabase('with-api-key');
-    await page.goto('tauri://localhost');
+  test("validates file upload requirements", async ({ page }) => {
+    seedDatabase("with-api-key");
+    await page.goto("tauri://localhost");
 
     const settings = new SettingsPage(page);
     await settings.openSettings();
@@ -190,12 +194,12 @@ test.describe('Journey 3: Golden Set Calibration', () => {
     const analyzeButton = voice.analyzeButton;
     const isDisabled = await analyzeButton.isDisabled();
     expect(isDisabled).toBe(true);
-    console.log('✓ Analyze button disabled without files');
+    console.log("✓ Analyze button disabled without files");
   });
 
-  test('shows progress during voice analysis', async ({ page }) => {
-    seedDatabase('with-api-key');
-    await page.goto('tauri://localhost');
+  test("shows progress during voice analysis", async ({ page }) => {
+    seedDatabase("with-api-key");
+    await page.goto("tauri://localhost");
 
     const settings = new SettingsPage(page);
     await settings.openSettings();
@@ -208,16 +212,16 @@ test.describe('Journey 3: Golden Set Calibration', () => {
 
     // Progress indicator should be visible during analysis
     await expect(voice.analysisProgress).toBeVisible({ timeout: 1000 });
-    console.log('✓ Progress indicator visible during analysis');
+    console.log("✓ Progress indicator visible during analysis");
 
     // Wait for completion
     await voice.waitForAnalysisComplete();
   });
 
-  test('allows updating voice profile with more proposals', async ({ page }) => {
+  test("allows updating voice profile with more proposals", async ({ page }) => {
     // Test that user can upload additional proposals to refine profile
-    seedDatabase('with-voice-profile'); // Already has a profile
-    await page.goto('tauri://localhost');
+    seedDatabase("with-voice-profile"); // Already has a profile
+    await page.goto("tauri://localhost");
 
     const settings = new SettingsPage(page);
     await settings.openSettings();
@@ -239,6 +243,8 @@ test.describe('Journey 3: Golden Set Calibration', () => {
     // Profile should be updated
     const updatedProfile = await voice.getVoiceProfile();
     expect(updatedProfile.proposalCount).toBeGreaterThan(initialCount);
-    console.log(`✓ Voice profile updated (${initialCount} → ${updatedProfile.proposalCount} proposals)`);
+    console.log(
+      `✓ Voice profile updated (${initialCount} → ${updatedProfile.proposalCount} proposals)`,
+    );
   });
 });

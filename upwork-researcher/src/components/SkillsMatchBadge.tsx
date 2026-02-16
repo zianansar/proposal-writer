@@ -6,27 +6,27 @@
  * NFR-14: Accessible with aria-label and keyboard-focusable tooltip
  */
 
-import './SkillsMatchBadge.css';
+import "./SkillsMatchBadge.css";
 
 interface SkillsMatchBadgeProps {
   percentage: number | null;
   matchedCount?: number;
   totalCount?: number;
-  reason?: 'no-user-skills' | 'no-job-skills' | null;
+  reason?: "no-user-skills" | "no-job-skills" | null;
 }
 
 /** Get color class based on percentage threshold (AC-2) */
 function getColorClass(percentage: number): string {
-  if (percentage >= 75) return 'skills-match--green';
-  if (percentage >= 50) return 'skills-match--yellow';
-  return 'skills-match--red';
+  if (percentage >= 75) return "skills-match--green";
+  if (percentage >= 50) return "skills-match--yellow";
+  return "skills-match--red";
 }
 
 /** Get qualitative fit label for accessibility (NFR-14) */
 function getFitLabel(percentage: number): string {
-  if (percentage >= 75) return 'strong fit';
-  if (percentage >= 50) return 'moderate fit';
-  return 'weak fit';
+  if (percentage >= 75) return "strong fit";
+  if (percentage >= 50) return "moderate fit";
+  return "weak fit";
 }
 
 export default function SkillsMatchBadge({
@@ -36,12 +36,9 @@ export default function SkillsMatchBadge({
   reason,
 }: SkillsMatchBadgeProps) {
   // AC-3: No user skills configured
-  if (reason === 'no-user-skills') {
+  if (reason === "no-user-skills") {
     return (
-      <div
-        className="skills-match skills-match--null"
-        data-testid="skills-match-badge"
-      >
+      <div className="skills-match skills-match--null" data-testid="skills-match-badge">
         <span className="skills-match__message">
           Configure your skills in Settings to see match percentage
         </span>
@@ -50,15 +47,10 @@ export default function SkillsMatchBadge({
   }
 
   // AC-3: No job skills extracted
-  if (reason === 'no-job-skills') {
+  if (reason === "no-job-skills") {
     return (
-      <div
-        className="skills-match skills-match--null"
-        data-testid="skills-match-badge"
-      >
-        <span className="skills-match__message">
-          No skills detected in job post
-        </span>
+      <div className="skills-match skills-match--null" data-testid="skills-match-badge">
+        <span className="skills-match__message">No skills detected in job post</span>
       </div>
     );
   }

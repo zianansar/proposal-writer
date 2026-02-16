@@ -85,8 +85,8 @@ pub fn write_archive(
     let salt_len = salt_bytes.len() as u32;
 
     // Open file for writing
-    let mut file = fs::File::create(path)
-        .map_err(|e| format!("Failed to create archive file: {}", e))?;
+    let mut file =
+        fs::File::create(path).map_err(|e| format!("Failed to create archive file: {}", e))?;
 
     // Write magic header
     file.write_all(MAGIC_HEADER)
@@ -123,12 +123,10 @@ pub fn write_archive(
 ///
 /// This function validates the archive format and extracts all components
 /// without decrypting the database (the DB is already encrypted).
-pub fn read_archive_metadata(
-    path: &Path,
-) -> Result<(ArchiveMetadata, Vec<u8>, Vec<u8>), String> {
+pub fn read_archive_metadata(path: &Path) -> Result<(ArchiveMetadata, Vec<u8>, Vec<u8>), String> {
     // Open and read entire file
-    let mut file = fs::File::open(path)
-        .map_err(|e| format!("Failed to open archive file: {}", e))?;
+    let mut file =
+        fs::File::open(path).map_err(|e| format!("Failed to open archive file: {}", e))?;
 
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
@@ -213,21 +211,25 @@ pub fn read_archive_metadata(
 pub fn read_metadata_only(path: &Path) -> Result<ArchiveMetadata, String> {
     use std::io::{BufReader, Seek, SeekFrom};
 
-    let file = fs::File::open(path)
-        .map_err(|e| format!("Failed to open archive file: {}", e))?;
+    let file = fs::File::open(path).map_err(|e| format!("Failed to open archive file: {}", e))?;
     let mut reader = BufReader::new(file);
 
     // Read magic header (4 bytes)
     let mut magic = [0u8; 4];
-    reader.read_exact(&mut magic)
+    reader
+        .read_exact(&mut magic)
         .map_err(|e| format!("Failed to read magic header: {}", e))?;
     if &magic != MAGIC_HEADER {
-        return Err(format!("Invalid archive format: expected URB1, got {:?}", magic));
+        return Err(format!(
+            "Invalid archive format: expected URB1, got {:?}",
+            magic
+        ));
     }
 
     // Read metadata length (4 bytes, u32 LE)
     let mut len_buf = [0u8; 4];
-    reader.read_exact(&mut len_buf)
+    reader
+        .read_exact(&mut len_buf)
         .map_err(|e| format!("Failed to read metadata length: {}", e))?;
     let metadata_len = u32::from_le_bytes(len_buf) as usize;
 
@@ -238,7 +240,8 @@ pub fn read_metadata_only(path: &Path) -> Result<ArchiveMetadata, String> {
 
     // Read metadata JSON
     let mut metadata_bytes = vec![0u8; metadata_len];
-    reader.read_exact(&mut metadata_bytes)
+    reader
+        .read_exact(&mut metadata_bytes)
         .map_err(|e| format!("Failed to read metadata: {}", e))?;
 
     let metadata: ArchiveMetadata = serde_json::from_slice(&metadata_bytes)
@@ -339,16 +342,7 @@ mod tests {
 
     #[test]
     fn test_empty_database() {
-        let metadata = ArchiveMetadata::new(
-            "1.0.0".to_string(),
-            None,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-        );
+        let metadata = ArchiveMetadata::new("1.0.0".to_string(), None, 0, 0, 0, 0, 0, 0);
         let salt = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let db = vec![]; // Empty DB
 
@@ -389,16 +383,7 @@ mod tests {
 
     #[test]
     fn test_metadata_format_version() {
-        let metadata = ArchiveMetadata::new(
-            "1.0.0".to_string(),
-            None,
-            1,
-            2,
-            3,
-            4,
-            5,
-            100,
-        );
+        let metadata = ArchiveMetadata::new("1.0.0".to_string(), None, 1, 2, 3, 4, 5, 100);
 
         assert_eq!(metadata.format_version, 1);
         assert!(metadata.export_date.contains("T")); // ISO 8601 format
@@ -491,6 +476,8 @@ mod tests {
 
         let result = read_archive_metadata(temp_file.path());
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("salt length exceeds file size"));
+        assert!(result
+            .unwrap_err()
+            .contains("salt length exceeds file size"));
     }
 }

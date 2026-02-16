@@ -34,7 +34,10 @@ fn main() {
                 let elapsed = start.elapsed();
                 println!("\n✅ Generation successful!");
                 println!("⏱️  Time: {:.2} seconds", elapsed.as_secs_f64());
-                println!("\n--- Generated Proposal ---\n{}\n--------------------------", proposal);
+                println!(
+                    "\n--- Generated Proposal ---\n{}\n--------------------------",
+                    proposal
+                );
 
                 if elapsed.as_secs_f64() < 8.0 {
                     println!("\n✅ PASS: Generation completed in <8 seconds (AC-4 satisfied)");
@@ -44,7 +47,11 @@ fn main() {
             }
             Err(e) => {
                 let elapsed = start.elapsed();
-                println!("\n❌ Generation failed after {:.2}s: {}", elapsed.as_secs_f64(), e);
+                println!(
+                    "\n❌ Generation failed after {:.2}s: {}",
+                    elapsed.as_secs_f64(),
+                    e
+                );
             }
         }
     });

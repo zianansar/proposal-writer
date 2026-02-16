@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect, useCallback } from "react";
 import "./ThresholdAdjustmentNotification.css";
 
 /**
@@ -45,7 +45,8 @@ function ThresholdAdjustmentNotification({
   const [error, setError] = useState<string | null>(null);
   const isIncrease = suggestion.direction === "increase";
   const isAtMaximum = suggestion.direction === "at_maximum";
-  const isApproachingMaximum = suggestion.direction === "increase" && suggestion.suggestedThreshold >= 220;
+  const isApproachingMaximum =
+    suggestion.direction === "increase" && suggestion.suggestedThreshold >= 220;
 
   // Keyboard accessibility: Escape to dismiss (remind later)
   useEffect(() => {
@@ -103,8 +104,8 @@ function ThresholdAdjustmentNotification({
         {isAtMaximum ? (
           <>
             <p className="threshold-notification__message">
-              You're at the <strong>maximum safety threshold (220)</strong>.
-              Consider lowering your threshold for better AI detection protection.
+              You're at the <strong>maximum safety threshold (220)</strong>. Consider lowering your
+              threshold for better AI detection protection.
             </p>
             <div className="threshold-notification__thresholds">
               <div className="threshold-notification__threshold threshold-notification__threshold--current threshold-notification__threshold--max">
@@ -115,16 +116,16 @@ function ThresholdAdjustmentNotification({
               </div>
             </div>
             <p className="threshold-notification__explanation">
-              Higher thresholds mean less protection. The maximum exists to ensure some
-              safety margin remains.
+              Higher thresholds mean less protection. The maximum exists to ensure some safety
+              margin remains.
             </p>
           </>
         ) : isIncrease ? (
           <>
             <p className="threshold-notification__message">
               You've successfully used{" "}
-              <strong>{suggestion.successfulOverrideCount} proposals</strong> that were
-              flagged. Your risk tolerance may be higher than your current threshold.
+              <strong>{suggestion.successfulOverrideCount} proposals</strong> that were flagged.
+              Your risk tolerance may be higher than your current threshold.
             </p>
             <div className="threshold-notification__thresholds">
               <div className="threshold-notification__threshold threshold-notification__threshold--current">
@@ -150,9 +151,8 @@ function ThresholdAdjustmentNotification({
         ) : (
           <>
             <p className="threshold-notification__message">
-              Your threshold hasn't been challenged recently. Would you like to
-              lower it back to <strong>{suggestion.suggestedThreshold}</strong> for
-              added protection?
+              Your threshold hasn't been challenged recently. Would you like to lower it back to{" "}
+              <strong>{suggestion.suggestedThreshold}</strong> for added protection?
             </p>
             <div className="threshold-notification__thresholds">
               <div className="threshold-notification__threshold threshold-notification__threshold--current">
@@ -179,8 +179,7 @@ function ThresholdAdjustmentNotification({
 
         {isApproachingMaximum && (
           <p className="threshold-notification__warning">
-            You're approaching the maximum safety threshold (220). Consider keeping
-            some protection.
+            You're approaching the maximum safety threshold (220). Consider keeping some protection.
           </p>
         )}
 

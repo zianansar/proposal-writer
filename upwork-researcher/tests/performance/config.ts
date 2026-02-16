@@ -38,5 +38,5 @@ export const BENCHMARK_CONFIG = {
   SEED_JOB_COUNT: 100,
 
   // Tolerance for regression detection (10% above baseline)
-  REGRESSION_TOLERANCE: 0.10,
+  REGRESSION_TOLERANCE: 0.1,
 } as const;

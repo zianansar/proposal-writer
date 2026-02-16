@@ -15,11 +15,11 @@
  * mocks below only for browser-originated requests or UI-specific overrides.
  */
 
-import { Page } from '@playwright/test';
+import { Page } from "@playwright/test";
 
 // Re-export server-side mock controls for convenience
-export { startMockApiServer, stopMockApiServer, setMockScenario } from './mockApiServer';
-export type { MockScenario } from './mockApiServer';
+export { startMockApiServer, stopMockApiServer, setMockScenario } from "./mockApiServer";
+export type { MockScenario } from "./mockApiServer";
 
 /**
  * Configure browser-side request interception for supplementary mocking
@@ -30,31 +30,30 @@ export type { MockScenario } from './mockApiServer';
  */
 export async function mockBrowserRequests(
   page: Page,
-  scenario: 'standard' | 'high-perplexity' | 'error' = 'standard'
+  scenario: "standard" | "high-perplexity" | "error" = "standard",
 ): Promise<void> {
   // Intercept any browser-originated API calls (e.g., client-side validation)
-  await page.route('**/v1/messages', async (route) => {
+  await page.route("**/v1/messages", async (route) => {
     console.log(`[Browser Mock] Intercepted: ${route.request().method()} ${route.request().url()}`);
 
-    if (scenario === 'error') {
+    if (scenario === "error") {
       await route.fulfill({
         status: 429,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify({
-          type: 'error',
-          error: { type: 'rate_limit_error', message: 'Rate limit exceeded' },
+          type: "error",
+          error: { type: "rate_limit_error", message: "Rate limit exceeded" },
         }),
       });
       return;
     }
 
-    const text = scenario === 'high-perplexity'
-      ? MOCK_PROPOSAL_HIGH_PERPLEXITY
-      : MOCK_PROPOSAL_STANDARD;
+    const text =
+      scenario === "high-perplexity" ? MOCK_PROPOSAL_HIGH_PERPLEXITY : MOCK_PROPOSAL_STANDARD;
 
     await route.fulfill({
       status: 200,
-      contentType: 'text/event-stream',
+      contentType: "text/event-stream",
       body: createStreamingResponse(text),
     });
   });
@@ -66,8 +65,8 @@ export async function mockBrowserRequests(
  * Disable browser-side mocking
  */
 export async function disableBrowserMocking(page: Page): Promise<void> {
-  await page.unroute('**/v1/messages');
-  console.log('[Browser Mock] Disabled');
+  await page.unroute("**/v1/messages");
+  console.log("[Browser Mock] Disabled");
 }
 
 /**
@@ -76,21 +75,18 @@ export async function disableBrowserMocking(page: Page): Promise<void> {
  */
 export async function mockClaudeAPI(
   page: Page,
-  scenario: 'standard' | 'high-perplexity' | 'streaming' | 'error' = 'standard'
+  scenario: "standard" | "high-perplexity" | "streaming" | "error" = "standard",
 ): Promise<void> {
-  const { setMockScenario } = await import('./mockApiServer');
+  const { setMockScenario } = await import("./mockApiServer");
   setMockScenario(scenario);
-  await mockBrowserRequests(page, scenario === 'streaming' ? 'standard' : scenario);
+  await mockBrowserRequests(page, scenario === "streaming" ? "standard" : scenario);
 }
 
 /**
  * Mock perplexity analysis (browser-side function injection)
  */
-export async function mockPerplexityAnalysis(
-  page: Page,
-  score: number
-): Promise<void> {
-  await page.exposeFunction('mockPerplexityScore', () => score);
+export async function mockPerplexityAnalysis(page: Page, score: number): Promise<void> {
+  await page.exposeFunction("mockPerplexityScore", () => score);
   console.log(`[Browser Mock] Perplexity analysis mocked with score: ${score}`);
 }
 
@@ -103,17 +99,17 @@ function createStreamingResponse(text: string): string {
 
   const events = chunks.map((chunk) => {
     const event = {
-      type: 'content_block_delta',
+      type: "content_block_delta",
       index: 0,
-      delta: { type: 'text_delta', text: chunk },
+      delta: { type: "text_delta", text: chunk },
     };
     return `data: ${JSON.stringify(event)}\n\n`;
   });
 
   events.push('data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n');
-  events.push('data: [DONE]\n\n');
+  events.push("data: [DONE]\n\n");
 
-  return events.join('');
+  return events.join("");
 }
 
 const MOCK_PROPOSAL_STANDARD = `Hi there,

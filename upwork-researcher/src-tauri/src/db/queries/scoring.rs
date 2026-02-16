@@ -27,10 +27,7 @@ pub struct JobScore {
 /// - Ok(None) if job has no skills extracted (AC-3: "No skills detected in job post")
 /// - Ok(Some(0.0)) if empty intersection (AC-3)
 /// - Ok(Some(percentage)) for normal calculation
-pub fn calculate_skills_match(
-    job_post_id: i64,
-    conn: &Connection,
-) -> Result<Option<f64>, String> {
+pub fn calculate_skills_match(job_post_id: i64, conn: &Connection) -> Result<Option<f64>, String> {
     // Subtask 2.2: Query user skills
     let mut stmt = conn
         .prepare("SELECT skill FROM user_skills ORDER BY skill ASC")
@@ -170,10 +167,7 @@ pub fn upsert_overall_score(
 
 /// Retrieve stored job score by job_post_id (Task 4)
 /// Returns None if no score exists yet
-pub fn get_job_score(
-    conn: &Connection,
-    job_post_id: i64,
-) -> Result<Option<JobScore>, String> {
+pub fn get_job_score(conn: &Connection, job_post_id: i64) -> Result<Option<JobScore>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT job_post_id, skills_match_percentage, client_quality_score,
@@ -182,18 +176,17 @@ pub fn get_job_score(
         )
         .map_err(|e| format!("Failed to prepare job score query: {}", e))?;
 
-    let result = stmt
-        .query_row([job_post_id], |row| {
-            Ok(JobScore {
-                job_post_id: row.get(0)?,
-                skills_match_percentage: row.get(1)?,
-                client_quality_score: row.get(2)?,
-                budget_alignment_score: row.get(3)?,
-                overall_score: row.get(4)?,
-                color_flag: row.get(5)?,
-                calculated_at: row.get(6)?,
-            })
-        });
+    let result = stmt.query_row([job_post_id], |row| {
+        Ok(JobScore {
+            job_post_id: row.get(0)?,
+            skills_match_percentage: row.get(1)?,
+            client_quality_score: row.get(2)?,
+            budget_alignment_score: row.get(3)?,
+            overall_score: row.get(4)?,
+            color_flag: row.get(5)?,
+            calculated_at: row.get(6)?,
+        })
+    });
 
     match result {
         Ok(score) => Ok(Some(score)),
@@ -315,11 +308,8 @@ mod tests {
 
     fn add_user_skills(conn: &Connection, skills: &[&str]) {
         for skill in skills {
-            conn.execute(
-                "INSERT INTO user_skills (skill) VALUES (?)",
-                params![skill],
-            )
-            .unwrap();
+            conn.execute("INSERT INTO user_skills (skill) VALUES (?)", params![skill])
+                .unwrap();
         }
     }
 
@@ -810,11 +800,7 @@ mod tests {
         store_budget_alignment_score(&conn, job_id, Some(100)).unwrap();
 
         // Calculate and store overall score (simulating calculate_overall_job_score)
-        let result = crate::scoring::calculate_overall_score(
-            initial_match,
-            Some(80),
-            Some(100),
-        );
+        let result = crate::scoring::calculate_overall_score(initial_match, Some(80), Some(100));
         upsert_overall_score(&conn, job_id, result.overall_score, &result.color_flag).unwrap();
 
         let score_before = get_job_score(&conn, job_id).unwrap().unwrap();
@@ -825,7 +811,8 @@ mod tests {
         conn.execute(
             "INSERT INTO user_skills (skill) VALUES (?)",
             rusqlite::params!["TypeScript"],
-        ).unwrap();
+        )
+        .unwrap();
 
         // 4. Recalculate (simulating recalculate_all_scores)
         let new_match = calculate_skills_match(job_id, &conn).unwrap();
@@ -833,12 +820,14 @@ mod tests {
 
         store_skills_match(&conn, job_id, new_match).unwrap();
 
-        let new_result = crate::scoring::calculate_overall_score(
-            new_match,
-            Some(80),
-            Some(100),
-        );
-        upsert_overall_score(&conn, job_id, new_result.overall_score, &new_result.color_flag).unwrap();
+        let new_result = crate::scoring::calculate_overall_score(new_match, Some(80), Some(100));
+        upsert_overall_score(
+            &conn,
+            job_id,
+            new_result.overall_score,
+            &new_result.color_flag,
+        )
+        .unwrap();
 
         // 5. Verify score was updated
         let score_after = get_job_score(&conn, job_id).unwrap().unwrap();
@@ -884,11 +873,12 @@ mod tests {
         let s3 = get_job_score(&conn, job3).unwrap().unwrap();
 
         assert_eq!(s1.skills_match_percentage, Some(100.0)); // 1/1
-        assert_eq!(s2.skills_match_percentage, Some(50.0));  // 1/2
-        assert_eq!(s3.skills_match_percentage, Some(0.0));   // 0/2
+        assert_eq!(s2.skills_match_percentage, Some(50.0)); // 1/2
+        assert_eq!(s3.skills_match_percentage, Some(0.0)); // 0/2
 
         // User adds TypeScript
-        conn.execute("INSERT INTO user_skills (skill) VALUES ('TypeScript')", []).unwrap();
+        conn.execute("INSERT INTO user_skills (skill) VALUES ('TypeScript')", [])
+            .unwrap();
 
         // Recalculate all (simulating recalculate_all_scores iteration)
         let all_job_ids: Vec<i64> = conn
@@ -919,7 +909,7 @@ mod tests {
 
         assert_eq!(s1_new.skills_match_percentage, Some(100.0)); // Still 1/1 (React)
         assert_eq!(s2_new.skills_match_percentage, Some(100.0)); // Now 2/2 (React + TypeScript)
-        assert_eq!(s3_new.skills_match_percentage, Some(0.0));   // Still 0/2 (Python, Django)
+        assert_eq!(s3_new.skills_match_percentage, Some(0.0)); // Still 0/2 (Python, Django)
 
         // Job2 should have improved color flag (was yellow at 50%, now green at 100%)
         assert_eq!(s2.color_flag, "yellow");

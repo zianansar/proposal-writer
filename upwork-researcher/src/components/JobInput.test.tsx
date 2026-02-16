@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
+
 import JobInput, { detectInputType } from "./JobInput";
 
 describe("JobInput", () => {
@@ -12,7 +13,7 @@ describe("JobInput", () => {
   it("displays placeholder text explaining what to paste", () => {
     render(<JobInput />);
     expect(
-      screen.getByPlaceholderText(/paste a job post url or the full job description/i)
+      screen.getByPlaceholderText(/paste a job post url or the full job description/i),
     ).toBeInTheDocument();
   });
 
@@ -133,10 +134,7 @@ describe("JobInput visual indicators", () => {
     await user.type(textarea, "https://upwork.com/jobs/123");
 
     // Should have been called with url type and the URL
-    expect(onInputTypeChange).toHaveBeenLastCalledWith(
-      "url",
-      "https://upwork.com/jobs/123"
-    );
+    expect(onInputTypeChange).toHaveBeenLastCalledWith("url", "https://upwork.com/jobs/123");
   });
 
   it("calls onInputTypeChange with text type when text is entered", async () => {
@@ -176,13 +174,11 @@ describe("JobInput visual indicators", () => {
 
   it("syncs inputType when value prop changes externally (controlled mode)", async () => {
     const onInputTypeChange = vi.fn();
-    const { rerender } = render(
-      <JobInput value="" onInputTypeChange={onInputTypeChange} />
-    );
+    const { rerender } = render(<JobInput value="" onInputTypeChange={onInputTypeChange} />);
 
     // Simulate external value change (e.g., draft recovery)
     rerender(
-      <JobInput value="https://upwork.com/jobs/456" onInputTypeChange={onInputTypeChange} />
+      <JobInput value="https://upwork.com/jobs/456" onInputTypeChange={onInputTypeChange} />,
     );
 
     // Should detect URL type and show indicator

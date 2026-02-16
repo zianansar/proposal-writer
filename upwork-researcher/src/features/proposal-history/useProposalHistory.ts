@@ -1,7 +1,8 @@
 // React Hook with Infinite Query for Proposal History (Story 8.7)
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { invoke } from '@tauri-apps/api/core';
-import type { ProposalHistoryResponse } from './types';
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { invoke } from "@tauri-apps/api/core";
+
+import type { ProposalHistoryResponse } from "./types";
 
 const PAGE_SIZE = 50;
 
@@ -22,9 +23,9 @@ const PAGE_SIZE = 50;
  */
 export function useProposalHistory() {
   return useInfiniteQuery({
-    queryKey: ['proposalHistory'],
+    queryKey: ["proposalHistory"],
     queryFn: async ({ pageParam = 0 }) => {
-      return invoke<ProposalHistoryResponse>('get_proposal_history', {
+      return invoke<ProposalHistoryResponse>("get_proposal_history", {
         limit: PAGE_SIZE,
         offset: pageParam,
       });
@@ -35,7 +36,7 @@ export function useProposalHistory() {
       if (!lastPage.hasMore) return undefined;
       return allPages.length * PAGE_SIZE;
     },
-    staleTime: 30_000,           // 30 seconds (keep data fresh)
-    gcTime: 30 * 60 * 1000,      // 30 minutes (architecture spec)
+    staleTime: 30_000, // 30 seconds (keep data fresh)
+    gcTime: 30 * 60 * 1000, // 30 minutes (architecture spec)
   });
 }

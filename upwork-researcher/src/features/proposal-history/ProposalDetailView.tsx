@@ -1,15 +1,18 @@
 // ProposalDetailView component (Story 7.4)
 // Full detail view for a single proposal — AC-1 through AC-6
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { useProposalDetail } from './useProposalDetail';
-import { OutcomeDropdown, formatLabel } from './OutcomeDropdown';
-import { useUpdateProposalOutcome } from './useUpdateProposalOutcome';
-import type { OutcomeStatus } from './useUpdateProposalOutcome';
-import DeleteConfirmDialog from '../../components/DeleteConfirmDialog';
-import './ProposalDetailView.css';
+import { useQueryClient } from "@tanstack/react-query";
+import { invoke } from "@tauri-apps/api/core";
+import { format } from "date-fns";
+import { useState, useCallback, useEffect, useRef } from "react";
+
+import DeleteConfirmDialog from "../../components/DeleteConfirmDialog";
+
+import { OutcomeDropdown, formatLabel } from "./OutcomeDropdown";
+import { useProposalDetail } from "./useProposalDetail";
+import { useUpdateProposalOutcome } from "./useUpdateProposalOutcome";
+import type { OutcomeStatus } from "./useUpdateProposalOutcome";
+
+import "./ProposalDetailView.css";
 
 interface ProposalRevision {
   id: number;
@@ -51,10 +54,10 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
   const [optimisticOutcome, setOptimisticOutcome] = useState<OutcomeStatus | null>(null);
 
   // Toast state (inline, no Sonner)
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Copy state (AC-3)
-  const [copyLabel, setCopyLabel] = useState('Copy Proposal');
+  const [copyLabel, setCopyLabel] = useState("Copy Proposal");
 
   // Delete dialog state (AC-6)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -72,7 +75,7 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
   // Toast auto-dismiss
   useEffect(() => {
     if (!toast) return;
-    const ms = toast.type === 'success' ? 3000 : 5000;
+    const ms = toast.type === "success" ? 3000 : 5000;
     const timer = setTimeout(() => setToast(null), ms);
     return () => clearTimeout(timer);
   }, [toast]);
@@ -80,12 +83,12 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
   // AC-2: Escape key to go back
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !showDeleteDialog && !dropdownOpen) {
+      if (e.key === "Escape" && !showDeleteDialog && !dropdownOpen) {
         onBack();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onBack, showDeleteDialog, dropdownOpen]);
 
   // H-2 CR fix: Clear optimistic state when server data arrives (refetch completes)
@@ -97,7 +100,8 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
 
   // Derived display status: optimistic local state takes precedence (AC-5)
   // L-1 CR R2: Rust sends outcomeStatus as String. Cast is safe — DB column has CHECK constraint.
-  const displayOutcomeStatus: OutcomeStatus = optimisticOutcome ?? (proposal?.outcomeStatus as OutcomeStatus) ?? 'pending';
+  const displayOutcomeStatus: OutcomeStatus =
+    optimisticOutcome ?? (proposal?.outcomeStatus as OutcomeStatus) ?? "pending";
 
   // AC-5: Handle outcome status change with optimistic update
   const handleStatusChange = useCallback(
@@ -110,19 +114,19 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
           { proposalId, outcomeStatus: status },
           {
             onSuccess: () => {
-              setToast({ type: 'success', message: `Outcome updated to '${formatLabel(status)}'` });
+              setToast({ type: "success", message: `Outcome updated to '${formatLabel(status)}'` });
               refetch();
             },
             onError: (err) => {
               // Revert optimistic state on failure
               setOptimisticOutcome(null);
-              setToast({ type: 'error', message: err.message || 'Failed to update outcome' });
+              setToast({ type: "error", message: err.message || "Failed to update outcome" });
             },
-          }
+          },
         );
       }
     },
-    [displayOutcomeStatus, proposalId, updateOutcome, refetch]
+    [displayOutcomeStatus, proposalId, updateOutcome, refetch],
   );
 
   // AC-3: Copy proposal text
@@ -132,21 +136,21 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
     if (!proposal) return;
     try {
       await navigator.clipboard.writeText(proposal.generatedText);
-      setCopyLabel('Copied!');
-      setTimeout(() => setCopyLabel('Copy Proposal'), 2000);
+      setCopyLabel("Copied!");
+      setTimeout(() => setCopyLabel("Copy Proposal"), 2000);
     } catch {
-      setToast({ type: 'error', message: 'Failed to copy to clipboard' });
+      setToast({ type: "error", message: "Failed to copy to clipboard" });
     }
   }, [proposal]);
 
   // AC-6: Delete proposal
   const handleDeleteConfirm = useCallback(async () => {
     try {
-      await invoke('delete_proposal', { id: proposalId });
-      queryClient.invalidateQueries({ queryKey: ['proposalHistory'] });
+      await invoke("delete_proposal", { id: proposalId });
+      queryClient.invalidateQueries({ queryKey: ["proposalHistory"] });
       onBack();
     } catch {
-      setToast({ type: 'error', message: 'Failed to delete proposal' });
+      setToast({ type: "error", message: "Failed to delete proposal" });
       setShowDeleteDialog(false);
     }
   }, [proposalId, queryClient, onBack]);
@@ -158,46 +162,45 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
 
     if (willExpand && revisions.length === 0 && proposal && proposal.revisionCount > 0) {
       try {
-        const result = await invoke<ProposalRevision[]>('get_proposal_revisions', { proposalId });
+        const result = await invoke<ProposalRevision[]>("get_proposal_revisions", { proposalId });
         setRevisions(result);
       } catch {
-        setToast({ type: 'error', message: 'Failed to load revisions' });
+        setToast({ type: "error", message: "Failed to load revisions" });
       }
     }
   }, [revisionsExpanded, revisions.length, proposal, proposalId]);
 
   // AC-4: Load revision content on click
-  const handleRevisionClick = useCallback(async (revisionId: number) => {
-    if (expandedRevision === revisionId) {
-      setExpandedRevision(null);
-      return;
-    }
-
-    setExpandedRevision(revisionId);
-
-    if (!revisionContent[revisionId]) {
-      setLoadingRevision(revisionId);
-      try {
-        const result = await invoke<RevisionContent>('get_revision_content', { revisionId });
-        setRevisionContent((prev) => ({ ...prev, [revisionId]: result.content }));
-      } catch {
-        setToast({ type: 'error', message: 'Failed to load revision content' });
-      } finally {
-        setLoadingRevision(null);
+  const handleRevisionClick = useCallback(
+    async (revisionId: number) => {
+      if (expandedRevision === revisionId) {
+        setExpandedRevision(null);
+        return;
       }
-    }
-  }, [expandedRevision, revisionContent]);
+
+      setExpandedRevision(revisionId);
+
+      if (!revisionContent[revisionId]) {
+        setLoadingRevision(revisionId);
+        try {
+          const result = await invoke<RevisionContent>("get_revision_content", { revisionId });
+          setRevisionContent((prev) => ({ ...prev, [revisionId]: result.content }));
+        } catch {
+          setToast({ type: "error", message: "Failed to load revision content" });
+        } finally {
+          setLoadingRevision(null);
+        }
+      }
+    },
+    [expandedRevision, revisionContent],
+  );
 
   // Loading state
   if (isLoading) {
     return (
       <div className="proposal-detail" data-testid="proposal-detail-loading">
         <div className="proposal-detail__header">
-          <button
-            className="proposal-detail__back"
-            onClick={onBack}
-            aria-label="Back to history"
-          >
+          <button className="proposal-detail__back" onClick={onBack} aria-label="Back to history">
             ← Back to History
           </button>
           <h2 className="proposal-detail__title">Proposal Details</h2>
@@ -217,11 +220,7 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
     return (
       <div className="proposal-detail" data-testid="proposal-detail-error">
         <div className="proposal-detail__header">
-          <button
-            className="proposal-detail__back"
-            onClick={onBack}
-            aria-label="Back to history"
-          >
+          <button className="proposal-detail__back" onClick={onBack} aria-label="Back to history">
             ← Back to History
           </button>
           <h2 className="proposal-detail__title">Proposal Details</h2>
@@ -243,11 +242,7 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
     return (
       <div className="proposal-detail" data-testid="proposal-detail-not-found">
         <div className="proposal-detail__header">
-          <button
-            className="proposal-detail__back"
-            onClick={onBack}
-            aria-label="Back to history"
-          >
+          <button className="proposal-detail__back" onClick={onBack} aria-label="Back to history">
             ← Back to History
           </button>
           <h2 className="proposal-detail__title">Proposal Details</h2>
@@ -263,11 +258,7 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
     <div className="proposal-detail">
       {/* Header: Back + title + date */}
       <div className="proposal-detail__header">
-        <button
-          className="proposal-detail__back"
-          onClick={onBack}
-          aria-label="Back to history"
-        >
+        <button className="proposal-detail__back" onClick={onBack} aria-label="Back to history">
           ← Back to History
         </button>
         <h2 className="proposal-detail__title">Proposal Details</h2>
@@ -276,9 +267,10 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
       {/* Metadata bar: date, outcome, strategy, job link */}
       <div className="proposal-detail__metadata">
         <span className="proposal-detail__date">
-          Created: {format(new Date(proposal.createdAt), 'MMM d, yyyy')}
+          Created: {format(new Date(proposal.createdAt), "MMM d, yyyy")}
           {/* L-1 CR fix: Show last modified date when available */}
-          {proposal.updatedAt && ` · Updated: ${format(new Date(proposal.updatedAt), 'MMM d, yyyy')}`}
+          {proposal.updatedAt &&
+            ` · Updated: ${format(new Date(proposal.updatedAt), "MMM d, yyyy")}`}
         </span>
 
         {/* AC-5: Outcome badge with inline dropdown — uses displayOutcomeStatus for optimistic update (H-2) */}
@@ -305,24 +297,18 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
         </div>
 
         {proposal.hookStrategyId && (
-          <span className="proposal-detail__strategy">
-            {formatLabel(proposal.hookStrategyId)}
-          </span>
+          <span className="proposal-detail__strategy">{formatLabel(proposal.hookStrategyId)}</span>
         )}
 
         {proposal.jobTitle && (
-          <span className="proposal-detail__job-link">
-            Job: {proposal.jobTitle}
-          </span>
+          <span className="proposal-detail__job-link">Job: {proposal.jobTitle}</span>
         )}
       </div>
 
       {/* Full proposal text (AC-1) */}
       <div className="proposal-detail__content" role="article">
         <h3 className="proposal-detail__section-title">Proposal</h3>
-        <div className="proposal-detail__text">
-          {proposal.generatedText}
-        </div>
+        <div className="proposal-detail__text">{proposal.generatedText}</div>
       </div>
 
       {/* Collapsible: Original job content */}
@@ -332,13 +318,11 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
           onClick={() => setJobContentExpanded(!jobContentExpanded)}
           aria-expanded={jobContentExpanded}
         >
-          <span className="proposal-detail__chevron">{jobContentExpanded ? '▾' : '▸'}</span>
+          <span className="proposal-detail__chevron">{jobContentExpanded ? "▾" : "▸"}</span>
           Original Job Content
         </button>
         {jobContentExpanded && (
-          <div className="proposal-detail__job-content">
-            {proposal.jobContent}
-          </div>
+          <div className="proposal-detail__job-content">{proposal.jobContent}</div>
         )}
       </div>
 
@@ -350,8 +334,9 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
             onClick={handleToggleRevisions}
             aria-expanded={revisionsExpanded}
           >
-            <span className="proposal-detail__chevron">{revisionsExpanded ? '▾' : '▸'}</span>
-            Revision History ({proposal.revisionCount} revision{proposal.revisionCount !== 1 ? 's' : ''})
+            <span className="proposal-detail__chevron">{revisionsExpanded ? "▾" : "▸"}</span>
+            Revision History ({proposal.revisionCount} revision
+            {proposal.revisionCount !== 1 ? "s" : ""})
           </button>
           {revisionsExpanded && (
             <div className="proposal-detail__revisions">
@@ -367,7 +352,7 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
                     >
                       <span>Revision #{rev.revisionNumber}</span>
                       <span className="proposal-detail__revision-date">
-                        {format(new Date(rev.createdAt), 'MMM d, yyyy HH:mm')}
+                        {format(new Date(rev.createdAt), "MMM d, yyyy HH:mm")}
                       </span>
                     </button>
                     {expandedRevision === rev.id && (
@@ -375,7 +360,7 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
                         {loadingRevision === rev.id ? (
                           <p>Loading...</p>
                         ) : (
-                          revisionContent[rev.id] || 'No content available'
+                          revisionContent[rev.id] || "No content available"
                         )}
                       </div>
                     )}
@@ -396,10 +381,7 @@ export function ProposalDetailView({ proposalId, onBack }: ProposalDetailViewPro
         >
           {copyLabel}
         </button>
-        <button
-          className="proposal-detail__delete-btn"
-          onClick={() => setShowDeleteDialog(true)}
-        >
+        <button className="proposal-detail__delete-btn" onClick={() => setShowDeleteDialog(true)}>
           Delete Proposal
         </button>
       </div>

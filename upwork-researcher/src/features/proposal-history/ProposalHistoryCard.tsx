@@ -1,11 +1,12 @@
 // ProposalHistoryCard component for Story 8.7 + Story 7.2 + Story 7.4
 // Individual proposal card in virtualized list
-import { useRef, useState, useCallback } from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { OutcomeDropdown, formatLabel } from './OutcomeDropdown';
-import type { ProposalListItem } from './types';
-import type { OutcomeStatus } from './useUpdateProposalOutcome';
-import './ProposalHistoryCard.css';
+import { formatDistanceToNow } from "date-fns";
+import { useRef, useState, useCallback } from "react";
+
+import { OutcomeDropdown, formatLabel } from "./OutcomeDropdown";
+import type { ProposalListItem } from "./types";
+import type { OutcomeStatus } from "./useUpdateProposalOutcome";
+import "./ProposalHistoryCard.css";
 
 interface ProposalHistoryCardProps {
   proposal: ProposalListItem;
@@ -25,7 +26,12 @@ interface ProposalHistoryCardProps {
  * @param onStatusChange - Story 7.2: callback for outcome status mutation
  * @param onCardClick - Story 7.4: callback for navigating to detail view
  */
-export function ProposalHistoryCard({ proposal, style, onStatusChange, onCardClick }: ProposalHistoryCardProps) {
+export function ProposalHistoryCard({
+  proposal,
+  style,
+  onStatusChange,
+  onCardClick,
+}: ProposalHistoryCardProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const badgeRef = useRef<HTMLButtonElement>(null);
 
@@ -35,7 +41,7 @@ export function ProposalHistoryCard({ proposal, style, onStatusChange, onCardCli
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       handleClick();
     }
@@ -50,7 +56,7 @@ export function ProposalHistoryCard({ proposal, style, onStatusChange, onCardCli
 
   // Story 7.2 AC-3: Badge keydown stops card navigation
   const handleBadgeKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === "Enter" || e.key === " ") {
       e.stopPropagation();
       e.preventDefault();
       setDropdownOpen((prev) => !prev);
@@ -66,7 +72,7 @@ export function ProposalHistoryCard({ proposal, style, onStatusChange, onCardCli
       // AC-4: Return focus to badge
       badgeRef.current?.focus();
     },
-    [onStatusChange, proposal.id, proposal.outcomeStatus]
+    [onStatusChange, proposal.id, proposal.outcomeStatus],
   );
 
   const handleDropdownClose = useCallback(() => {
@@ -87,9 +93,7 @@ export function ProposalHistoryCard({ proposal, style, onStatusChange, onCardCli
     >
       <div className="proposal-card-content">
         <div className="proposal-card-header">
-          <div className="proposal-job-excerpt">
-            {proposal.jobExcerpt || 'Untitled Job'}
-          </div>
+          <div className="proposal-job-excerpt">{proposal.jobExcerpt || "Untitled Job"}</div>
           {/* Story 7.2 AC-1: Clickable outcome badge with dropdown */}
           <button
             ref={badgeRef}
@@ -112,9 +116,7 @@ export function ProposalHistoryCard({ proposal, style, onStatusChange, onCardCli
             />
           )}
         </div>
-        <div className="proposal-preview">
-          {proposal.previewText || 'No preview available'}
-        </div>
+        <div className="proposal-preview">{proposal.previewText || "No preview available"}</div>
         <div className="proposal-date">
           {formatDistanceToNow(new Date(proposal.createdAt), { addSuffix: true })}
         </div>

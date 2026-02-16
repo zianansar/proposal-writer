@@ -8,6 +8,7 @@
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import App from "./App";
 import { useGenerationStore } from "./stores/useGenerationStore";
 import { useOnboardingStore } from "./stores/useOnboardingStore";
@@ -28,10 +29,17 @@ const createInvokeHandler = (overrides: Record<string, (args?: any) => any> = {}
       return overrides[command](args);
     }
     if (command === "has_api_key") return Promise.resolve(true);
-    if (command === "get_setting" && args?.key === "onboarding_completed") return Promise.resolve("true");
+    if (command === "get_setting" && args?.key === "onboarding_completed")
+      return Promise.resolve("true");
     if (command === "generate_proposal_streaming") return Promise.resolve("Generated text");
-    if (command === "analyze_perplexity") return Promise.resolve({ score: 120.0, threshold: 180, flaggedSentences: [] });
-    if (command === "get_encryption_status") return Promise.resolve({ databaseEncrypted: false, apiKeyInKeychain: false, cipherVersion: "N/A" });
+    if (command === "analyze_perplexity")
+      return Promise.resolve({ score: 120.0, threshold: 180, flaggedSentences: [] });
+    if (command === "get_encryption_status")
+      return Promise.resolve({
+        databaseEncrypted: false,
+        apiKeyInKeychain: false,
+        cipherVersion: "N/A",
+      });
     return Promise.resolve(null);
   };
 };
@@ -74,15 +82,22 @@ describe("App — Perplexity Analysis Integration", () => {
   });
 
   it("shows SafetyWarningModal when perplexity score >= 180", async () => {
-    mockInvoke.mockImplementation(createInvokeHandler({
-      analyze_perplexity: () => Promise.resolve({
-        score: 195.0,
-        threshold: 180,
-        flaggedSentences: [
-          { text: "I would be delighted to leverage my expertise.", suggestion: "Use simpler language", index: 0 },
-        ],
+    mockInvoke.mockImplementation(
+      createInvokeHandler({
+        analyze_perplexity: () =>
+          Promise.resolve({
+            score: 195.0,
+            threshold: 180,
+            flaggedSentences: [
+              {
+                text: "I would be delighted to leverage my expertise.",
+                suggestion: "Use simpler language",
+                index: 0,
+              },
+            ],
+          }),
       }),
-    }));
+    );
 
     render(<App />);
     await waitForAppReady();
@@ -99,13 +114,16 @@ describe("App — Perplexity Analysis Integration", () => {
   });
 
   it("does not show SafetyWarningModal when perplexity score < 180", async () => {
-    mockInvoke.mockImplementation(createInvokeHandler({
-      analyze_perplexity: () => Promise.resolve({
-        score: 150.0,
-        threshold: 180,
-        flaggedSentences: [],
+    mockInvoke.mockImplementation(
+      createInvokeHandler({
+        analyze_perplexity: () =>
+          Promise.resolve({
+            score: 150.0,
+            threshold: 180,
+            flaggedSentences: [],
+          }),
       }),
-    }));
+    );
 
     render(<App />);
     await waitForAppReady();
@@ -135,9 +153,7 @@ describe("App — Perplexity Analysis Integration", () => {
 
     // Should NOT call analyze_perplexity during streaming
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const perplexityCalls = mockInvoke.mock.calls.filter(
-      ([cmd]) => cmd === "analyze_perplexity"
-    );
+    const perplexityCalls = mockInvoke.mock.calls.filter(([cmd]) => cmd === "analyze_perplexity");
     expect(perplexityCalls.length).toBe(0);
   });
 
@@ -148,13 +164,16 @@ describe("App — Perplexity Analysis Integration", () => {
     // but isRegenerating is true (simulated via store), no new analysis fires.
 
     // Use safe score initially so no modal blocks the test
-    mockInvoke.mockImplementation(createInvokeHandler({
-      analyze_perplexity: () => Promise.resolve({
-        score: 120.0,
-        threshold: 180,
-        flaggedSentences: [],
+    mockInvoke.mockImplementation(
+      createInvokeHandler({
+        analyze_perplexity: () =>
+          Promise.resolve({
+            score: 120.0,
+            threshold: 180,
+            flaggedSentences: [],
+          }),
       }),
-    }));
+    );
 
     render(<App />);
     await waitForAppReady();
@@ -179,13 +198,16 @@ describe("App — Perplexity Analysis Integration", () => {
   it("closes SafetyWarningModal when Edit Proposal is clicked", async () => {
     const user = userEvent.setup();
 
-    mockInvoke.mockImplementation(createInvokeHandler({
-      analyze_perplexity: () => Promise.resolve({
-        score: 195.0,
-        threshold: 180,
-        flaggedSentences: [{ text: "flagged", suggestion: "fix", index: 0 }],
+    mockInvoke.mockImplementation(
+      createInvokeHandler({
+        analyze_perplexity: () =>
+          Promise.resolve({
+            score: 195.0,
+            threshold: 180,
+            flaggedSentences: [{ text: "flagged", suggestion: "fix", index: 0 }],
+          }),
       }),
-    }));
+    );
 
     render(<App />);
     await waitForAppReady();
@@ -210,13 +232,16 @@ describe("App — Perplexity Analysis Integration", () => {
   it("closes SafetyWarningModal when Override is clicked", async () => {
     const user = userEvent.setup();
 
-    mockInvoke.mockImplementation(createInvokeHandler({
-      analyze_perplexity: () => Promise.resolve({
-        score: 195.0,
-        threshold: 180,
-        flaggedSentences: [{ text: "flagged", suggestion: "fix", index: 0 }],
+    mockInvoke.mockImplementation(
+      createInvokeHandler({
+        analyze_perplexity: () =>
+          Promise.resolve({
+            score: 195.0,
+            threshold: 180,
+            flaggedSentences: [{ text: "flagged", suggestion: "fix", index: 0 }],
+          }),
       }),
-    }));
+    );
 
     render(<App />);
     await waitForAppReady();
@@ -240,13 +265,16 @@ describe("App — Perplexity Analysis Integration", () => {
   it("clears perplexity analysis on new generation", async () => {
     const user = userEvent.setup();
 
-    mockInvoke.mockImplementation(createInvokeHandler({
-      analyze_perplexity: () => Promise.resolve({
-        score: 195.0,
-        threshold: 180,
-        flaggedSentences: [{ text: "flagged", suggestion: "fix", index: 0 }],
+    mockInvoke.mockImplementation(
+      createInvokeHandler({
+        analyze_perplexity: () =>
+          Promise.resolve({
+            score: 195.0,
+            threshold: 180,
+            flaggedSentences: [{ text: "flagged", suggestion: "fix", index: 0 }],
+          }),
       }),
-    }));
+    );
 
     render(<App />);
     await waitForAppReady();

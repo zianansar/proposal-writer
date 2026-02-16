@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import PipelineIndicator from "./PipelineIndicator";
+import { describe, it, expect, beforeEach } from "vitest";
+
 import { useGenerationStore } from "../stores/useGenerationStore";
+
+import PipelineIndicator from "./PipelineIndicator";
 
 describe("PipelineIndicator", () => {
   beforeEach(() => {

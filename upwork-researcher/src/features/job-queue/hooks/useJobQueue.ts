@@ -3,9 +3,10 @@
  * Uses TanStack Query for caching and automatic refetching
  */
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { invoke } from '@tauri-apps/api/core';
-import type { JobQueueResponse, SortField, ScoreFilter } from '../types';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { invoke } from "@tauri-apps/api/core";
+
+import type { JobQueueResponse, SortField, ScoreFilter } from "../types";
 
 /**
  * Fetch job queue from backend
@@ -15,9 +16,9 @@ import type { JobQueueResponse, SortField, ScoreFilter } from '../types';
  */
 export function useJobQueue(sortBy: SortField, filter: ScoreFilter) {
   return useQuery({
-    queryKey: ['jobQueue', sortBy, filter],
+    queryKey: ["jobQueue", sortBy, filter],
     queryFn: async () => {
-      const response = await invoke<JobQueueResponse>('get_job_queue', {
+      const response = await invoke<JobQueueResponse>("get_job_queue", {
         sortBy,
         filter,
         limit: 50,
@@ -36,5 +37,5 @@ export function useJobQueue(sortBy: SortField, filter: ScoreFilter) {
  */
 export function useInvalidateJobQueue() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: ['jobQueue'] });
+  return () => queryClient.invalidateQueries({ queryKey: ["jobQueue"] });
 }

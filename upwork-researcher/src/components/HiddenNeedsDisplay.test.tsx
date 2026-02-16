@@ -3,8 +3,9 @@
  * Task 6.8-6.10: Component rendering tests
  */
 
-import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+
 import HiddenNeedsDisplay from "./HiddenNeedsDisplay";
 
 describe("HiddenNeedsDisplay", () => {
@@ -24,15 +25,11 @@ describe("HiddenNeedsDisplay", () => {
 
     // Verify first need (label now provided by parent panel, not this component)
     expect(screen.getByText("Time-pressured")).toBeInTheDocument();
-    expect(
-      screen.getByText("→ Mentions 'urgent' and 'ASAP'")
-    ).toBeInTheDocument();
+    expect(screen.getByText("→ Mentions 'urgent' and 'ASAP'")).toBeInTheDocument();
 
     // Verify second need
     expect(screen.getByText("Budget-conscious")).toBeInTheDocument();
-    expect(
-      screen.getByText("→ Emphasizes 'cost-effective solution'")
-    ).toBeInTheDocument();
+    expect(screen.getByText("→ Emphasizes 'cost-effective solution'")).toBeInTheDocument();
   });
 
   it("Task 6.9: shows 'No hidden needs detected' for empty array", () => {
@@ -56,9 +53,7 @@ describe("HiddenNeedsDisplay", () => {
 
     // Label now provided by parent panel, component just renders the list
     expect(screen.getByText("Risk-averse")).toBeInTheDocument();
-    expect(
-      screen.getByText("→ Requires 'proven track record'")
-    ).toBeInTheDocument();
+    expect(screen.getByText("→ Requires 'proven track record'")).toBeInTheDocument();
   });
 
   it("Task 6.10: component handles conditional rendering based on analysis state", () => {
@@ -82,9 +77,7 @@ describe("HiddenNeedsDisplay", () => {
       },
     ];
 
-    const { container } = render(
-      <HiddenNeedsDisplay hiddenNeeds={hiddenNeeds} />
-    );
+    const { container } = render(<HiddenNeedsDisplay hiddenNeeds={hiddenNeeds} />);
 
     // Verify structure
     const needLabel = container.querySelector(".hidden-need-label");
@@ -101,18 +94,14 @@ describe("HiddenNeedsDisplay", () => {
       { need: "Need 3", evidence: "Evidence 3" },
     ];
 
-    const { container } = render(
-      <HiddenNeedsDisplay hiddenNeeds={hiddenNeeds} />
-    );
+    const { container } = render(<HiddenNeedsDisplay hiddenNeeds={hiddenNeeds} />);
 
     const listItems = container.querySelectorAll(".hidden-need-item");
     expect(listItems).toHaveLength(3);
   });
 
   it("has proper accessibility attributes", () => {
-    const hiddenNeeds = [
-      { need: "Test Need", evidence: "Test Evidence" },
-    ];
+    const hiddenNeeds = [{ need: "Test Need", evidence: "Test Evidence" }];
 
     render(<HiddenNeedsDisplay hiddenNeeds={hiddenNeeds} />);
 
@@ -123,8 +112,6 @@ describe("HiddenNeedsDisplay", () => {
   it("empty state has status role for accessibility", () => {
     render(<HiddenNeedsDisplay hiddenNeeds={[]} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "No hidden needs detected"
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("No hidden needs detected");
   });
 });

@@ -9,7 +9,7 @@
  * - Actions (view, delete)
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class HistoryPage {
   readonly page: Page;
@@ -36,11 +36,11 @@ export class HistoryPage {
     this.page = page;
 
     // Navigation
-    this.historyNav = page.getByTestId('history-nav');
-    this.backToEditorButton = page.getByRole('button', { name: /back|editor/i });
+    this.historyNav = page.getByTestId("history-nav");
+    this.backToEditorButton = page.getByRole("button", { name: /back|editor/i });
 
     // List
-    this.proposalList = page.getByTestId('history-list');
+    this.proposalList = page.getByTestId("history-list");
     this.proposalItems = page.getByTestId(/history-item-/);
     this.virtualizedList = page.locator('[data-testid^="history-list"]');
 
@@ -48,8 +48,8 @@ export class HistoryPage {
     this.emptyState = page.getByText(/no proposals yet/i);
 
     // Search/Filter
-    this.searchInput = page.getByRole('textbox', { name: /search/i });
-    this.filterButton = page.getByRole('button', { name: /filter/i });
+    this.searchInput = page.getByRole("textbox", { name: /search/i });
+    this.filterButton = page.getByRole("button", { name: /filter/i });
   }
 
   /**
@@ -67,10 +67,10 @@ export class HistoryPage {
     // Wait for list to load with explicit condition
     await expect(this.proposalList).toBeVisible();
     // Wait for at least one item or empty state
-    await this.page.waitForSelector(
-      '[data-testid^="history-item-"], [data-testid="empty-state"]',
-      { state: 'visible', timeout: 5000 }
-    );
+    await this.page.waitForSelector('[data-testid^="history-item-"], [data-testid="empty-state"]', {
+      state: "visible",
+      timeout: 5000,
+    });
 
     const items = await this.proposalItems.count();
     return items;
@@ -96,11 +96,11 @@ export class HistoryPage {
    */
   async deleteProposal(index: number): Promise<void> {
     const item = this.getProposalItem(index);
-    const deleteButton = item.getByRole('button', { name: /delete/i });
+    const deleteButton = item.getByRole("button", { name: /delete/i });
     await deleteButton.click();
 
     // Wait for confirmation dialog and confirm
-    const confirmButton = this.page.getByRole('button', { name: /confirm|yes|delete/i });
+    const confirmButton = this.page.getByRole("button", { name: /confirm|yes|delete/i });
     await expect(confirmButton).toBeVisible();
     await confirmButton.click();
   }
@@ -122,9 +122,9 @@ export class HistoryPage {
   }> {
     const item = this.getProposalItem(index);
 
-    const preview = (await item.getByTestId('proposal-preview').textContent()) ?? '';
-    const jobTitle = (await item.getByTestId('job-title').textContent()) ?? '';
-    const date = (await item.getByTestId('proposal-date').textContent()) ?? '';
+    const preview = (await item.getByTestId("proposal-preview").textContent()) ?? "";
+    const jobTitle = (await item.getByTestId("job-title").textContent()) ?? "";
+    const date = (await item.getByTestId("proposal-date").textContent()) ?? "";
 
     return { preview, jobTitle, date };
   }
@@ -138,7 +138,7 @@ export class HistoryPage {
     // Wait for list to re-render with filtered results or empty state
     await this.page.waitForSelector(
       '[data-testid^="history-item-"], [data-testid="empty-state"], [data-testid="no-results"]',
-      { state: 'visible', timeout: 5000 }
+      { state: "visible", timeout: 5000 },
     );
   }
 

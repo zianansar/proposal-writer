@@ -1,6 +1,13 @@
-import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect, useRef } from "react";
+
 import "./VoiceSettings.css";
+import {
+  VoiceProfileDisplay,
+  VoiceLearningTimeline,
+  VoiceLearningProgress,
+  useProposalsEditedCount,
+} from "../features/voice-learning";
 import {
   VoiceProfile,
   VoiceParameterUpdate,
@@ -12,12 +19,6 @@ import {
   DEPTH_LABELS,
   getVoiceLabel,
 } from "../types/voice";
-import {
-  VoiceProfileDisplay,
-  VoiceLearningTimeline,
-  VoiceLearningProgress,
-  useProposalsEditedCount,
-} from "../features/voice-learning";
 
 // Story 6.2: Manual Voice Parameter Adjustments
 // Voice parameters user can manually adjust via sliders
@@ -35,12 +36,16 @@ export function VoiceSettings() {
 
   // Story 8.6: Voice learning progress tracking
   const [hasCalibration, setHasCalibration] = useState(false);
-  const { progress: learningProgress, loading: progressLoading, refetch: refetchProgress } = useProposalsEditedCount();
+  const {
+    progress: learningProgress,
+    loading: progressLoading,
+    refetch: refetchProgress,
+  } = useProposalsEditedCount();
 
   // Story 8.6 AC-2: Refetch progress when returning from proposal editing
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === "visible") {
         refetchProgress();
       }
     };
@@ -50,12 +55,12 @@ export function VoiceSettings() {
       refetchProgress();
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [refetchProgress]);
 
@@ -150,9 +155,7 @@ export function VoiceSettings() {
       <h3>Voice Settings</h3>
 
       {/* AC: "Changes will affect future proposals" info text */}
-      <p className="voice-settings-info">
-        Changes will affect future proposals.
-      </p>
+      <p className="voice-settings-info">Changes will affect future proposals.</p>
 
       {/* Tone Slider: 1 (Formal) to 10 (Casual) */}
       <div className="voice-slider-group">

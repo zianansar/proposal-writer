@@ -1,4 +1,1 @@
-#\!/usr/bin/env sh
-. "$(dirname "$0")/_/husky.sh"
-
-cd upwork-researcher && npx --no -- commitlint --edit $1
+cd upwork-researcher && npx --no -- commitlint --edit "../$1"

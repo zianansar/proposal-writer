@@ -1,6 +1,6 @@
 # Story 9.3: Semantic Versioning & Release Automation
 
-Status: review
+Status: done
 
 ## Story
 
@@ -70,8 +70,19 @@ Then the release notes body includes the changelog entries for that version.
   - [x] 6.5 If Story 9-1 (husky) is not yet done, install husky as part of this task or defer
 
 - [x] Task 7: Write validation test script
-  - [x] 7.1 Create `upwork-researcher/scripts/test-version-bump.sh` that validates: version sync across 3 files, CHANGELOG existence, commit message format, tag creation
+  - [x] 7.1 Create `scripts/test-version-bump.sh` that validates: version sync across 3 files, CHANGELOG existence, commit message format, tag creation
   - [x] 7.2 Test edge cases: dirty working directory rejection, consecutive bumps, first bump from 0.1.0
+
+### Review Follow-ups (AI) — 2026-02-16
+
+- [x] [AI-Review][HIGH] AC-5 not met: Add changelog extraction step to `.github/workflows/release.yml` before `tauri-action`. Task 5.2 marked [x] but release.yml was not updated. **FIXED: Added changelog extraction step + releaseBody input to release.yml.**
+- [x] [AI-Review][HIGH] Commit-msg hook `$1` path broken: `cd upwork-researcher` invalidates `.git/COMMIT_EDITMSG` relative path. **FIXED: Changed to `../$1` and updated to husky v9 format.**
+- [x] [AI-Review][HIGH] Dirty-directory pre-flight only covers `version:bump`. **FIXED: Added `preversion:bump:minor` and `preversion:bump:major` scripts to package.json.**
+- [x] [AI-Review][MEDIUM] `scripts/windows-sign.ps1` committed in 9-3 but not in Dev Agent Record File List. **FIXED: Added to File List.**
+- [x] [AI-Review][MEDIUM] Cargo.lock not synced in release commit. **FIXED: Added `hooks.postbump` in `.versionrc.cjs` to run `cargo check` and stage `Cargo.lock`.**
+- [x] [AI-Review][MEDIUM] Husky v4 hook format with v9 install. **FIXED: Removed shebang and `_/husky.sh` sourcing from `.husky/commit-msg`.**
+- [x] [AI-Review][LOW] Validation script TEST 6 doesn't actually test dirty-directory rejection. **FIXED: Added real dirty-state test + minor/major pre-flight assertions.**
+- [x] [AI-Review][LOW] Test script path mismatch. **FIXED: Corrected task 7.1 description to `scripts/test-version-bump.sh`.**
 
 ## Dev Notes
 
@@ -330,13 +341,14 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 - Validation script: scripts/test-version-bump.sh passes 21/21 tests ✓
 
 ### File List
-- upwork-researcher/.versionrc.cjs (created)
+- upwork-researcher/.versionrc.cjs (created, modified CR R1 — added hooks.postbump, trimmed stale comments)
 - upwork-researcher/commitlint.config.cjs (created)
-- upwork-researcher/package.json (modified - added scripts, devDependencies)
+- upwork-researcher/package.json (modified — scripts, devDependencies, added preversion:bump:minor/major CR R1)
 - upwork-researcher/CHANGELOG.md (created by version bump)
 - upwork-researcher/src-tauri/Cargo.toml (modified - version 0.1.0 → 0.1.1)
 - upwork-researcher/src-tauri/tauri.conf.json (modified - version 0.1.0 → 0.1.1)
-- .husky/_/husky.sh (created)
-- .husky/commit-msg (created)
-- scripts/test-version-bump.sh (created)
+- .husky/commit-msg (created, modified CR R1 — v9 format + ../$1 path fix)
+- .github/workflows/release.yml (modified CR R1 — changelog extraction step + releaseBody)
+- scripts/test-version-bump.sh (created, modified CR R1 — dirty-directory + minor/major assertions)
+- scripts/windows-sign.ps1 (created)
 - _bmad-output/implementation-artifacts/9-3-semantic-versioning-release-automation.story.md (this file)

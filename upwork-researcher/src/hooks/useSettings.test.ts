@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useSettings } from "./useSettings";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import { useSettingsStore } from "../stores/useSettingsStore";
+
+import { useSettings } from "./useSettings";
 
 // Mock Tauri invoke
 vi.mock("@tauri-apps/api/core", () => ({

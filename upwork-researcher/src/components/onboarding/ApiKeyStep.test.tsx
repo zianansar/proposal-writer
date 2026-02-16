@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
 import { useOnboardingStore } from "../../stores/useOnboardingStore";
+
 import ApiKeyStep from "./ApiKeyStep";
 
 // Mock Tauri invoke
@@ -57,9 +59,7 @@ describe("ApiKeyStep", () => {
     await user.type(screen.getByPlaceholderText("sk-ant-..."), "invalid-key");
     await user.click(screen.getByRole("button", { name: /next/i }));
 
-    expect(
-      await screen.findByText(/Invalid API key format/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Invalid API key format/i)).toBeInTheDocument();
   });
 
   it("calls set_api_key and advances to step 3 on valid key", async () => {
@@ -68,10 +68,7 @@ describe("ApiKeyStep", () => {
 
     render(<ApiKeyStep />);
 
-    await user.type(
-      screen.getByPlaceholderText("sk-ant-..."),
-      "sk-ant-valid-key-123"
-    );
+    await user.type(screen.getByPlaceholderText("sk-ant-..."), "sk-ant-valid-key-123");
     await user.click(screen.getByRole("button", { name: /next/i }));
 
     await waitFor(() => {
@@ -89,10 +86,7 @@ describe("ApiKeyStep", () => {
 
     render(<ApiKeyStep />);
 
-    await user.type(
-      screen.getByPlaceholderText("sk-ant-..."),
-      "sk-ant-valid-key"
-    );
+    await user.type(screen.getByPlaceholderText("sk-ant-..."), "sk-ant-valid-key");
     await user.click(screen.getByRole("button", { name: /next/i }));
 
     expect(await screen.findByText("Network error")).toBeInTheDocument();

@@ -22,9 +22,7 @@ pub fn get_memory_usage() -> Result<MemoryUsage, String> {
     sys.refresh_all();
 
     let pid = sysinfo::Pid::from_u32(std::process::id());
-    let process = sys
-        .process(pid)
-        .ok_or("Could not find current process")?;
+    let process = sys.process(pid).ok_or("Could not find current process")?;
 
     Ok(MemoryUsage {
         rss_bytes: process.memory() as i64,

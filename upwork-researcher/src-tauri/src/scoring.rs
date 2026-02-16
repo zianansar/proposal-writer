@@ -158,7 +158,8 @@ fn generate_recommendation(
         }
         "red" => {
             if quality.map_or(false, |q| q <= 45) {
-                "High risk. Client has no hire history — proceed only if the project is compelling.".into()
+                "High risk. Client has no hire history — proceed only if the project is compelling."
+                    .into()
             } else {
                 "Low priority. Significant gaps in skills match or client quality.".into()
             }
@@ -192,7 +193,10 @@ fn generate_budget_display(
     match budget_type {
         "hourly" => {
             if let (Some(job_rate), Some(user_rate)) = (budget_min, user_hourly_rate) {
-                format!("${}/hr vs your ${}/hr rate", job_rate as i32, user_rate as i32)
+                format!(
+                    "${}/hr vs your ${}/hr rate",
+                    job_rate as i32, user_rate as i32
+                )
             } else if let Some(job_rate) = budget_min {
                 format!("${}/hr (rate not configured)", job_rate as i32)
             } else {

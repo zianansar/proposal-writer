@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import "./DeleteConfirmDialog.css";
 
@@ -22,11 +23,7 @@ interface DeleteConfirmDialogProps {
  * - Body scroll locked while dialog is open
  * - GDPR compliance: implements "right to deletion" from Round 5 Security Audit
  */
-function DeleteConfirmDialog({
-  onCancel,
-  onConfirm,
-  triggerRef,
-}: DeleteConfirmDialogProps) {
+function DeleteConfirmDialog({ onCancel, onConfirm, triggerRef }: DeleteConfirmDialogProps) {
   // Story 8.2: Focus trap for keyboard navigation
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, { triggerRef });
@@ -67,20 +64,12 @@ function DeleteConfirmDialog({
         <p id="delete-confirm-desc" className="delete-confirm__warning">
           ⚠️ This will permanently delete the proposal and all revisions.
         </p>
-        <p className="delete-confirm__consequence">
-          This cannot be undone.
-        </p>
+        <p className="delete-confirm__consequence">This cannot be undone.</p>
         <div className="delete-confirm__actions">
-          <button
-            className="delete-confirm__button button--secondary"
-            onClick={onCancel}
-          >
+          <button className="delete-confirm__button button--secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button
-            className="delete-confirm__button button--danger"
-            onClick={onConfirm}
-          >
+          <button className="delete-confirm__button button--danger" onClick={onConfirm}>
             Delete Permanently
           </button>
         </div>

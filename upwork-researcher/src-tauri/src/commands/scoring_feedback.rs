@@ -3,7 +3,9 @@
 //! Provides Tauri commands for submitting and checking scoring feedback.
 
 use crate::db::AppDatabase;
-use crate::scoring::{CanReportResult, ScoringFeedbackIssue, ScoringFeedbackResult, SubmitScoringFeedbackInput};
+use crate::scoring::{
+    CanReportResult, ScoringFeedbackIssue, ScoringFeedbackResult, SubmitScoringFeedbackInput,
+};
 use chrono::{Duration, Utc};
 use rusqlite::{Connection, OptionalExtension};
 use tauri::State;
@@ -34,7 +36,10 @@ impl From<FeedbackError> for String {
 }
 
 /// Internal function to check if user can report score (testable without Tauri State)
-fn check_can_report_internal(conn: &Connection, job_post_id: i64) -> Result<CanReportResult, FeedbackError> {
+fn check_can_report_internal(
+    conn: &Connection,
+    job_post_id: i64,
+) -> Result<CanReportResult, FeedbackError> {
     // Calculate 24-hour cutoff
     let cutoff = Utc::now() - Duration::hours(24);
     let cutoff_str = cutoff.to_rfc3339();
@@ -49,7 +54,9 @@ fn check_can_report_internal(conn: &Connection, job_post_id: i64) -> Result<CanR
             |row: &rusqlite::Row| row.get(0),
         )
         .optional()
-        .map_err(|e| FeedbackError::DatabaseError(format!("Failed to check existing feedback: {}", e)))?;
+        .map_err(|e| {
+            FeedbackError::DatabaseError(format!("Failed to check existing feedback: {}", e))
+        })?;
 
     match existing {
         Some(timestamp) => Ok(CanReportResult {
@@ -71,20 +78,26 @@ fn submit_scoring_feedback_internal(
 ) -> Result<ScoringFeedbackResult, FeedbackError> {
     // 1. Validate input
     if input.issues.is_empty() {
-        return Err(FeedbackError::ValidationError("At least one issue must be selected".into()));
+        return Err(FeedbackError::ValidationError(
+            "At least one issue must be selected".into(),
+        ));
     }
 
     if let Some(ref notes) = input.user_notes {
         let trimmed = notes.trim();
         if trimmed.len() > 500 {
-            return Err(FeedbackError::ValidationError("User notes must be 500 characters or less".into()));
+            return Err(FeedbackError::ValidationError(
+                "User notes must be 500 characters or less".into(),
+            ));
         }
     }
 
     // 2. Check for duplicate within 24h
     let can_report = check_can_report_internal(conn, input.job_post_id)?;
     if !can_report.can_report {
-        return Err(FeedbackError::DuplicateFeedback("You already reported this score".into()));
+        return Err(FeedbackError::DuplicateFeedback(
+            "You already reported this score".into(),
+        ));
     }
 
     // 3. Snapshot current scores from job_scores table
@@ -98,7 +111,8 @@ fn submit_scoring_feedback_internal(
         .optional()
         .map_err(|e| FeedbackError::DatabaseError(format!("Failed to snapshot scores: {}", e)))?;
 
-    let (overall_score, color_flag, skills_match, client_quality, budget_alignment) = score_snapshot.unwrap_or_default();
+    let (overall_score, color_flag, skills_match, client_quality, budget_alignment) =
+        score_snapshot.unwrap_or_default();
 
     // 4. Convert issues to boolean flags
     let mut issue_skills = 0;
@@ -160,7 +174,10 @@ fn submit_scoring_feedback_internal(
         )
         .map_err(|e| FeedbackError::DatabaseError(format!("Failed to insert feedback: {}", e)))?;
 
-    info!("Scoring feedback submitted: job_post_id={}, feedback_id={}", input.job_post_id, feedback_id);
+    info!(
+        "Scoring feedback submitted: job_post_id={}, feedback_id={}",
+        input.job_post_id, feedback_id
+    );
 
     Ok(ScoringFeedbackResult {
         feedback_id: conn.last_insert_rowid(),
@@ -175,7 +192,10 @@ pub async fn check_can_report_score(
     database: State<'_, AppDatabase>,
 ) -> Result<CanReportResult, String> {
     let database = database.get()?;
-    let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
     check_can_report_internal(&conn, job_post_id).map_err(|e| e.into())
 }
 
@@ -188,12 +208,12 @@ pub async fn submit_scoring_feedback(
 ) -> Result<ScoringFeedbackResult, String> {
     let database = database.get()?;
     // Get app version from Tauri
-    let app_version = app
-        .package_info()
-        .version
-        .to_string();
+    let app_version = app.package_info().version.to_string();
 
-    let conn = database.conn.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let conn = database
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
     submit_scoring_feedback_internal(&conn, input, app_version).map_err(|e| e.into())
 }
 
@@ -264,7 +284,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Insert job post
-        conn.execute("INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')", []).unwrap();
+        conn.execute(
+            "INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')",
+            [],
+        )
+        .unwrap();
 
         let result = check_can_report_internal(&conn, 1).unwrap();
         assert!(result.can_report);
@@ -277,7 +301,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Insert job post and score
-        conn.execute("INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')", []).unwrap();
+        conn.execute(
+            "INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')",
+            [],
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO job_scores (job_post_id, overall_score, color_flag) VALUES (1, 75.0, 'yellow')",
             [],
@@ -303,7 +331,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Insert job post
-        conn.execute("INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')", []).unwrap();
+        conn.execute(
+            "INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')",
+            [],
+        )
+        .unwrap();
 
         // Insert feedback 25 hours ago (outside window)
         let twentyfive_hours_ago = (Utc::now() - Duration::hours(25)).to_rfc3339();
@@ -324,7 +356,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Insert job post and score
-        conn.execute("INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')", []).unwrap();
+        conn.execute(
+            "INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')",
+            [],
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO job_scores (job_post_id, overall_score, color_flag, skills_match_percentage, client_quality_score, budget_alignment_score)
              VALUES (1, 68.0, 'yellow', 75.0, 60, 90)",
@@ -334,7 +370,10 @@ mod tests {
 
         let input = SubmitScoringFeedbackInput {
             job_post_id: 1,
-            issues: vec![ScoringFeedbackIssue::SkillsMismatch, ScoringFeedbackIssue::ScoreTooLow],
+            issues: vec![
+                ScoringFeedbackIssue::SkillsMismatch,
+                ScoringFeedbackIssue::ScoreTooLow,
+            ],
             user_notes: Some("Skills detection is off".into()),
         };
 
@@ -362,7 +401,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Insert job post and score
-        conn.execute("INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')", []).unwrap();
+        conn.execute(
+            "INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')",
+            [],
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO job_scores (job_post_id, overall_score, color_flag) VALUES (1, 75.0, 'yellow')",
             [],
@@ -395,7 +438,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Insert job post
-        conn.execute("INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')", []).unwrap();
+        conn.execute(
+            "INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')",
+            [],
+        )
+        .unwrap();
 
         // Try to submit with notes > 500 chars
         let long_notes = "a".repeat(501);
@@ -421,7 +468,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Insert job post
-        conn.execute("INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')", []).unwrap();
+        conn.execute(
+            "INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')",
+            [],
+        )
+        .unwrap();
 
         let input = SubmitScoringFeedbackInput {
             job_post_id: 1,
@@ -445,7 +496,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         // Insert job post with complete scoring data
-        conn.execute("INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')", []).unwrap();
+        conn.execute(
+            "INSERT INTO job_posts (id, raw_content) VALUES (1, 'test')",
+            [],
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO job_scores (job_post_id, overall_score, color_flag, skills_match_percentage, client_quality_score, budget_alignment_score)
              VALUES (1, 82.5, 'green', 90.0, 85, 100)",
@@ -462,13 +517,27 @@ mod tests {
         let result = submit_scoring_feedback_internal(&conn, input, "1.0.0".into()).unwrap();
 
         // Verify all score components were snapshotted
-        let (score, color, skills, quality, budget): (Option<f64>, Option<String>, Option<f64>, Option<i32>, Option<i32>) = conn
+        let (score, color, skills, quality, budget): (
+            Option<f64>,
+            Option<String>,
+            Option<f64>,
+            Option<i32>,
+            Option<i32>,
+        ) = conn
             .query_row(
                 "SELECT overall_score_at_report, color_flag_at_report, skills_match_at_report,
                         client_quality_at_report, budget_alignment_at_report
                  FROM scoring_feedback WHERE id = ?",
                 rusqlite::params![result.feedback_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
             )
             .unwrap();
 

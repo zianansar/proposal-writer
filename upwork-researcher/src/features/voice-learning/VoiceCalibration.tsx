@@ -1,11 +1,12 @@
 // Voice Calibration UI Component
 // Story 5.4: Task 4 - Build calibration UI component
 
-import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import type { VoiceProfile, CalibrationResult, AnalysisProgress } from './types';
-import './VoiceCalibration.css';
+import { invoke } from "@tauri-apps/api/core";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { useState, useEffect } from "react";
+
+import type { VoiceProfile, CalibrationResult, AnalysisProgress } from "./types";
+import "./VoiceCalibration.css";
 
 export interface VoiceCalibrationProps {
   onComplete: (profile: VoiceProfile) => void;
@@ -30,7 +31,7 @@ export function VoiceCalibration({ onComplete }: VoiceCalibrationProps) {
     let unlisten: UnlistenFn | undefined;
 
     const setupListener = async () => {
-      unlisten = await listen<AnalysisProgress>('analysis_progress', (event) => {
+      unlisten = await listen<AnalysisProgress>("analysis_progress", (event) => {
         setProgress(event.payload);
       });
     };
@@ -52,7 +53,7 @@ export function VoiceCalibration({ onComplete }: VoiceCalibrationProps) {
     setResult(null);
 
     try {
-      const calibrationResult = await invoke<CalibrationResult>('calibrate_voice');
+      const calibrationResult = await invoke<CalibrationResult>("calibrate_voice");
       setResult(calibrationResult);
       // Task 4.6: Pass results to parent
       onComplete(calibrationResult.profile);

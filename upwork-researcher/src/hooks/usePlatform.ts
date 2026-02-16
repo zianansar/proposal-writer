@@ -9,10 +9,7 @@
  * @internal
  */
 export function detectIsMac(): boolean {
-  return (
-    typeof navigator !== "undefined" &&
-    navigator.platform.toLowerCase().startsWith("mac")
-  );
+  return typeof navigator !== "undefined" && navigator.platform.toLowerCase().startsWith("mac");
 }
 
 /**

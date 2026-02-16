@@ -8,10 +8,13 @@
  * AC-6: Loading and error states with retry capability
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import HookStrategyCard from "./HookStrategyCard";
+import { useState, useEffect, useRef, useCallback } from "react";
+
 import { HookStrategy, parseHookStrategy } from "../types/hooks";
+
+import HookStrategyCard from "./HookStrategyCard";
+
 import "./HookStrategySelector.css";
 
 export interface HookStrategySelectorProps {
@@ -19,9 +22,7 @@ export interface HookStrategySelectorProps {
   onSelectionChange: (strategyId: number) => void;
 }
 
-export default function HookStrategySelector({
-  onSelectionChange,
-}: HookStrategySelectorProps) {
+export default function HookStrategySelector({ onSelectionChange }: HookStrategySelectorProps) {
   const [strategies, setStrategies] = useState<HookStrategy[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,9 +52,7 @@ export default function HookStrategySelector({
       setStrategies(result);
 
       // AC-2: Default to "Social Proof" strategy
-      const socialProofStrategy = result.find(
-        (s) => s.name === "Social Proof"
-      );
+      const socialProofStrategy = result.find((s) => s.name === "Social Proof");
 
       if (socialProofStrategy) {
         setSelectedId(socialProofStrategy.id);
@@ -61,9 +60,7 @@ export default function HookStrategySelector({
       } else {
         // Fallback: select first strategy if "Social Proof" not found
         if (import.meta.env.DEV) {
-          console.warn(
-            'Strategy "Social Proof" not found, defaulting to first strategy'
-          );
+          console.warn('Strategy "Social Proof" not found, defaulting to first strategy');
         }
         if (result.length > 0) {
           setSelectedId(result[0].id);
@@ -93,31 +90,34 @@ export default function HookStrategySelector({
   };
 
   // AC-5: Arrow key navigation handler for radiogroup
-  const handleKeyDown = useCallback((e: React.KeyboardEvent, currentIndex: number) => {
-    const cardCount = strategies.length;
-    if (cardCount === 0) return;
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent, currentIndex: number) => {
+      const cardCount = strategies.length;
+      if (cardCount === 0) return;
 
-    let nextIndex: number | null = null;
+      let nextIndex: number | null = null;
 
-    switch (e.key) {
-      case 'ArrowRight':
-      case 'ArrowDown':
-        e.preventDefault();
-        nextIndex = (currentIndex + 1) % cardCount;
-        break;
-      case 'ArrowLeft':
-      case 'ArrowUp':
-        e.preventDefault();
-        nextIndex = (currentIndex - 1 + cardCount) % cardCount;
-        break;
-      default:
-        return;
-    }
+      switch (e.key) {
+        case "ArrowRight":
+        case "ArrowDown":
+          e.preventDefault();
+          nextIndex = (currentIndex + 1) % cardCount;
+          break;
+        case "ArrowLeft":
+        case "ArrowUp":
+          e.preventDefault();
+          nextIndex = (currentIndex - 1 + cardCount) % cardCount;
+          break;
+        default:
+          return;
+      }
 
-    if (nextIndex !== null && cardRefs.current[nextIndex]) {
-      cardRefs.current[nextIndex]?.focus();
-    }
-  }, [strategies.length]);
+      if (nextIndex !== null && cardRefs.current[nextIndex]) {
+        cardRefs.current[nextIndex]?.focus();
+      }
+    },
+    [strategies.length],
+  );
 
   // AC-6: Loading state - skeleton cards
   if (loading) {
@@ -153,11 +153,7 @@ export default function HookStrategySelector({
       >
         <div className="hook-selector__error">
           <p className="error__message">{error}</p>
-          <button
-            className="error__retry"
-            onClick={fetchStrategies}
-            data-testid="retry-button"
-          >
+          <button className="error__retry" onClick={fetchStrategies} data-testid="retry-button">
             Retry
           </button>
         </div>
@@ -179,7 +175,9 @@ export default function HookStrategySelector({
           return (
             <HookStrategyCard
               key={strategy.id}
-              ref={(el) => { cardRefs.current[index] = el; }}
+              ref={(el) => {
+                cardRefs.current[index] = el;
+              }}
               id={strategy.id}
               name={parsed.name}
               description={parsed.description}

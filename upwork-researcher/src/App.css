@@ -315,7 +315,8 @@ h1 {
 }
 
 @keyframes cursor-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -1156,7 +1157,9 @@ h1 {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: border-color var(--transition-base), background-color var(--transition-base);
+  transition:
+    border-color var(--transition-base),
+    background-color var(--transition-base);
 }
 
 .humanization-option:hover {

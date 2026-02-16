@@ -1,6 +1,6 @@
 // Test for V26 migration: Add indexes for optimized proposal history queries
 // Story 8-7: Memory Optimization for Large Proposal Lists
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -28,8 +28,8 @@ fn test_migration_v26_using_actual_file() {
         .join("migrations")
         .join("V26__add_proposal_history_indexes.sql");
 
-    let migration_sql = fs::read_to_string(&migration_path)
-        .expect("Failed to read V26 migration file");
+    let migration_sql =
+        fs::read_to_string(&migration_path).expect("Failed to read V26 migration file");
 
     // Execute migration SQL (skip comments and empty lines)
     for line in migration_sql.lines() {
@@ -73,7 +73,7 @@ fn test_migration_v26_creates_created_at_index() {
     // Apply V26 migration
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_proposals_created_at ON proposals(created_at DESC);
-         CREATE INDEX IF NOT EXISTS idx_proposals_id_created ON proposals(id, created_at DESC);"
+         CREATE INDEX IF NOT EXISTS idx_proposals_id_created ON proposals(id, created_at DESC);",
     )
     .unwrap();
 
@@ -108,7 +108,7 @@ fn test_migration_v26_creates_composite_index() {
     // Apply V26 migration
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_proposals_created_at ON proposals(created_at DESC);
-         CREATE INDEX IF NOT EXISTS idx_proposals_id_created ON proposals(id, created_at DESC);"
+         CREATE INDEX IF NOT EXISTS idx_proposals_id_created ON proposals(id, created_at DESC);",
     )
     .unwrap();
 
@@ -138,7 +138,7 @@ fn test_migration_v26_index_used_by_query() {
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         CREATE INDEX idx_proposals_created_at ON proposals(created_at DESC);
-        CREATE INDEX idx_proposals_id_created ON proposals(id, created_at DESC);"
+        CREATE INDEX idx_proposals_id_created ON proposals(id, created_at DESC);",
     )
     .unwrap();
 
@@ -165,7 +165,7 @@ fn test_migration_v26_index_used_by_query() {
                     SUBSTR(generated_text, 1, 200) as preview_text, created_at
              FROM proposals
              ORDER BY created_at DESC
-             LIMIT 50 OFFSET 0"
+             LIMIT 50 OFFSET 0",
         )
         .unwrap();
 
@@ -198,7 +198,7 @@ fn test_migration_v26_query_performance_100_proposals() {
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         CREATE INDEX idx_proposals_created_at ON proposals(created_at DESC);
-        CREATE INDEX idx_proposals_id_created ON proposals(id, created_at DESC);"
+        CREATE INDEX idx_proposals_id_created ON proposals(id, created_at DESC);",
     )
     .unwrap();
 
@@ -228,7 +228,7 @@ fn test_migration_v26_query_performance_100_proposals() {
                     created_at
              FROM proposals
              ORDER BY created_at DESC
-             LIMIT 50 OFFSET 0"
+             LIMIT 50 OFFSET 0",
         )
         .unwrap();
 
@@ -262,7 +262,7 @@ fn test_migration_v26_pagination_offset_query() {
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         CREATE INDEX idx_proposals_created_at ON proposals(created_at DESC);
-        CREATE INDEX idx_proposals_id_created ON proposals(id, created_at DESC);"
+        CREATE INDEX idx_proposals_id_created ON proposals(id, created_at DESC);",
     )
     .unwrap();
 
@@ -286,7 +286,7 @@ fn test_migration_v26_pagination_offset_query() {
         .prepare(
             "SELECT id FROM proposals
              ORDER BY created_at DESC
-             LIMIT 50 OFFSET 0"
+             LIMIT 50 OFFSET 0",
         )
         .unwrap();
 
@@ -303,7 +303,7 @@ fn test_migration_v26_pagination_offset_query() {
         .prepare(
             "SELECT id FROM proposals
              ORDER BY created_at DESC
-             LIMIT 50 OFFSET 50"
+             LIMIT 50 OFFSET 50",
         )
         .unwrap();
 
@@ -316,7 +316,10 @@ fn test_migration_v26_pagination_offset_query() {
     assert_eq!(page2.len(), 50);
 
     // Verify no overlap between pages
-    assert!(page1.iter().all(|id| !page2.contains(id)), "Pages should not overlap");
+    assert!(
+        page1.iter().all(|id| !page2.contains(id)),
+        "Pages should not overlap"
+    );
 }
 
 #[test]
@@ -334,7 +337,7 @@ fn test_migration_v26_selective_column_loading() {
             full_job_content TEXT,
             revision_history TEXT
         );
-        CREATE INDEX idx_proposals_created_at ON proposals(created_at DESC);"
+        CREATE INDEX idx_proposals_created_at ON proposals(created_at DESC);",
     )
     .unwrap();
 
@@ -361,22 +364,28 @@ fn test_migration_v26_selective_column_loading() {
                     created_at
              FROM proposals
              ORDER BY created_at DESC
-             LIMIT 50"
+             LIMIT 50",
         )
         .unwrap();
 
     // Verify only 4 columns returned (NOT including full_job_content, revision_history)
-    assert_eq!(stmt.column_count(), 4, "Should only select 4 lightweight columns");
+    assert_eq!(
+        stmt.column_count(),
+        4,
+        "Should only select 4 lightweight columns"
+    );
 
     // Verify query returns correct data
-    let row = stmt.query_row([], |row| {
-        Ok((
-            row.get::<_, i64>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-            row.get::<_, String>(3)?,
-        ))
-    }).unwrap();
+    let row = stmt
+        .query_row([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .unwrap();
 
     assert_eq!(row.0, 1); // id
     assert_eq!(row.1, "Short job content"); // job_excerpt (truncated in SQL)

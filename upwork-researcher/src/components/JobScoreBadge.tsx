@@ -6,20 +6,25 @@
  * Clickable to toggle scoring breakdown display (Story 4b.6).
  */
 
-import './JobScoreBadge.css';
+import "./JobScoreBadge.css";
 
 export interface JobScoreBadgeProps {
   overallScore: number | null;
-  colorFlag: 'green' | 'yellow' | 'red' | 'gray';
+  colorFlag: "green" | "yellow" | "red" | "gray";
   isExpanded?: boolean;
   onToggle?: () => void;
 }
 
-export function JobScoreBadge({ overallScore, colorFlag, isExpanded = false, onToggle }: JobScoreBadgeProps) {
+export function JobScoreBadge({
+  overallScore,
+  colorFlag,
+  isExpanded = false,
+  onToggle,
+}: JobScoreBadgeProps) {
   // Display text based on state
   const getDisplayText = () => {
     if (overallScore === null) {
-      return 'Configure skills in Settings';
+      return "Configure skills in Settings";
     }
     return `Overall: ${overallScore.toFixed(1)}`;
   };
@@ -27,36 +32,36 @@ export function JobScoreBadge({ overallScore, colorFlag, isExpanded = false, onT
   // Accessibility label
   const getAriaLabel = () => {
     if (overallScore === null) {
-      return 'Overall job score not available. Please configure your skills in Settings.';
+      return "Overall job score not available. Please configure your skills in Settings.";
     }
     const priorityText = colorFlag.charAt(0).toUpperCase() + colorFlag.slice(1);
-    const expandText = onToggle ? '. Click for breakdown.' : '';
+    const expandText = onToggle ? ". Click for breakdown." : "";
     return `Overall job score: ${overallScore.toFixed(
-      1
+      1,
     )} out of 100, ${priorityText} priority${expandText}`;
   };
 
   // Color name for display
   const getColorName = () => {
     switch (colorFlag) {
-      case 'green':
-        return 'Green';
-      case 'yellow':
-        return 'Yellow';
-      case 'red':
-        return 'Red';
-      case 'gray':
-        return 'Gray';
+      case "green":
+        return "Green";
+      case "yellow":
+        return "Yellow";
+      case "red":
+        return "Red";
+      case "gray":
+        return "Gray";
     }
   };
 
   // Story 4b.6: Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (onToggle && (e.key === 'Enter' || e.key === ' ')) {
+    if (onToggle && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
       onToggle();
     }
-    if (onToggle && e.key === 'Escape' && isExpanded) {
+    if (onToggle && e.key === "Escape" && isExpanded) {
       e.preventDefault();
       onToggle();
     }
@@ -93,7 +98,10 @@ export function JobScoreBadge({ overallScore, colorFlag, isExpanded = false, onT
       {overallScore !== null && (
         <>
           <span className="job-score-badge__flag"> — {getColorName()}</span>
-          <span className={`job-score-badge__chevron ${isExpanded ? 'job-score-badge__chevron--rotated' : ''}`} aria-hidden="true">
+          <span
+            className={`job-score-badge__chevron ${isExpanded ? "job-score-badge__chevron--rotated" : ""}`}
+            aria-hidden="true"
+          >
             ▼
           </span>
         </>

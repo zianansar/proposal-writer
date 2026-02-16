@@ -1,7 +1,8 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import path from "path";
+
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -20,7 +21,10 @@ export default defineConfig(async () => ({
     setupFiles: ["./src/test/setup.ts"],
     alias: {
       // Stub for packages not installed on disk but imported by source files
-      "@tauri-apps/plugin-dialog": path.resolve(__dirname, "./src/test/__mocks__/tauri-plugin-dialog.ts"),
+      "@tauri-apps/plugin-dialog": path.resolve(
+        __dirname,
+        "./src/test/__mocks__/tauri-plugin-dialog.ts",
+      ),
     },
   },
 

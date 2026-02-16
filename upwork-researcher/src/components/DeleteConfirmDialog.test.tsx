@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
 
 describe("DeleteConfirmDialog", () => {
@@ -15,26 +16,20 @@ describe("DeleteConfirmDialog", () => {
   });
 
   it("renders the dialog with correct content", () => {
-    render(
-      <DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
-    );
+    render(<DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />);
 
     expect(screen.getByText(/Delete Proposal/)).toBeInTheDocument();
     // AC: "⚠️ This will permanently delete the proposal and all revisions."
     expect(
-      screen.getByText(/⚠️ This will permanently delete the proposal and all revisions/)
+      screen.getByText(/⚠️ This will permanently delete the proposal and all revisions/),
     ).toBeInTheDocument();
     expect(screen.getByText(/This cannot be undone/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cancel/ })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Delete Permanently/ })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Delete Permanently/ })).toBeInTheDocument();
   });
 
   it("has correct ARIA attributes for accessibility", () => {
-    render(
-      <DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
-    );
+    render(<DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />);
 
     const dialog = screen.getByRole("alertdialog");
     expect(dialog).toHaveAttribute("aria-modal", "true");
@@ -43,9 +38,7 @@ describe("DeleteConfirmDialog", () => {
   });
 
   it("calls onCancel when Cancel button is clicked", () => {
-    render(
-      <DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
-    );
+    render(<DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Cancel/ }));
 
@@ -54,9 +47,7 @@ describe("DeleteConfirmDialog", () => {
   });
 
   it("calls onConfirm when Delete Permanently button is clicked", () => {
-    render(
-      <DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
-    );
+    render(<DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Delete Permanently/ }));
 
@@ -65,9 +56,7 @@ describe("DeleteConfirmDialog", () => {
   });
 
   it("calls onCancel when Escape key is pressed", () => {
-    render(
-      <DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
-    );
+    render(<DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />);
 
     fireEvent.keyDown(window, { key: "Escape" });
 
@@ -76,22 +65,18 @@ describe("DeleteConfirmDialog", () => {
   });
 
   it("focuses Cancel button on mount for safety", async () => {
-    render(
-      <DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
-    );
+    render(<DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />);
 
     const cancelButton = screen.getByRole("button", { name: /Cancel/ });
 
     // Story 8.2: useFocusTrap uses requestAnimationFrame for focus
-    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
     expect(document.activeElement).toBe(cancelButton);
   });
 
   it("Enter key does NOT auto-confirm for safety", () => {
-    render(
-      <DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />
-    );
+    render(<DeleteConfirmDialog onCancel={mockOnCancel} onConfirm={mockOnConfirm} />);
 
     // Pressing Enter should not trigger confirm
     fireEvent.keyDown(window, { key: "Enter" });

@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import RecoveryOptions from "./RecoveryOptions";
 
 // Get mocked invoke
@@ -31,7 +32,9 @@ describe("RecoveryOptions", () => {
     render(<RecoveryOptions {...defaultProps} />);
 
     expect(
-      screen.getByText(/If you forget your passphrase AND lose your recovery key, your data CANNOT be recovered/)
+      screen.getByText(
+        /If you forget your passphrase AND lose your recovery key, your data CANNOT be recovered/,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -107,7 +110,7 @@ describe("RecoveryOptions", () => {
     // Modal should appear
     expect(screen.getByText("Skip Recovery Setup?")).toBeInTheDocument();
     expect(
-      screen.getByText(/Without a recovery option, forgotten passphrases CANNOT be recovered/)
+      screen.getByText(/Without a recovery option, forgotten passphrases CANNOT be recovered/),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Go Back and Set Up Recovery" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Skip Anyway" })).toBeInTheDocument();

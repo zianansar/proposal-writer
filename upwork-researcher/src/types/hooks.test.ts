@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import { parseExamples, parseHookStrategy, HookStrategy } from "./hooks";
 
 describe("hooks types", () => {
   // M3 Code Review Fix: Mock console.error to silence expected error logs
-  const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
   afterEach(() => {
     consoleErrorSpy.mockClear();

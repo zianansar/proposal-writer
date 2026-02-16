@@ -83,7 +83,8 @@ pub fn get_golden_proposals(conn: &Connection) -> Result<Vec<GoldenProposal>, ru
 
 /// Delete a golden proposal by ID
 pub fn delete_golden_proposal(conn: &Connection, id: i64) -> Result<(), rusqlite::Error> {
-    let rows_affected = conn.execute("DELETE FROM golden_set_proposals WHERE id = ?", params![id])?;
+    let rows_affected =
+        conn.execute("DELETE FROM golden_set_proposals WHERE id = ?", params![id])?;
 
     if rows_affected == 0 {
         return Err(rusqlite::Error::QueryReturnedNoRows);
@@ -160,7 +161,10 @@ mod tests {
         assert!(result.is_err(), "Should reject proposal with < 200 words");
 
         if let Err(rusqlite::Error::SqliteFailure(_, Some(msg))) = result {
-            assert!(msg.contains("200"), "Error should mention minimum word count");
+            assert!(
+                msg.contains("200"),
+                "Error should mention minimum word count"
+            );
             assert!(msg.contains("150"), "Error should show current word count");
         }
     }
@@ -173,7 +177,10 @@ mod tests {
         let content = "word ".repeat(200); // 200 words exactly
         let result = add_golden_proposal(&conn, &content, None);
 
-        assert!(result.is_ok(), "Should accept proposal with exactly 200 words");
+        assert!(
+            result.is_ok(),
+            "Should accept proposal with exactly 200 words"
+        );
     }
 
     #[test]
@@ -217,7 +224,11 @@ mod tests {
         let conn = setup_test_db();
 
         let proposals = get_golden_proposals(&conn).unwrap();
-        assert_eq!(proposals.len(), 0, "Should return empty array for no proposals");
+        assert_eq!(
+            proposals.len(),
+            0,
+            "Should return empty array for no proposals"
+        );
     }
 
     #[test]
@@ -247,7 +258,10 @@ mod tests {
         let conn = setup_test_db();
 
         let result = delete_golden_proposal(&conn, 99999);
-        assert!(result.is_err(), "Should return error for non-existent proposal");
+        assert!(
+            result.is_err(),
+            "Should return error for non-existent proposal"
+        );
     }
 
     #[test]
@@ -287,7 +301,10 @@ mod tests {
         let proposals = get_golden_proposals(&conn).unwrap();
         let proposal = proposals.iter().find(|p| p.id == proposal_id).unwrap();
 
-        assert_eq!(proposal.word_count, 200, "Word count should be stored as 200");
+        assert_eq!(
+            proposal.word_count, 200,
+            "Word count should be stored as 200"
+        );
     }
 
     #[test]
@@ -306,7 +323,10 @@ mod tests {
         let proposals = get_golden_proposals(&conn).unwrap();
 
         let p1 = proposals.iter().find(|p| p.id == id1).unwrap();
-        assert_eq!(p1.source_filename, None, "Pasted proposal should have no filename");
+        assert_eq!(
+            p1.source_filename, None,
+            "Pasted proposal should have no filename"
+        );
 
         let p2 = proposals.iter().find(|p| p.id == id2).unwrap();
         assert_eq!(
@@ -334,7 +354,10 @@ mod tests {
         assert!(result.is_err(), "Should reject proposal when max 5 reached");
 
         if let Err(rusqlite::Error::SqliteFailure(_, Some(msg))) = result {
-            assert!(msg.contains("Maximum"), "Error should mention maximum limit");
+            assert!(
+                msg.contains("Maximum"),
+                "Error should mention maximum limit"
+            );
             assert!(msg.contains("5"), "Error should mention limit of 5");
         }
 

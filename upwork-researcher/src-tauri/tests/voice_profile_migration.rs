@@ -13,8 +13,8 @@ fn test_migration_creates_voice_profiles_table() {
     let db_path = temp_dir.path().join("test.db");
 
     // Create database (runs all migrations including V21)
-    let _db = Database::new(db_path.clone(), None)
-        .expect("Failed to create database with migrations");
+    let _db =
+        Database::new(db_path.clone(), None).expect("Failed to create database with migrations");
 
     // Open connection to verify schema
     let conn = Connection::open(&db_path).unwrap();
@@ -28,7 +28,10 @@ fn test_migration_creates_voice_profiles_table() {
         )
         .unwrap();
 
-    assert!(table_exists, "voice_profiles table should be created by migration");
+    assert!(
+        table_exists,
+        "voice_profiles table should be created by migration"
+    );
 }
 
 /// Test voice_profiles table has all required columns
@@ -41,9 +44,7 @@ fn test_voice_profiles_has_all_columns() {
     let conn = Connection::open(&db_path).unwrap();
 
     // Query table schema
-    let mut stmt = conn
-        .prepare("PRAGMA table_info(voice_profiles)")
-        .unwrap();
+    let mut stmt = conn.prepare("PRAGMA table_info(voice_profiles)").unwrap();
 
     let columns: Vec<String> = stmt
         .query_map([], |row| row.get::<_, String>(1))

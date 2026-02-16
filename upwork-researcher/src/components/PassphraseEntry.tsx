@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect } from "react";
 import "./PassphraseEntry.css";
 
 interface PassphraseStrength {
@@ -51,7 +51,9 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
     let level: "weak" | "medium" | "strong" = "weak";
 
     if (meetsMinLength) {
-      const criteriaCount = [hasUppercase, hasLowercase, hasNumber, hasSymbol].filter(Boolean).length;
+      const criteriaCount = [hasUppercase, hasLowercase, hasNumber, hasSymbol].filter(
+        Boolean,
+      ).length;
 
       if (criteriaCount >= 4) {
         level = "strong";
@@ -85,7 +87,7 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
     try {
       const result = await invoke<{ success: boolean; message: string }>(
         "unlock_with_recovery_key",
-        { recoveryKey: recoveryKeyInput }
+        { recoveryKey: recoveryKeyInput },
       );
 
       if (result.success) {
@@ -170,15 +172,13 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
                 id="recovery-key"
                 type="text"
                 value={recoveryKeyInput}
-                onChange={(e) => setRecoveryKeyInput(e.target.value.replace(/[^A-Za-z0-9]/g, ''))}
+                onChange={(e) => setRecoveryKeyInput(e.target.value.replace(/[^A-Za-z0-9]/g, ""))}
                 className="password-input recovery-key-input"
                 placeholder="Enter your 32-character recovery key"
                 maxLength={32}
                 autoFocus
               />
-              <div className="recovery-key-count">
-                {recoveryKeyInput.length}/32 characters
-              </div>
+              <div className="recovery-key-count">{recoveryKeyInput.length}/32 characters</div>
             </div>
 
             {recoveryError && (
@@ -190,7 +190,10 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
             <div className="button-group">
               <button
                 type="button"
-                onClick={() => { setMode("setup"); setRecoveryError(null); }}
+                onClick={() => {
+                  setMode("setup");
+                  setRecoveryError(null);
+                }}
                 className="btn btn-secondary"
               >
                 Back to Passphrase
@@ -311,7 +314,9 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
               <ul className="warning-list">
                 <li>If you forget your passphrase...</li>
                 <li>AND lose your recovery key...</li>
-                <li>→ All proposals are <strong>PERMANENTLY UNRECOVERABLE</strong></li>
+                <li>
+                  → All proposals are <strong>PERMANENTLY UNRECOVERABLE</strong>
+                </li>
                 <li>We cannot reset your password or decrypt your data</li>
               </ul>
               <p className="warning-footer">Keep your recovery key in a safe place!</p>
@@ -328,7 +333,8 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
                 className="acknowledgment-checkbox"
               />
               <span className="acknowledgment-text">
-                I understand my data will be permanently lost if I forget my passphrase and lose my recovery key
+                I understand my data will be permanently lost if I forget my passphrase and lose my
+                recovery key
               </span>
             </label>
           </div>
@@ -343,19 +349,11 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
           {/* Action Buttons */}
           <div className="button-group">
             {onCancel && (
-              <button
-                type="button"
-                onClick={onCancel}
-                className="btn btn-secondary"
-              >
+              <button type="button" onClick={onCancel} className="btn btn-secondary">
                 Cancel
               </button>
             )}
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="btn btn-primary"
-            >
+            <button type="submit" disabled={!canSubmit} className="btn btn-primary">
               {mode === "new-passphrase" ? "Set New Passphrase" : "Set Passphrase"}
             </button>
           </div>
@@ -363,11 +361,7 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
           {/* Recovery Key Link (AC6) */}
           {showRecoveryOption && mode === "setup" && (
             <div className="recovery-link-container">
-              <button
-                type="button"
-                onClick={() => setMode("recovery")}
-                className="recovery-link"
-              >
+              <button type="button" onClick={() => setMode("recovery")} className="recovery-link">
                 Forgot passphrase? Use recovery key
               </button>
             </div>

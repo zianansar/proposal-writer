@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useId } from 'react';
-import './PrivacyIndicator.css';
+import { useState, useEffect, useRef, useId } from "react";
+import "./PrivacyIndicator.css";
 
-export type PrivacyIndicatorVariant = 'golden-set' | 'compact' | 'settings';
+export type PrivacyIndicatorVariant = "golden-set" | "compact" | "settings";
 
 interface PrivacyIndicatorProps {
   variant?: PrivacyIndicatorVariant;
@@ -12,32 +12,33 @@ interface PrivacyIndicatorProps {
 }
 
 const VARIANT_CONTENT = {
-  'golden-set': {
-    headline: 'Your proposals never leave your device',
-    description: 'We analyze your writing style locally and only send statistical parameters (like tone and length) to the AI. Your actual proposal text stays on your computer.',
+  "golden-set": {
+    headline: "Your proposals never leave your device",
+    description:
+      "We analyze your writing style locally and only send statistical parameters (like tone and length) to the AI. Your actual proposal text stays on your computer.",
     showExpandable: true,
   },
-  'compact': {
-    headline: 'Your proposals stay on your device',
-    description: 'Only style patterns are used for generation.',
+  compact: {
+    headline: "Your proposals stay on your device",
+    description: "Only style patterns are used for generation.",
     showExpandable: false,
   },
-  'settings': {
-    headline: 'Your proposals never leave your device',
-    description: 'All analysis happens locally. You can delete all data anytime.',
+  settings: {
+    headline: "Your proposals never leave your device",
+    description: "All analysis happens locally. You can delete all data anytime.",
     showExpandable: true,
   },
 };
 
 export function PrivacyIndicator({
-  variant = 'golden-set',
+  variant = "golden-set",
   expandable = true,
-  className = '',
-  onDeleteClick
+  className = "",
+  onDeleteClick,
 }: PrivacyIndicatorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   // L7 fix: Runtime safety for invalid variant
-  const content = VARIANT_CONTENT[variant] ?? VARIANT_CONTENT['golden-set'];
+  const content = VARIANT_CONTENT[variant] ?? VARIANT_CONTENT["golden-set"];
   const canExpand = expandable && content.showExpandable;
   const containerRef = useRef<HTMLDivElement>(null);
   const detailsId = useId();
@@ -52,22 +53,27 @@ export function PrivacyIndicator({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isExpanded]);
 
   return (
-    <div ref={containerRef} className={`privacy-indicator privacy-indicator--${variant} ${className}`}>
+    <div
+      ref={containerRef}
+      className={`privacy-indicator privacy-indicator--${variant} ${className}`}
+    >
       <div className="privacy-indicator__header">
-        <span className="privacy-indicator__icon" aria-hidden="true">🔒</span>
+        <span className="privacy-indicator__icon" aria-hidden="true">
+          🔒
+        </span>
         <div className="privacy-indicator__content">
           <p className="privacy-indicator__headline">{content.headline}</p>
           <p className="privacy-indicator__description">
             {content.description}
             {/* H2 fix: Settings variant delete link (AC-4) */}
-            {variant === 'settings' && onDeleteClick && (
+            {variant === "settings" && onDeleteClick && (
               <>
-                {' '}
+                {" "}
                 <button
                   type="button"
                   className="privacy-indicator__delete-link"
@@ -89,7 +95,7 @@ export function PrivacyIndicator({
           aria-expanded={isExpanded}
           aria-controls={detailsId}
         >
-          {isExpanded ? 'Collapse ▲' : 'How does this work?'}
+          {isExpanded ? "Collapse ▲" : "How does this work?"}
         </button>
       )}
 

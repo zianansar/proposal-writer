@@ -6,11 +6,17 @@
  * major application views and components using axe-core.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
-import { runAxeAudit, assertNoViolations, generateAuditReport, getViolationCounts } from "../test/axe-utils";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
 import App from "../App";
+import {
+  runAxeAudit,
+  assertNoViolations,
+  generateAuditReport,
+  getViolationCounts,
+} from "../test/axe-utils";
 
 // Mock Tauri APIs with proper mocks from setup.ts
 // These are already mocked in src/test/setup.ts
@@ -25,7 +31,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
       const { container } = render(
         <BrowserRouter>
           <App />
-        </BrowserRouter>
+        </BrowserRouter>,
       );
 
       const results = await runAxeAudit(container);
@@ -45,7 +51,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
           <button aria-label="Icon button">
             <span aria-hidden="true">×</span>
           </button>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -56,11 +62,11 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
       const { container } = render(
         <button>
           <span aria-hidden="true">×</span>
-        </button>
+        </button>,
       );
 
       const results = await runAxeAudit(container);
-      expect(results.violations.some(v => v.id === "button-name")).toBe(true);
+      expect(results.violations.some((v) => v.id === "button-name")).toBe(true);
     });
   });
 
@@ -73,11 +79,11 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
           <button style={{ backgroundColor: "#007bff", color: "#ffffff" }}>
             Button with sufficient contrast
           </button>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
-      const contrastViolations = results.violations.filter(v => v.id === "color-contrast");
+      const contrastViolations = results.violations.filter((v) => v.id === "color-contrast");
       expect(contrastViolations).toHaveLength(0);
     });
 
@@ -101,7 +107,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
 
           <label htmlFor="message">Message</label>
           <textarea id="message"></textarea>
-        </form>
+        </form>,
       );
 
       const results = await runAxeAudit(container);
@@ -112,11 +118,11 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
       const { container } = render(
         <form>
           <input type="text" />
-        </form>
+        </form>,
       );
 
       const results = await runAxeAudit(container);
-      expect(results.violations.some(v => v.id === "label")).toBe(true);
+      expect(results.violations.some((v) => v.id === "label")).toBe(true);
     });
 
     it("should have valid ARIA attributes", async () => {
@@ -129,13 +135,11 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
             Success message
           </div>
           <input type="checkbox" aria-checked="false" />
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
-      const ariaViolations = results.violations.filter(v =>
-        v.id.startsWith("aria-")
-      );
+      const ariaViolations = results.violations.filter((v) => v.id.startsWith("aria-"));
       expect(ariaViolations).toHaveLength(0);
     });
   });
@@ -145,10 +149,12 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
       const { container } = render(
         <div>
           <button className="focus-visible:ring-2">Focusable Button</button>
-          <a href="#content" className="focus-visible:ring-2">Focusable Link</a>
+          <a href="#content" className="focus-visible:ring-2">
+            Focusable Link
+          </a>
           <label htmlFor="focus-input">Input</label>
           <input id="focus-input" type="text" className="focus-visible:ring-2" />
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -170,12 +176,12 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
           <h2>Section Heading</h2>
           <h3>Subsection Heading</h3>
           <h4>Detail Heading</h4>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
-      const headingViolations = results.violations.filter(v =>
-        v.id === "heading-order" || v.id === "empty-heading"
+      const headingViolations = results.violations.filter(
+        (v) => v.id === "heading-order" || v.id === "empty-heading",
       );
       expect(headingViolations).toHaveLength(0);
     });
@@ -185,7 +191,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
         <div>
           <h1>Main Heading</h1>
           <h3>Skipped H2</h3>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -207,11 +213,11 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
           <footer>
             <p>Footer content</p>
           </footer>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
-      const regionViolations = results.violations.filter(v => v.id === "region");
+      const regionViolations = results.violations.filter((v) => v.id === "region");
       expect(regionViolations).toHaveLength(0);
     });
 
@@ -221,12 +227,12 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
           <li>Item 1</li>
           <li>Item 2</li>
           <li>Item 3</li>
-        </ul>
+        </ul>,
       );
 
       const results = await runAxeAudit(container);
-      const listViolations = results.violations.filter(v =>
-        v.id === "list" || v.id === "listitem"
+      const listViolations = results.violations.filter(
+        (v) => v.id === "list" || v.id === "listitem",
       );
       expect(listViolations).toHaveLength(0);
     });
@@ -239,7 +245,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
           <h2 id="dialog-title">Dialog Title</h2>
           <button>Action</button>
           <button>Close</button>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -260,7 +266,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
           <div role="alert" aria-live="assertive">
             Error occurred
           </div>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -271,16 +277,11 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
       const { container } = render(
         <div>
           <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            aria-invalid="true"
-            aria-describedby="email-error"
-          />
+          <input id="email" type="email" aria-invalid="true" aria-describedby="email-error" />
           <div id="email-error" role="alert" aria-live="assertive">
             Please enter a valid email address
           </div>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -293,7 +294,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
       const { container } = render(
         <BrowserRouter>
           <App />
-        </BrowserRouter>
+        </BrowserRouter>,
       );
 
       const results = await runAxeAudit(container);
@@ -318,7 +319,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
             <p>Something went wrong. Please try again.</p>
           </div>
           <button>Retry</button>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -332,7 +333,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
           <div role="status" aria-live="polite" aria-busy="true">
             <span>Loading, please wait...</span>
           </div>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -352,10 +353,13 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
             readOnly
           />
           <div id="api-key-error" role="alert" aria-live="assertive">
-            Invalid API key format. Key must start with &quot;sk-ant-&quot; and be at least 20 characters.
+            Invalid API key format. Key must start with &quot;sk-ant-&quot; and be at least 20
+            characters.
           </div>
-          <button disabled aria-disabled="true">Save</button>
-        </form>
+          <button disabled aria-disabled="true">
+            Save
+          </button>
+        </form>,
       );
 
       const results = await runAxeAudit(container);
@@ -367,12 +371,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
         <form aria-label="Settings form">
           <div>
             <label htmlFor="job-url">Job URL</label>
-            <input
-              id="job-url"
-              type="url"
-              aria-invalid="true"
-              aria-describedby="url-error"
-            />
+            <input id="job-url" type="url" aria-invalid="true" aria-describedby="url-error" />
             <span id="url-error" role="alert">
               Please enter a valid Upwork job URL
             </span>
@@ -389,7 +388,7 @@ describe("Accessibility Audit - WCAG AA Compliance", () => {
               Rate must be between $10 and $500
             </span>
           </div>
-        </form>
+        </form>,
       );
 
       const results = await runAxeAudit(container);

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock Tauri invoke
 const mockInvoke = vi.fn();
@@ -41,13 +41,10 @@ const mockEditor = {
   },
 };
 
-let onUpdateCallback: ((params: { editor: typeof mockEditor }) => void) | null =
-  null;
+let onUpdateCallback: ((params: { editor: typeof mockEditor }) => void) | null = null;
 
 vi.mock("@tiptap/react", () => ({
-  useEditor: (config: {
-    onUpdate?: (params: { editor: typeof mockEditor }) => void;
-  }) => {
+  useEditor: (config: { onUpdate?: (params: { editor: typeof mockEditor }) => void }) => {
     // Capture the onUpdate callback for testing
     if (config.onUpdate) {
       onUpdateCallback = config.onUpdate;
@@ -83,7 +80,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Test</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     expect(result.current.editor).toBe(mockEditor);
@@ -94,7 +91,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Test</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     expect(result.current.saveStatus).toBe("idle");
@@ -105,7 +102,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Test</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     expect(result.current.isDirty).toBe(false);
@@ -116,7 +113,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Test</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     expect(typeof result.current.swapContent).toBe("function");
@@ -127,7 +124,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     act(() => {
@@ -144,7 +141,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     act(() => {
@@ -160,7 +157,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Test</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     expect(typeof result.current.saveNow).toBe("function");
@@ -173,7 +170,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     // Simulate content change via onUpdate callback
@@ -201,7 +198,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: null,
-      })
+      }),
     );
 
     // Simulate content change
@@ -228,14 +225,14 @@ describe("useProposalEditor", () => {
       () =>
         new Promise<void>((resolve) => {
           resolveInvoke = resolve;
-        })
+        }),
     );
 
     const { result } = renderHook(() =>
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     // Trigger save
@@ -271,7 +268,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     // Trigger save
@@ -306,7 +303,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     // Simulate multiple rapid changes
@@ -346,7 +343,7 @@ describe("useProposalEditor", () => {
         initialContent: "<p>Initial</p>",
         proposalId: 1,
         onContentChange,
-      })
+      }),
     );
 
     mockGetHTML.mockReturnValue("<p>New content</p>");
@@ -366,7 +363,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     // Trigger content change and save
@@ -413,7 +410,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     // Trigger save
@@ -464,7 +461,7 @@ describe("useProposalEditor", () => {
       useProposalEditor({
         initialContent: "<p>Initial</p>",
         proposalId: 1,
-      })
+      }),
     );
 
     // Trigger save

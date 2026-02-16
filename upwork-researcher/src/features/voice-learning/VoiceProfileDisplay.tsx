@@ -1,15 +1,17 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useNavigate } from 'react-router-dom';
-import { useVoiceProfile } from './useVoiceProfile';
-import { VoiceProfileEmpty } from './VoiceProfileEmpty';
+import { useNavigate } from "react-router-dom";
+
 import {
   mapToneScore,
   mapSentenceLength,
   mapStructurePreference,
-  mapTechnicalDepth
-} from './profileMappers';
+  mapTechnicalDepth,
+} from "./profileMappers";
+import { useVoiceProfile } from "./useVoiceProfile";
+import { VoiceProfileEmpty } from "./VoiceProfileEmpty";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function VoiceProfileDisplay() {
   const { profile, loading, error, refetch } = useVoiceProfile();
@@ -30,7 +32,7 @@ export function VoiceProfileDisplay() {
   }
 
   if (!profile) {
-    return <VoiceProfileEmpty onStartCalibration={() => navigate('/calibration')} />;
+    return <VoiceProfileEmpty onStartCalibration={() => navigate("/calibration")} />;
   }
 
   const tone = mapToneScore(profile.tone_score);
@@ -46,14 +48,20 @@ export function VoiceProfileDisplay() {
       <CardHeader>
         <CardTitle className="text-[#fafafa]">Your Writing Style</CardTitle>
         <CardDescription className="text-[#a3a3a3]">
-          Based on {profile.sample_count} past proposal{profile.sample_count !== 1 ? 's' : ''}
+          Based on {profile.sample_count} past proposal{profile.sample_count !== 1 ? "s" : ""}
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4" role="list" aria-label="Voice profile metrics">
         {/* Tone */}
-        <div className="flex items-start gap-3" role="listitem" aria-label={`Tone: ${tone.label}, ${tone.description}`}>
-          <span className="text-2xl" aria-hidden="true">{tone.emoji}</span>
+        <div
+          className="flex items-start gap-3"
+          role="listitem"
+          aria-label={`Tone: ${tone.label}, ${tone.description}`}
+        >
+          <span className="text-2xl" aria-hidden="true">
+            {tone.emoji}
+          </span>
           <div>
             <p className="text-[#fafafa] font-medium">Tone: {tone.label}</p>
             <p className="text-[#a3a3a3] text-sm">{tone.description}</p>
@@ -61,8 +69,14 @@ export function VoiceProfileDisplay() {
         </div>
 
         {/* Sentence Length */}
-        <div className="flex items-start gap-3" role="listitem" aria-label={`Length: ${length.label}, ${length.description}`}>
-          <span className="text-2xl" aria-hidden="true">{length.emoji}</span>
+        <div
+          className="flex items-start gap-3"
+          role="listitem"
+          aria-label={`Length: ${length.label}, ${length.description}`}
+        >
+          <span className="text-2xl" aria-hidden="true">
+            {length.emoji}
+          </span>
           <div>
             <p className="text-[#fafafa] font-medium">Length: {length.label}</p>
             <p className="text-[#a3a3a3] text-sm">{length.description}</p>
@@ -70,8 +84,14 @@ export function VoiceProfileDisplay() {
         </div>
 
         {/* Structure */}
-        <div className="flex items-start gap-3" role="listitem" aria-label={`Structure: ${structure.label}, ${structure.description}`}>
-          <span className="text-2xl" aria-hidden="true">{structure.emoji}</span>
+        <div
+          className="flex items-start gap-3"
+          role="listitem"
+          aria-label={`Structure: ${structure.label}, ${structure.description}`}
+        >
+          <span className="text-2xl" aria-hidden="true">
+            {structure.emoji}
+          </span>
           <div>
             <p className="text-[#fafafa] font-medium">Structure: {structure.label}</p>
             <p className="text-[#a3a3a3] text-sm">{structure.description}</p>
@@ -79,8 +99,14 @@ export function VoiceProfileDisplay() {
         </div>
 
         {/* Technical Depth */}
-        <div className="flex items-start gap-3" role="listitem" aria-label={`Technical Depth: ${technical.label}, ${technical.description}`}>
-          <span className="text-2xl" aria-hidden="true">{technical.emoji}</span>
+        <div
+          className="flex items-start gap-3"
+          role="listitem"
+          aria-label={`Technical Depth: ${technical.label}, ${technical.description}`}
+        >
+          <span className="text-2xl" aria-hidden="true">
+            {technical.emoji}
+          </span>
           <div>
             <p className="text-[#fafafa] font-medium">Technical Depth: {technical.label}</p>
             <p className="text-[#a3a3a3] text-sm">{technical.description}</p>
@@ -104,11 +130,7 @@ export function VoiceProfileDisplay() {
 
         {/* Recalibrate Button */}
         <div className="pt-4">
-          <Button
-            onClick={() => navigate('/calibration')}
-            variant="outline"
-            className="w-full"
-          >
+          <Button onClick={() => navigate("/calibration")} variant="outline" className="w-full">
             Recalibrate Voice
           </Button>
         </div>

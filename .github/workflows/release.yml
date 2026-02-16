@@ -1,0 +1,482 @@
+# Release Build Pipeline
+# Story 9.2: CI/CD Release Build Pipeline
+# Builds Tauri app for macOS (ARM64 + Intel) and Windows (x64)
+# Triggered by version tags (v*) or manual dispatch
+
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish-tauri:
+    name: Release (${{ matrix.label }})
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    outputs:
+      releaseUrl: ${{ steps.tauri-action.outputs.releaseHtmlUrl }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            rust_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+            label: 'macOS (ARM64)'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            rust_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+            label: 'macOS (Intel)'
+          - platform: 'windows-latest'
+            args: ''
+            rust_targets: ''
+            label: 'Windows (x64)'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate macOS signing secrets
+        if: matrix.platform == 'macos-latest' && startsWith(github.ref, 'refs/tags/')
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          MISSING_SECRETS=""
+
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_CERTIFICATE"
+          fi
+          if [ -z "$APPLE_CERTIFICATE_PASSWORD" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_CERTIFICATE_PASSWORD"
+          fi
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_SIGNING_IDENTITY"
+          fi
+          if [ -z "$APPLE_ID" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_ID"
+          fi
+          if [ -z "$APPLE_PASSWORD" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_PASSWORD"
+          fi
+          if [ -z "$APPLE_TEAM_ID" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_TEAM_ID"
+          fi
+          if [ -z "$KEYCHAIN_PASSWORD" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS KEYCHAIN_PASSWORD"
+          fi
+
+          if [ -n "$MISSING_SECRETS" ]; then
+            echo "❌ Missing required macOS signing secrets:$MISSING_SECRETS"
+            echo "See docs/macos-signing-setup.md for setup instructions"
+            exit 1
+          fi
+
+          echo "✅ All macOS signing secrets present"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: upwork-researcher/package-lock.json
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: ${{ matrix.rust_targets }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: upwork-researcher/src-tauri
+
+      - name: Install Windows OpenSSL (vcpkg)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          vcpkg install openssl:x64-windows-static-md
+          echo "OPENSSL_DIR=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static-md" >> $env:GITHUB_ENV
+          echo "OPENSSL_NO_VENDOR=1" >> $env:GITHUB_ENV
+
+      - name: Import Apple Developer Certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || '' }}
+        run: |
+          # Skip signing if secrets not available (AC-5: graceful degradation for non-tag builds)
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "⚠️ Skipping certificate import - APPLE_CERTIFICATE not configured"
+            echo "Build will proceed as unsigned (debug build)"
+            exit 0
+          fi
+
+          echo "📦 Importing Apple Developer Certificate..."
+
+          # Decode certificate and save temporarily
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+
+          # Ensure .p12 is removed even if subsequent commands fail
+          trap 'rm -f certificate.p12' EXIT
+
+          # Capture original default keychain for restoration in cleanup step
+          ORIGINAL_KEYCHAIN=$(security default-keychain | xargs)
+          echo "ORIGINAL_KEYCHAIN=$ORIGINAL_KEYCHAIN" >> "$GITHUB_ENV"
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+
+          # Set keychain timeout to 1 hour
+          security set-keychain-settings -t 3600 -u build.keychain
+
+          # Import certificate
+          security import certificate.p12 -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+
+          # Allow codesign to use the certificate without prompting
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          echo "✅ Certificate imported successfully"
+
+      - name: Validate Windows signing script
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Verify signing script exists at expected path
+          if (-not (Test-Path "scripts/windows-sign.ps1")) {
+            Write-Error "Signing script not found at scripts/windows-sign.ps1"
+            exit 1
+          }
+
+          # Dry-run: verify graceful exit when no certificate configured
+          # WINDOWS_CERTIFICATE is intentionally NOT set here
+          & powershell -File scripts/windows-sign.ps1 "dummy-test-file.exe"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Signing script should exit 0 when WINDOWS_CERTIFICATE is not set"
+            exit 1
+          }
+
+          Write-Host "Signing script validated: exists and exits gracefully without certificate"
+
+      - name: Install frontend dependencies
+        working-directory: upwork-researcher
+        run: npm ci
+
+      - name: Lint (TypeScript)
+        working-directory: upwork-researcher
+        run: npm run lint
+
+      - name: Check Rust formatting
+        working-directory: upwork-researcher/src-tauri
+        run: cargo fmt --check
+
+      - name: Clippy (Rust)
+        working-directory: upwork-researcher/src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Extract changelog for release
+        id: changelog
+        run: |
+          if [ -f "CHANGELOG.md" ]; then
+            BODY=$(sed -n '/^## \[/,/^## \[/{/^## \[.*\].*$/!p;}' CHANGELOG.md | head -50)
+            if [ -z "$BODY" ]; then
+              BODY=$(sed -n '/^## [0-9]/,/^## [0-9]/{/^## [0-9].*$/!p;}' CHANGELOG.md | head -50)
+            fi
+          fi
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "${BODY:-See CHANGELOG.md for details.}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        working-directory: upwork-researcher
+
+      - name: Detect critical release flag
+        id: critical-flag
+        run: |
+          CRITICAL=false
+
+          # Check if tag contains [CRITICAL] marker
+          if [[ "${{ github.ref_name }}" == *"[CRITICAL]"* ]]; then
+            echo "✅ Critical release detected from tag name"
+            CRITICAL=true
+          fi
+
+          # Check if release body contains critical: true marker
+          if echo "${{ steps.changelog.outputs.body }}" | grep -iq "critical:\s*true"; then
+            echo "✅ Critical release detected from changelog body"
+            CRITICAL=true
+          fi
+
+          echo "is_critical=$CRITICAL" >> $GITHUB_OUTPUT
+
+          if [ "$CRITICAL" = "true" ]; then
+            echo "🚨 This release will be marked as CRITICAL in latest.json"
+          else
+            echo "ℹ️ This release will be marked as non-critical in latest.json"
+          fi
+
+      - name: Build and release
+        id: tauri-action
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE || '' }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
+          TAURI_WINDOWS_SIGNTOOL_PATH: ${{ secrets.TAURI_WINDOWS_SIGNTOOL_PATH || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || '' }}
+        with:
+          projectPath: upwork-researcher
+          tagName: v__VERSION__
+          releaseName: 'Upwork Research Agent v__VERSION__'
+          releaseBody: ${{ steps.changelog.outputs.body }}
+          releaseDraft: true
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: ${{ matrix.args }}
+          retryAttempts: 1
+
+      - name: Inject critical flag into latest.json
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          IS_CRITICAL: ${{ steps.critical-flag.outputs.is_critical }}
+        run: |
+          LATEST_JSON="upwork-researcher/src-tauri/target/release/latest.json"
+
+          if [ ! -f "$LATEST_JSON" ]; then
+            echo "⚠️ latest.json not found at $LATEST_JSON - may not have been generated yet"
+            echo "Skipping critical flag injection"
+            exit 0
+          fi
+
+          echo "📝 Injecting critical flag into latest.json..."
+
+          # Use jq to add the critical field to the JSON
+          if command -v jq &> /dev/null; then
+            CRITICAL_VALUE="false"
+            if [ "$IS_CRITICAL" = "true" ]; then
+              CRITICAL_VALUE="true"
+            fi
+
+            jq --arg critical "$CRITICAL_VALUE" '. + {critical: ($critical == "true")}' "$LATEST_JSON" > "${LATEST_JSON}.tmp"
+            mv "${LATEST_JSON}.tmp" "$LATEST_JSON"
+
+            echo "✅ Critical flag injected: critical=$CRITICAL_VALUE"
+            echo "Updated latest.json content:"
+            cat "$LATEST_JSON"
+          else
+            echo "❌ jq not found - cannot inject critical flag"
+            exit 1
+          fi
+
+      - name: Validate latest.json schema
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          LATEST_JSON="upwork-researcher/src-tauri/target/release/latest.json"
+
+          if [ ! -f "$LATEST_JSON" ]; then
+            echo "⚠️ latest.json not found - skipping validation"
+            exit 0
+          fi
+
+          echo "🔍 Validating latest.json schema..."
+
+          # Required fields for Tauri updater
+          REQUIRED_FIELDS=("version" "notes" "pub_date" "platforms")
+
+          # Check all required fields exist
+          for field in "${REQUIRED_FIELDS[@]}"; do
+            if ! jq -e ".$field" "$LATEST_JSON" > /dev/null 2>&1; then
+              echo "❌ Missing required field: $field"
+              exit 1
+            fi
+          done
+
+          # Verify critical field is a boolean
+          CRITICAL_TYPE=$(jq -r '.critical | type' "$LATEST_JSON")
+          if [ "$CRITICAL_TYPE" != "boolean" ]; then
+            echo "❌ critical field must be boolean, got: $CRITICAL_TYPE"
+            exit 1
+          fi
+
+          # Verify platforms is an object
+          PLATFORMS_TYPE=$(jq -r '.platforms | type' "$LATEST_JSON")
+          if [ "$PLATFORMS_TYPE" != "object" ]; then
+            echo "❌ platforms field must be object, got: $PLATFORMS_TYPE"
+            exit 1
+          fi
+
+          echo "✅ latest.json schema validation passed"
+          echo "Schema summary:"
+          jq '{version, critical, platform_count: (.platforms | length)}' "$LATEST_JSON"
+
+      - name: Verify Windows signatures
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE || '' }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:WINDOWS_CERTIFICATE)) {
+            Write-Host "⚠️ Skipping signature verification - no signing certificate configured" -ForegroundColor Yellow
+            exit 0
+          }
+
+          Write-Host "Verifying Windows code signatures..."
+          $artifacts = Get-ChildItem -Path "upwork-researcher/src-tauri/target/release/bundle" -Recurse -Include "*.msi","*-setup.exe"
+
+          if ($artifacts.Count -eq 0) {
+            Write-Error "No MSI or EXE installers found to verify"
+            exit 1
+          }
+
+          $allValid = $true
+          foreach ($file in $artifacts) {
+            Write-Host "`nVerifying: $($file.Name)"
+
+            # Verify signature using signtool
+            $result = & signtool verify /pa /v $file.FullName 2>&1
+
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "✅ Valid signature: $($file.Name)" -ForegroundColor Green
+              Write-Host $result
+            } else {
+              Write-Host "❌ Invalid or missing signature: $($file.Name)" -ForegroundColor Red
+              Write-Host $result
+              $allValid = $false
+            }
+          }
+
+          if (-not $allValid) {
+            Write-Error "One or more installers failed signature verification"
+            exit 1
+          }
+
+          Write-Host "`n✅ All Windows installers have valid signatures" -ForegroundColor Green
+
+      - name: Verify macOS signatures and notarization
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE || '' }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "⚠️ Skipping signature verification - no signing certificate configured"
+            exit 0
+          fi
+
+          echo "Verifying macOS code signatures and notarization..."
+
+          # Find the .app bundle in the build artifacts
+          APP_BUNDLE=$(find upwork-researcher/src-tauri/target -name "*.app" -type d | head -1)
+
+          if [ -z "$APP_BUNDLE" ]; then
+            echo "❌ No .app bundle found to verify"
+            exit 1
+          fi
+
+          echo "Found app bundle: $APP_BUNDLE"
+
+          # Verify code signature
+          echo ""
+          echo "🔍 Verifying code signature..."
+          if codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"; then
+            echo "✅ Code signature valid"
+          else
+            echo "❌ Code signature verification failed"
+            exit 1
+          fi
+
+          # Verify Gatekeeper acceptance
+          echo ""
+          echo "🔍 Verifying Gatekeeper acceptance..."
+          if spctl --assess --type exec --verbose=2 "$APP_BUNDLE"; then
+            echo "✅ Gatekeeper accepts the app"
+          else
+            echo "❌ Gatekeeper assessment failed"
+            exit 1
+          fi
+
+          # Find and verify DMG if it exists
+          DMG_FILE=$(find upwork-researcher/src-tauri/target -name "*.dmg" | head -1)
+
+          if [ -n "$DMG_FILE" ]; then
+            echo ""
+            echo "🔍 Verifying DMG signature..."
+            if codesign --verify --strict --verbose=2 "$DMG_FILE"; then
+              echo "✅ DMG signature valid"
+            else
+              echo "❌ DMG signature verification failed"
+              exit 1
+            fi
+          fi
+
+          echo ""
+          echo "✅ All macOS signatures and notarization checks passed"
+
+      - name: Cleanup macOS keychain
+        if: matrix.platform == 'macos-latest' && always()
+        env:
+          ORIGINAL_KEYCHAIN: ${{ env.ORIGINAL_KEYCHAIN }}
+        run: |
+          # Delete the temporary keychain if it exists
+          if security list-keychains | grep -q "build.keychain"; then
+            security delete-keychain build.keychain || true
+            echo "✅ Temporary keychain deleted"
+          else
+            echo "ℹ️ No temporary keychain to clean up"
+          fi
+
+          # Restore original default keychain if it was captured
+          if [ -n "$ORIGINAL_KEYCHAIN" ] && [ -e "$ORIGINAL_KEYCHAIN" ]; then
+            security default-keychain -s "$ORIGINAL_KEYCHAIN" || true
+            echo "✅ Default keychain restored to $ORIGINAL_KEYCHAIN"
+          fi
+
+  release-status:
+    name: Release Status Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [publish-tauri]
+    if: always()
+    steps:
+      - name: Check release results
+        run: |
+          if [ "${{ needs.publish-tauri.result }}" != "success" ]; then
+            echo "❌ Release build failed"
+            echo "## Release Build Failed" >> $GITHUB_STEP_SUMMARY
+            echo "One or more platform builds failed. Check individual job logs." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ All release builds succeeded"
+          echo "## Release Build Succeeded" >> $GITHUB_STEP_SUMMARY
+          RELEASE_URL="${{ needs.publish-tauri.outputs.releaseUrl }}"
+          if [ -n "$RELEASE_URL" ]; then
+            echo "**Release URL:** $RELEASE_URL" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The release has been created as a **draft**. Review and publish manually." >> $GITHUB_STEP_SUMMARY

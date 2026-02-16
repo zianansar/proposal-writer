@@ -49,7 +49,11 @@ fn test_store_api_key() {
 
     // Store API key
     let result = store_api_key(TEST_API_KEY);
-    assert!(result.is_ok(), "Failed to store API key: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to store API key: {:?}",
+        result.err()
+    );
 
     cleanup_test_keychain();
 }
@@ -69,7 +73,11 @@ fn test_store_and_retrieve_api_key() {
 
     // Retrieve API key
     let retrieved = retrieve_api_key();
-    assert!(retrieved.is_ok(), "Failed to retrieve API key: {:?}", retrieved.err());
+    assert!(
+        retrieved.is_ok(),
+        "Failed to retrieve API key: {:?}",
+        retrieved.err()
+    );
     assert_eq!(retrieved.unwrap(), TEST_API_KEY);
 
     cleanup_test_keychain();
@@ -90,7 +98,11 @@ fn test_delete_api_key() {
 
     // Delete should always succeed (idempotent)
     let delete_result = delete_api_key();
-    assert!(delete_result.is_ok(), "Failed to delete API key: {:?}", delete_result.err());
+    assert!(
+        delete_result.is_ok(),
+        "Failed to delete API key: {:?}",
+        delete_result.err()
+    );
 }
 
 #[test]

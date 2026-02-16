@@ -1,6 +1,7 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { FileText } from 'lucide-react';
+import { FileText } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface VoiceProfileEmptyProps {
   onStartCalibration: () => void;
@@ -12,9 +13,7 @@ export function VoiceProfileEmpty({ onStartCalibration }: VoiceProfileEmptyProps
       <CardContent className="pt-12 pb-12 text-center">
         <FileText className="w-16 h-16 text-[#a3a3a3] mx-auto mb-4" aria-hidden="true" />
 
-        <h3 className="text-xl font-semibold text-[#fafafa] mb-2">
-          No voice profile yet
-        </h3>
+        <h3 className="text-xl font-semibold text-[#fafafa] mb-2">No voice profile yet</h3>
 
         <p className="text-[#a3a3a3] mb-2 max-w-md mx-auto">
           Upload 3-5 of your best past proposals to calibrate your writing style.

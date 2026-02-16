@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { useSettingsStore, getTheme, getSafetyThreshold, getOnboardingCompleted } from "./useSettingsStore";
+
+import {
+  useSettingsStore,
+  getTheme,
+  getSafetyThreshold,
+  getOnboardingCompleted,
+  getAutoUpdateEnabled,
+  getSkippedVersion,
+  getLastUpdateCheck,
+} from "./useSettingsStore";
 
 // Mock Tauri invoke
 vi.mock("@tauri-apps/api/core", () => ({
@@ -106,9 +115,9 @@ describe("useSettingsStore", () => {
       });
 
       // Attempt update
-      await expect(
-        useSettingsStore.getState().setSetting("theme", "light")
-      ).rejects.toThrow("Save failed");
+      await expect(useSettingsStore.getState().setSetting("theme", "light")).rejects.toThrow(
+        "Save failed",
+      );
 
       // Should revert to original value
       expect(useSettingsStore.getState().settings.theme).toBe("dark");
@@ -174,9 +183,7 @@ describe("useSettingsStore", () => {
   describe("performance", () => {
     it("should complete setSetting in <50ms (NFR-4)", async () => {
       // Mock invoke to simulate realistic DB latency (~5ms)
-      mockInvoke.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 5))
-      );
+      mockInvoke.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 5)));
 
       useSettingsStore.setState({
         settings: { theme: "dark" },
@@ -200,7 +207,12 @@ describe("useSettingsStore", () => {
     });
 
     it("getTheme should return light when set", () => {
-      const state = { settings: { theme: "light" }, isLoading: false, error: null, isInitialized: true };
+      const state = {
+        settings: { theme: "light" },
+        isLoading: false,
+        error: null,
+        isInitialized: true,
+      };
       expect(getTheme(state)).toBe("light");
     });
 
@@ -210,12 +222,22 @@ describe("useSettingsStore", () => {
     });
 
     it("getSafetyThreshold should parse stored value", () => {
-      const state = { settings: { safety_threshold: "150" }, isLoading: false, error: null, isInitialized: true };
+      const state = {
+        settings: { safety_threshold: "150" },
+        isLoading: false,
+        error: null,
+        isInitialized: true,
+      };
       expect(getSafetyThreshold(state)).toBe(150);
     });
 
     it("getSafetyThreshold should return default for invalid value", () => {
-      const state = { settings: { safety_threshold: "invalid" }, isLoading: false, error: null, isInitialized: true };
+      const state = {
+        settings: { safety_threshold: "invalid" },
+        isLoading: false,
+        error: null,
+        isInitialized: true,
+      };
       expect(getSafetyThreshold(state)).toBe(180); // Default, not NaN
     });
 
@@ -225,8 +247,69 @@ describe("useSettingsStore", () => {
     });
 
     it("getOnboardingCompleted should return true when set", () => {
-      const state = { settings: { onboarding_completed: "true" }, isLoading: false, error: null, isInitialized: true };
+      const state = {
+        settings: { onboarding_completed: "true" },
+        isLoading: false,
+        error: null,
+        isInitialized: true,
+      };
       expect(getOnboardingCompleted(state)).toBe(true);
+    });
+
+    // Story 9.7 Task 2.5: Auto-update settings selectors
+    it("getAutoUpdateEnabled should default to true", () => {
+      const state = { settings: {}, isLoading: false, error: null, isInitialized: true };
+      expect(getAutoUpdateEnabled(state)).toBe(true);
+    });
+
+    it("getAutoUpdateEnabled should return false when disabled", () => {
+      const state = {
+        settings: { auto_update_enabled: "false" },
+        isLoading: false,
+        error: null,
+        isInitialized: true,
+      };
+      expect(getAutoUpdateEnabled(state)).toBe(false);
+    });
+
+    it("getAutoUpdateEnabled should return true when enabled", () => {
+      const state = {
+        settings: { auto_update_enabled: "true" },
+        isLoading: false,
+        error: null,
+        isInitialized: true,
+      };
+      expect(getAutoUpdateEnabled(state)).toBe(true);
+    });
+
+    it("getSkippedVersion should default to empty string", () => {
+      const state = { settings: {}, isLoading: false, error: null, isInitialized: true };
+      expect(getSkippedVersion(state)).toBe("");
+    });
+
+    it("getSkippedVersion should return stored version", () => {
+      const state = {
+        settings: { skipped_version: "1.2.0" },
+        isLoading: false,
+        error: null,
+        isInitialized: true,
+      };
+      expect(getSkippedVersion(state)).toBe("1.2.0");
+    });
+
+    it("getLastUpdateCheck should default to empty string", () => {
+      const state = { settings: {}, isLoading: false, error: null, isInitialized: true };
+      expect(getLastUpdateCheck(state)).toBe("");
+    });
+
+    it("getLastUpdateCheck should return stored timestamp", () => {
+      const state = {
+        settings: { last_update_check: "2026-02-16T10:00:00Z" },
+        isLoading: false,
+        error: null,
+        isInitialized: true,
+      };
+      expect(getLastUpdateCheck(state)).toBe("2026-02-16T10:00:00Z");
     });
   });
 });

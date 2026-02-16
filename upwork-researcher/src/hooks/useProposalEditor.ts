@@ -1,8 +1,8 @@
-import { useRef, useCallback, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import Placeholder from "@tiptap/extension-placeholder";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import { invoke } from "@tauri-apps/api/core";
+import { useRef, useCallback, useEffect, useState } from "react";
 
 /** Auto-save debounce delay in ms (Story 6.1: 2 seconds) */
 const AUTO_SAVE_DELAY = 2000;
@@ -152,7 +152,9 @@ export function useProposalEditor({
       if (retryCountRef.current < MAX_RETRY_ATTEMPTS) {
         retryCountRef.current += 1;
         const delay = RETRY_BASE_DELAY * Math.pow(2, retryCountRef.current - 1);
-        console.log(`Retrying save in ${delay}ms (attempt ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS})`);
+        console.log(
+          `Retrying save in ${delay}ms (attempt ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS})`,
+        );
 
         // Clear any existing retry timeout
         if (retryTimeoutRef.current) {
@@ -183,7 +185,7 @@ export function useProposalEditor({
         saveToDatabase(htmlContent);
       }, AUTO_SAVE_DELAY);
     },
-    [saveToDatabase]
+    [saveToDatabase],
   );
 
   // Swap content for new proposal (Story 6.1: persistent editor instance)
@@ -210,7 +212,7 @@ export function useProposalEditor({
       setIsDirty(false);
       setSaveStatus("idle");
     },
-    [editor]
+    [editor],
   );
 
   // Force immediate save

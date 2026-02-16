@@ -1,7 +1,15 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  ReactNode,
+} from "react";
 
 interface LiveAnnouncerContextValue {
-  announce: (message: string, politeness?: 'polite' | 'assertive') => void;
+  announce: (message: string, politeness?: "polite" | "assertive") => void;
 }
 
 const LiveAnnouncerContext = createContext<LiveAnnouncerContextValue | null>(null);
@@ -15,8 +23,8 @@ interface LiveAnnouncerProviderProps {
  * Wrap your app with this provider (Story 8.3, AC3).
  */
 export function LiveAnnouncerProvider({ children }: LiveAnnouncerProviderProps) {
-  const [politeMessage, setPoliteMessage] = useState('');
-  const [assertiveMessage, setAssertiveMessage] = useState('');
+  const [politeMessage, setPoliteMessage] = useState("");
+  const [assertiveMessage, setAssertiveMessage] = useState("");
   const timeoutRef = useRef<NodeJS.Timeout>();
 
   // M3 fix: Cleanup timeout on unmount to prevent memory leak
@@ -28,19 +36,19 @@ export function LiveAnnouncerProvider({ children }: LiveAnnouncerProviderProps) 
     };
   }, []);
 
-  const announce = useCallback((message: string, politeness: 'polite' | 'assertive' = 'polite') => {
+  const announce = useCallback((message: string, politeness: "polite" | "assertive" = "polite") => {
     // Clear any pending announcements
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    if (politeness === 'assertive') {
+    if (politeness === "assertive") {
       setAssertiveMessage(message);
       // Clear after announcement
-      timeoutRef.current = setTimeout(() => setAssertiveMessage(''), 1000);
+      timeoutRef.current = setTimeout(() => setAssertiveMessage(""), 1000);
     } else {
       setPoliteMessage(message);
-      timeoutRef.current = setTimeout(() => setPoliteMessage(''), 1000);
+      timeoutRef.current = setTimeout(() => setPoliteMessage(""), 1000);
     }
   }, []);
 
@@ -48,20 +56,10 @@ export function LiveAnnouncerProvider({ children }: LiveAnnouncerProviderProps) 
     <LiveAnnouncerContext.Provider value={{ announce }}>
       {children}
       {/* Visually hidden live regions */}
-      <div
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {politeMessage}
       </div>
-      <div
-        role="alert"
-        aria-live="assertive"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <div role="alert" aria-live="assertive" aria-atomic="true" className="sr-only">
         {assertiveMessage}
       </div>
     </LiveAnnouncerContext.Provider>
@@ -78,7 +76,7 @@ export function LiveAnnouncerProvider({ children }: LiveAnnouncerProviderProps) 
 export function useAnnounce() {
   const context = useContext(LiveAnnouncerContext);
   if (!context) {
-    throw new Error('useAnnounce must be used within LiveAnnouncerProvider');
+    throw new Error("useAnnounce must be used within LiveAnnouncerProvider");
   }
   return context.announce;
 }

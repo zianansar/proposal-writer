@@ -3,8 +3,8 @@
  * Sort and filter controls for job queue
  */
 
-import type { SortField, ScoreFilter, ColorCounts } from '../types';
-import './JobQueueControls.css';
+import type { SortField, ScoreFilter, ColorCounts } from "../types";
+import "./JobQueueControls.css";
 
 interface JobQueueControlsProps {
   sortBy: SortField;
@@ -46,23 +46,23 @@ export default function JobQueueControls({
       <div className="control-group filter-chips">
         <span className="filter-label">Show:</span>
         <button
-          className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
-          onClick={() => onFilterChange('all')}
-          aria-pressed={filter === 'all'}
+          className={`filter-chip ${filter === "all" ? "active" : ""}`}
+          onClick={() => onFilterChange("all")}
+          aria-pressed={filter === "all"}
         >
           All ({allCount})
         </button>
         <button
-          className={`filter-chip ${filter === 'yellowAndGreen' ? 'active' : ''}`}
-          onClick={() => onFilterChange('yellowAndGreen')}
-          aria-pressed={filter === 'yellowAndGreen'}
+          className={`filter-chip ${filter === "yellowAndGreen" ? "active" : ""}`}
+          onClick={() => onFilterChange("yellowAndGreen")}
+          aria-pressed={filter === "yellowAndGreen"}
         >
           Yellow+ ({yellowPlusCount})
         </button>
         <button
-          className={`filter-chip ${filter === 'greenOnly' ? 'active' : ''}`}
-          onClick={() => onFilterChange('greenOnly')}
-          aria-pressed={filter === 'greenOnly'}
+          className={`filter-chip ${filter === "greenOnly" ? "active" : ""}`}
+          onClick={() => onFilterChange("greenOnly")}
+          aria-pressed={filter === "greenOnly"}
         >
           Green Only ({colorCounts.green})
         </button>

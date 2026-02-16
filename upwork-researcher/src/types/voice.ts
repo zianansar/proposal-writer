@@ -63,13 +63,7 @@ export const LENGTH_LABELS = [
 ] as const;
 
 /** Value labels for technical depth slider (1-10 mapped to 5 labels) */
-export const DEPTH_LABELS = [
-  "Layman",
-  "Basic",
-  "Intermediate",
-  "Advanced",
-  "Expert",
-] as const;
+export const DEPTH_LABELS = ["Layman", "Basic", "Intermediate", "Advanced", "Expert"] as const;
 
 /**
  * Map 1-10 slider value to label array index (0-4)

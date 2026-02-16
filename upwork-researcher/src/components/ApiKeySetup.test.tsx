@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { invoke } from "@tauri-apps/api/core";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import ApiKeySetup from "./ApiKeySetup";
 
 describe("ApiKeySetup", () => {
@@ -142,7 +143,7 @@ describe("ApiKeySetup", () => {
   it("shows Saving... while submitting", async () => {
     // Make invoke hang to test loading state
     vi.mocked(invoke).mockImplementationOnce(
-      () => new Promise((resolve) => setTimeout(resolve, 1000))
+      () => new Promise((resolve) => setTimeout(resolve, 1000)),
     );
 
     const user = userEvent.setup();

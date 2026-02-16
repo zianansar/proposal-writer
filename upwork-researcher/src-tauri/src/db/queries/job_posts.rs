@@ -67,7 +67,7 @@ pub fn get_pending_jobs_by_batch(conn: &Connection, batch_id: &str) -> Result<Ve
     let mut stmt = conn.prepare(
         "SELECT id, raw_content, url FROM job_posts
          WHERE import_batch_id = ?1 AND analysis_status = 'pending_analysis'
-         ORDER BY id"
+         ORDER BY id",
     )?;
 
     let jobs = stmt.query_map(params![batch_id], |row| {
@@ -122,11 +122,7 @@ pub fn update_job_post_client_name(
 /// - Inserts each skill as a separate row linked to job_post_id
 /// - Empty skills slice is valid (no-op)
 /// - Duplicate skills for same job_post are allowed (LLM may return similar terms)
-pub fn insert_job_skills(
-    conn: &Connection,
-    job_post_id: i64,
-    skills: &[String],
-) -> Result<()> {
+pub fn insert_job_skills(conn: &Connection, job_post_id: i64, skills: &[String]) -> Result<()> {
     // Task 2.2: Batch insert - loop over skills vec, insert each row
     for skill in skills {
         conn.execute(
@@ -144,9 +140,8 @@ pub fn insert_job_skills(
 /// - Vec of skill names (e.g., ["React", "TypeScript"])
 /// - Empty vec if no skills found
 pub fn get_job_skills(conn: &Connection, job_post_id: i64) -> Result<Vec<String>> {
-    let mut stmt = conn.prepare(
-        "SELECT skill_name FROM job_skills WHERE job_post_id = ?1 ORDER BY id"
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT skill_name FROM job_skills WHERE job_post_id = ?1 ORDER BY id")?;
 
     let skills = stmt
         .query_map(params![job_post_id], |row| row.get(0))?
@@ -316,9 +311,8 @@ pub fn save_job_analysis_atomic(
         )?;
 
         // 3. Insert new skills (use prepared statement for batch insert)
-        let mut stmt = conn.prepare(
-            "INSERT INTO job_skills (job_post_id, skill_name) VALUES (?1, ?2)"
-        )?;
+        let mut stmt =
+            conn.prepare("INSERT INTO job_skills (job_post_id, skill_name) VALUES (?1, ?2)")?;
         for skill in key_skills {
             stmt.execute(params![job_post_id, skill])?;
         }
@@ -378,7 +372,10 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(saved_content, "Sample job content for web development project");
+        assert_eq!(
+            saved_content,
+            "Sample job content for web development project"
+        );
     }
 
     #[test]
@@ -561,7 +558,11 @@ mod tests {
 
         let job_id = insert_job_post(&conn, None, "Python developer", None).unwrap();
 
-        let skills = vec!["Python".to_string(), "Django".to_string(), "PostgreSQL".to_string()];
+        let skills = vec![
+            "Python".to_string(),
+            "Django".to_string(),
+            "PostgreSQL".to_string(),
+        ];
         insert_job_skills(&conn, job_id, &skills).unwrap();
 
         // Retrieve skills
@@ -754,30 +755,29 @@ mod tests {
         let skills = vec!["React".to_string(), "TypeScript".to_string()];
         let hidden_needs_json = r#"[{"need":"Time-pressured","evidence":"Urgent"}]"#;
 
-        save_job_analysis_atomic(
-            &conn,
-            job_id,
-            Some("John Doe"),
-            &skills,
-            hidden_needs_json,
-        ).unwrap();
+        save_job_analysis_atomic(&conn, job_id, Some("John Doe"), &skills, hidden_needs_json)
+            .unwrap();
 
         // Verify all data saved
-        let saved_name: Option<String> = conn.query_row(
-            "SELECT client_name FROM job_posts WHERE id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        ).unwrap();
+        let saved_name: Option<String> = conn
+            .query_row(
+                "SELECT client_name FROM job_posts WHERE id = ?1",
+                params![job_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(saved_name, Some("John Doe".to_string()));
 
         let saved_skills = get_job_skills(&conn, job_id).unwrap();
         assert_eq!(saved_skills, skills);
 
-        let saved_needs_json: String = conn.query_row(
-            "SELECT hidden_needs FROM job_posts WHERE id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        ).unwrap();
+        let saved_needs_json: String = conn
+            .query_row(
+                "SELECT hidden_needs FROM job_posts WHERE id = ?1",
+                params![job_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(saved_needs_json, hidden_needs_json);
     }
 
@@ -793,11 +793,13 @@ mod tests {
 
         save_job_analysis_atomic(&conn, job_id, Some("New Name"), &[], "[]").unwrap();
 
-        let client: Option<String> = conn.query_row(
-            "SELECT client_name FROM job_posts WHERE id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        ).unwrap();
+        let client: Option<String> = conn
+            .query_row(
+                "SELECT client_name FROM job_posts WHERE id = ?1",
+                params![job_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(client, Some("New Name".to_string()));
     }
 
@@ -810,7 +812,11 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         let job_id = insert_job_post(&conn, None, "Job", None).unwrap();
-        let skills = vec!["Python".to_string(), "Django".to_string(), "PostgreSQL".to_string()];
+        let skills = vec![
+            "Python".to_string(),
+            "Django".to_string(),
+            "PostgreSQL".to_string(),
+        ];
 
         save_job_analysis_atomic(&conn, job_id, None, &skills, "[]").unwrap();
 
@@ -831,11 +837,13 @@ mod tests {
 
         save_job_analysis_atomic(&conn, job_id, None, &[], needs_json).unwrap();
 
-        let saved: String = conn.query_row(
-            "SELECT hidden_needs FROM job_posts WHERE id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        ).unwrap();
+        let saved: String = conn
+            .query_row(
+                "SELECT hidden_needs FROM job_posts WHERE id = ?1",
+                params![job_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(saved, needs_json);
     }
 
@@ -881,7 +889,10 @@ mod tests {
         conn.execute("DROP TABLE job_skills", []).unwrap();
 
         let result = save_job_analysis_atomic(&conn, job_id, Some("New Name"), &[], "[]");
-        assert!(result.is_err(), "Expected error from missing job_skills table");
+        assert!(
+            result.is_err(),
+            "Expected error from missing job_skills table"
+        );
 
         // Verify client_name UPDATE was rolled back — must still be "Original"
         let client: Option<String> = conn
@@ -916,7 +927,11 @@ mod tests {
         save_job_analysis_atomic(&conn, job_id, Some("Name"), &skills, needs_json).unwrap();
         let duration = start.elapsed();
 
-        assert!(duration.as_millis() < 100, "Save took {:?} (target: <100ms)", duration);
+        assert!(
+            duration.as_millis() < 100,
+            "Save took {:?} (target: <100ms)",
+            duration
+        );
     }
 
     #[test]
@@ -947,11 +962,13 @@ mod tests {
 
         save_job_analysis_atomic(&conn, job_id, None, &[], "[]").unwrap();
 
-        let client: Option<String> = conn.query_row(
-            "SELECT client_name FROM job_posts WHERE id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        ).unwrap();
+        let client: Option<String> = conn
+            .query_row(
+                "SELECT client_name FROM job_posts WHERE id = ?1",
+                params![job_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert!(client.is_none());
     }
 
@@ -964,7 +981,10 @@ mod tests {
         let conn = db.conn.lock().unwrap();
 
         let result = save_job_analysis_atomic(&conn, 999999, Some("Name"), &[], "[]");
-        assert!(result.is_err(), "Expected error for non-existent job_post_id");
+        assert!(
+            result.is_err(),
+            "Expected error for non-existent job_post_id"
+        );
 
         match result.unwrap_err() {
             rusqlite::Error::QueryReturnedNoRows => {} // Expected
@@ -989,7 +1009,8 @@ mod tests {
             "https://www.upwork.com/jobs/~01ABC123",
             "Looking for React developer...",
             "rss_20260209_120000",
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(result.is_some());
         let id = result.unwrap();
@@ -1020,21 +1041,14 @@ mod tests {
         let url = "https://www.upwork.com/jobs/~01DUPLICATE";
 
         // First insert should succeed
-        let first = insert_job_post_from_rss(
-            &conn,
-            url,
-            "First job content",
-            "rss_batch_1",
-        ).unwrap();
+        let first =
+            insert_job_post_from_rss(&conn, url, "First job content", "rss_batch_1").unwrap();
         assert!(first.is_some());
 
         // Second insert with same URL should return None (duplicate)
-        let second = insert_job_post_from_rss(
-            &conn,
-            url,
-            "Different content but same URL",
-            "rss_batch_2",
-        ).unwrap();
+        let second =
+            insert_job_post_from_rss(&conn, url, "Different content but same URL", "rss_batch_2")
+                .unwrap();
         assert!(second.is_none());
 
         // Verify only one job exists with this URL
@@ -1061,7 +1075,8 @@ mod tests {
             "https://www.upwork.com/jobs/~01JOB_A",
             "Job A content",
             "rss_batch",
-        ).unwrap();
+        )
+        .unwrap();
         assert!(result1.is_some());
 
         let result2 = insert_job_post_from_rss(
@@ -1069,7 +1084,8 @@ mod tests {
             "https://www.upwork.com/jobs/~01JOB_B",
             "Job B content",
             "rss_batch",
-        ).unwrap();
+        )
+        .unwrap();
         assert!(result2.is_some());
 
         // Both IDs should be different

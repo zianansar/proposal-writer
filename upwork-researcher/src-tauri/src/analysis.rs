@@ -2,7 +2,6 @@
 /// Story 4a.2: Client Name Extraction
 /// Extensible design for future analysis fields (4a-3: skills, 4a-4: hidden needs)
 /// Story 4a.9: Prompt injection defense via input sanitization
-
 use crate::sanitization::sanitize_job_content;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -150,8 +149,8 @@ pub struct BudgetInfo {
 /// Budget alignment result (Story 4b.4, Task 5)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BudgetAlignment {
-    pub percentage: Option<i32>,       // 0-100+ or null
-    pub status: String,                // "green", "yellow", "red", "gray", "mismatch"
+    pub percentage: Option<i32>, // 0-100+ or null
+    pub status: String,          // "green", "yellow", "red", "gray", "mismatch"
 }
 
 /// Extract budget information from job post using Claude Haiku (Story 4b.4, Task 4)
@@ -223,7 +222,10 @@ Response: {"budget_min": null, "budget_max": null, "budget_type": "unknown"}
 
 Return ONLY valid JSON, no other text."#;
 
-    let user_message = format!("Extract budget information from this job post:\n\n{}", raw_content);
+    let user_message = format!(
+        "Extract budget information from this job post:\n\n{}",
+        raw_content
+    );
 
     // AR-5: Enable prompt caching on system prompt
     let request_body = ClaudeRequest {
@@ -273,11 +275,7 @@ Return ONLY valid JSON, no other text."#;
             tracing::error!("Budget extraction API error: {}", error.error.message);
             return Err(format!("API error: {}", error.error.message));
         }
-        tracing::error!(
-            "Budget extraction API error ({}): {}",
-            status,
-            error_text
-        );
+        tracing::error!("Budget extraction API error ({}): {}", status, error_text);
         return Err(format!("API error ({})", status));
     }
 
@@ -412,10 +410,7 @@ pub fn calculate_budget_alignment(
 /// AC-4: Completes in <3 seconds (Haiku is fast)
 /// AR-5: Implements prompt caching for system prompt
 /// AR-13: XML delimiter boundaries for job content
-pub async fn analyze_job(
-    raw_content: &str,
-    api_key: &str,
-) -> Result<JobAnalysis, String> {
+pub async fn analyze_job(raw_content: &str, api_key: &str) -> Result<JobAnalysis, String> {
     // Story 4a.9: Sanitize input before constructing prompt (AC-1, AC-5)
     let sanitization_result = sanitize_job_content(raw_content);
     let was_truncated = sanitization_result.was_truncated;
@@ -601,11 +596,7 @@ Return ONLY valid JSON, no other text."#;
             tracing::error!("Job analysis API error: {}", error.error.message);
             return Err(format!("API error: {}", error.error.message));
         }
-        tracing::error!(
-            "Job analysis API error ({}): {}",
-            status,
-            error_text
-        );
+        tracing::error!("Job analysis API error ({}): {}", status, error_text);
         return Err(format!("API error ({})", status));
     }
 
@@ -643,7 +634,7 @@ Return ONLY valid JSON, no other text."#;
         client_name: analysis_response.client_name,
         key_skills: analysis_response.key_skills,
         hidden_needs: analysis_response.hidden_needs,
-        was_truncated, // Story 4a.9: Include truncation flag
+        was_truncated,        // Story 4a.9: Include truncation flag
         client_quality_score, // Story 4b.3: Client quality score
         // Story 4b.4: Budget fields populated separately by extract_budget()
         budget_min: None,
@@ -768,7 +759,10 @@ mod tests {
         let json = r#"{"client_name": "John Doe", "key_skills": ["React", "TypeScript", "API Integration"]}"#;
         let response: AnalysisResponse = serde_json::from_str(json).unwrap();
         assert_eq!(response.client_name, Some("John Doe".to_string()));
-        assert_eq!(response.key_skills, vec!["React", "TypeScript", "API Integration"]);
+        assert_eq!(
+            response.key_skills,
+            vec!["React", "TypeScript", "API Integration"]
+        );
     }
 
     #[test]
@@ -962,13 +956,17 @@ mod tests {
     #[test]
     fn test_hard_rule_zero_hires_forces_45() {
         // Subtask 5.4: "0 hires" hard rule → score forced to 45
-        let result = apply_client_quality_hard_rules(Some(80), "Looking for developer. 0 hires but serious client.");
+        let result = apply_client_quality_hard_rules(
+            Some(80),
+            "Looking for developer. 0 hires but serious client.",
+        );
         assert_eq!(result, Some(45));
     }
 
     #[test]
     fn test_hard_rule_zero_hires_case_insensitive() {
-        let result = apply_client_quality_hard_rules(Some(90), "New client with 0 Hires on the platform");
+        let result =
+            apply_client_quality_hard_rules(Some(90), "New client with 0 Hires on the platform");
         assert_eq!(result, Some(45));
     }
 
@@ -982,21 +980,28 @@ mod tests {
     #[test]
     fn test_hard_rule_preserves_high_score() {
         // Subtask 5.1: High quality signals → score ≥80 preserved
-        let result = apply_client_quality_hard_rules(Some(92), "Professional job post with verified payment.");
+        let result = apply_client_quality_hard_rules(
+            Some(92),
+            "Professional job post with verified payment.",
+        );
         assert_eq!(result, Some(92));
     }
 
     #[test]
     fn test_hard_rule_preserves_medium_score() {
         // Subtask 5.2: Medium signals → score 60-79 preserved
-        let result = apply_client_quality_hard_rules(Some(70), "Some job post with reasonable requirements.");
+        let result = apply_client_quality_hard_rules(
+            Some(70),
+            "Some job post with reasonable requirements.",
+        );
         assert_eq!(result, Some(70));
     }
 
     #[test]
     fn test_hard_rule_preserves_low_score() {
         // Subtask 5.3: Red flags → score <60 preserved
-        let result = apply_client_quality_hard_rules(Some(35), "URGENT!!! Very low budget need ASAP.");
+        let result =
+            apply_client_quality_hard_rules(Some(35), "URGENT!!! Very low budget need ASAP.");
         assert_eq!(result, Some(35));
     }
 
@@ -1015,7 +1020,10 @@ mod tests {
     #[test]
     fn test_hard_rule_contradictory_signals() {
         // Subtask 5.6: Contradictory signals — "0 hires" overrides everything
-        let result = apply_client_quality_hard_rules(Some(95), "100% hire rate but 0 hires. Verified payment.");
+        let result = apply_client_quality_hard_rules(
+            Some(95),
+            "100% hire rate but 0 hires. Verified payment.",
+        );
         assert_eq!(result, Some(45));
     }
 

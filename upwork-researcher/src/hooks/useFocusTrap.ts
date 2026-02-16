@@ -1,14 +1,14 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from "react";
 
 /** Selector for all focusable elements */
 export const FOCUSABLE_SELECTOR = [
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  'a[href]',
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "a[href]",
   '[tabindex]:not([tabindex="-1"])',
-].join(', ');
+].join(", ");
 
 interface UseFocusTrapOptions {
   /** Element that triggered the modal (to return focus on close) */
@@ -27,7 +27,7 @@ interface UseFocusTrapOptions {
  */
 export function useFocusTrap(
   containerRef: React.RefObject<HTMLElement>,
-  options: UseFocusTrapOptions = {}
+  options: UseFocusTrapOptions = {},
 ) {
   const { triggerRef, autoFocus = true } = options;
   const previousActiveElement = useRef<HTMLElement | null>(null);
@@ -41,11 +41,11 @@ export function useFocusTrap(
   const getFocusableElements = useCallback((): HTMLElement[] => {
     if (!containerRef.current) return [];
     return Array.from(
-      containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-    ).filter(el => {
+      containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+    ).filter((el) => {
       // Filter out elements with display:none or visibility:hidden
       const style = window.getComputedStyle(el);
-      return style.display !== 'none' && style.visibility !== 'hidden';
+      return style.display !== "none" && style.visibility !== "hidden";
     });
   }, [containerRef]);
 
@@ -55,7 +55,7 @@ export function useFocusTrap(
     if (!container) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
+      if (e.key !== "Tab") return;
 
       const focusableElements = getFocusableElements();
       if (focusableElements.length === 0) return;
@@ -79,8 +79,8 @@ export function useFocusTrap(
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [containerRef, getFocusableElements]);
 
   // Auto-focus first element on mount

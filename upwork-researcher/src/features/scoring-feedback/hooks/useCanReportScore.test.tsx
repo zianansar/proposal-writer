@@ -1,20 +1,21 @@
 // Story 4b.10: useCanReportScore Hook Tests (Task 12.9)
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useCanReportScore } from './useCanReportScore';
-import type { ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import { useCanReportScore } from "./useCanReportScore";
 
 // Mock Tauri invoke
-vi.mock('@tauri-apps/api/core', () => ({
+vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
 
-describe('useCanReportScore', () => {
+describe("useCanReportScore", () => {
   let queryClient: QueryClient;
 
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -32,7 +33,7 @@ describe('useCanReportScore', () => {
     vi.clearAllMocks();
   });
 
-  it('returns canReport: true when no prior feedback exists', async () => {
+  it("returns canReport: true when no prior feedback exists", async () => {
     mockInvoke.mockResolvedValue({
       canReport: true,
       lastReportedAt: null,
@@ -48,11 +49,11 @@ describe('useCanReportScore', () => {
       canReport: true,
       lastReportedAt: null,
     });
-    expect(mockInvoke).toHaveBeenCalledWith('check_can_report_score', { jobPostId: 123 });
+    expect(mockInvoke).toHaveBeenCalledWith("check_can_report_score", { jobPostId: 123 });
   });
 
-  it('returns canReport: false when feedback exists within 24h', async () => {
-    const lastReported = '2026-02-09T10:30:00Z';
+  it("returns canReport: false when feedback exists within 24h", async () => {
+    const lastReported = "2026-02-09T10:30:00Z";
     mockInvoke.mockResolvedValue({
       canReport: false,
       lastReportedAt: lastReported,
@@ -70,7 +71,7 @@ describe('useCanReportScore', () => {
     });
   });
 
-  it('returns canReport: true when feedback exists outside 24h window', async () => {
+  it("returns canReport: true when feedback exists outside 24h window", async () => {
     mockInvoke.mockResolvedValue({
       canReport: true,
       lastReportedAt: null, // Server doesn't return old timestamps
@@ -85,7 +86,7 @@ describe('useCanReportScore', () => {
     expect(result.current.data?.canReport).toBe(true);
   });
 
-  it('is loading initially', () => {
+  it("is loading initially", () => {
     mockInvoke.mockImplementation(() => new Promise(() => {})); // Never resolves
 
     const { result } = renderHook(() => useCanReportScore(1), { wrapper });
@@ -94,8 +95,8 @@ describe('useCanReportScore', () => {
     expect(result.current.data).toBeUndefined();
   });
 
-  it('handles errors gracefully', async () => {
-    mockInvoke.mockRejectedValue(new Error('Database error'));
+  it("handles errors gracefully", async () => {
+    mockInvoke.mockRejectedValue(new Error("Database error"));
 
     const { result } = renderHook(() => useCanReportScore(1), { wrapper });
 
@@ -106,7 +107,7 @@ describe('useCanReportScore', () => {
     expect(result.current.error).toBeDefined();
   });
 
-  it('uses correct query key with jobPostId', async () => {
+  it("uses correct query key with jobPostId", async () => {
     mockInvoke.mockResolvedValue({ canReport: true });
 
     const { result: result1 } = renderHook(() => useCanReportScore(100), { wrapper });
@@ -118,11 +119,11 @@ describe('useCanReportScore', () => {
     });
 
     // Should have been called with different jobPostIds
-    expect(mockInvoke).toHaveBeenCalledWith('check_can_report_score', { jobPostId: 100 });
-    expect(mockInvoke).toHaveBeenCalledWith('check_can_report_score', { jobPostId: 200 });
+    expect(mockInvoke).toHaveBeenCalledWith("check_can_report_score", { jobPostId: 100 });
+    expect(mockInvoke).toHaveBeenCalledWith("check_can_report_score", { jobPostId: 200 });
   });
 
-  it('calls invoke on initial mount', async () => {
+  it("calls invoke on initial mount", async () => {
     mockInvoke.mockResolvedValue({ canReport: true });
 
     const { result } = renderHook(() => useCanReportScore(999), { wrapper });
@@ -132,10 +133,10 @@ describe('useCanReportScore', () => {
     });
 
     // Verify invoke was called on mount
-    expect(mockInvoke).toHaveBeenCalledWith('check_can_report_score', { jobPostId: 999 });
+    expect(mockInvoke).toHaveBeenCalledWith("check_can_report_score", { jobPostId: 999 });
   });
 
-  it('returns correct TypeScript types', async () => {
+  it("returns correct TypeScript types", async () => {
     mockInvoke.mockResolvedValue({
       canReport: true,
       lastReportedAt: undefined,
@@ -151,6 +152,6 @@ describe('useCanReportScore', () => {
     const canReport: boolean | undefined = result.current.data?.canReport;
     const lastReportedAt: string | undefined = result.current.data?.lastReportedAt;
 
-    expect(typeof canReport).toBe('boolean');
+    expect(typeof canReport).toBe("boolean");
   });
 });

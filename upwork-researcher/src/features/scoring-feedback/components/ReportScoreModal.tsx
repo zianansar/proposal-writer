@@ -1,8 +1,9 @@
 // Story 4b.10: Report Incorrect Score Modal
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { ScoringFeedbackIssue } from "../types";
+
 import { useSubmitScoringFeedback } from "../hooks/useSubmitScoringFeedback";
+import { ScoringFeedbackIssue } from "../types";
 import "./ReportScoreModal.css";
 
 export interface ReportScoreModalProps {
@@ -88,7 +89,7 @@ export function ReportScoreModal({
         onSuccess: () => {
           setIsSuccess(true);
         },
-      }
+      },
     );
   }, [selectedIssues, jobPostId, userNotes, mutate]);
 
@@ -115,7 +116,7 @@ export function ReportScoreModal({
       // Tab focus trap
       if (e.key === "Tab") {
         const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
-          'button, input, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, input, textarea, [tabindex]:not([tabindex="-1"])',
         );
         if (!focusableElements || focusableElements.length === 0) return;
 
@@ -166,7 +167,10 @@ export function ReportScoreModal({
   const isValid = selectedIssues.size > 0 && charCount <= 500;
 
   return (
-    <div className="report-score-modal-overlay" onClick={isSuccess ? handleSuccessClick : undefined}>
+    <div
+      className="report-score-modal-overlay"
+      onClick={isSuccess ? handleSuccessClick : undefined}
+    >
       {/* M3 fix: Screen reader announcement for modal open (Task 7.6) */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announceOpen && "Report Incorrect Score dialog opened"}
@@ -216,7 +220,9 @@ export function ReportScoreModal({
             </div>
 
             <div className="report-score-modal__body">
-              <label className="report-score-modal__label">What&apos;s wrong with this score?</label>
+              <label className="report-score-modal__label">
+                What&apos;s wrong with this score?
+              </label>
 
               <div className="report-score-modal__checkbox-group">
                 {[
@@ -230,10 +236,7 @@ export function ReportScoreModal({
                   { issue: ScoringFeedbackIssue.ScoreTooLow, label: "Overall score is too low" },
                   { issue: ScoringFeedbackIssue.Other, label: "Other" },
                 ].map(({ issue, label }, index) => (
-                  <label
-                    key={issue}
-                    className="report-score-modal__checkbox-label"
-                  >
+                  <label key={issue} className="report-score-modal__checkbox-label">
                     <input
                       ref={index === 0 ? firstCheckboxRef : undefined}
                       type="checkbox"
@@ -257,9 +260,7 @@ export function ReportScoreModal({
                   maxLength={500}
                   rows={3}
                 />
-                <div className="report-score-modal__char-count">
-                  {charCount}/500
-                </div>
+                <div className="report-score-modal__char-count">{charCount}/500</div>
               </div>
 
               {isError && error && (

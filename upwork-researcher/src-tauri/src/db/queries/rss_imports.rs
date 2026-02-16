@@ -40,10 +40,7 @@ pub fn update_rss_import_progress(
 }
 
 /// Mark an RSS import batch as complete
-pub fn complete_rss_import_batch(
-    conn: &Connection,
-    batch_id: &str,
-) -> Result<()> {
+pub fn complete_rss_import_batch(conn: &Connection, batch_id: &str) -> Result<()> {
     conn.execute(
         "UPDATE rss_imports 
          SET status = 'complete', completed_at = datetime('now')
@@ -121,7 +118,8 @@ mod tests {
         let db = Database::new(db_path, None).unwrap();
         let conn = db.conn.lock().unwrap();
 
-        create_rss_import_batch(&conn, "rss_complete", "https://example.com/feed", 5, "rss").unwrap();
+        create_rss_import_batch(&conn, "rss_complete", "https://example.com/feed", 5, "rss")
+            .unwrap();
 
         complete_rss_import_batch(&conn, "rss_complete").unwrap();
 

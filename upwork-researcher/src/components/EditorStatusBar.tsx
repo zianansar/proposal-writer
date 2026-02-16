@@ -25,12 +25,16 @@ export function EditorStatusBar({ characterCount, wordCount }: EditorStatusBarPr
     <div className="editor-status-bar" role="status" aria-live="polite">
       <span className="status-counts">
         <span className="count-item">{characterCount} characters</span>
-        <span className="count-separator" aria-hidden="true">·</span>
+        <span className="count-separator" aria-hidden="true">
+          ·
+        </span>
         <span className="count-item">{wordCount} words</span>
       </span>
       {warning && (
         <span className="status-warning" role="alert">
-          <span className="warning-icon" aria-hidden="true">⚠️</span>
+          <span className="warning-icon" aria-hidden="true">
+            ⚠️
+          </span>
           {warning}
         </span>
       )}

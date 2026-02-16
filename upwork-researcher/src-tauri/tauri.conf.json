@@ -24,6 +24,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -32,9 +33,25 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "digestAlgorithm": "sha256",
-      "timestampUrl": "http://timestamp.digicert.com",
-      "signCommand": "powershell -File scripts/windows-sign.ps1 %1"
+      "signCommand": "powershell -File scripts/windows-sign.ps1 %1",
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "macOS": {
+      "signingIdentity": null,
+      "minimumSystemVersion": "12.0"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJCQjQwQzkxRTZBRjEwRUUKUldUdUVLL21rUXkwSzdtbjJVdk1PMytvSWVUbFh1UFZYQ2crSkp5K3JseDVaZjFWSFpWNFdnTjMK",
+      "endpoints": [
+        "https://github.com/USER/REPO/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

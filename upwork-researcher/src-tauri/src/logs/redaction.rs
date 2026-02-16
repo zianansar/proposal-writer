@@ -2,7 +2,6 @@
 ///
 /// Provides wrappers and utilities to automatically redact sensitive information
 /// (API keys, passphrases) from logs to prevent credential leakage.
-
 use std::fmt;
 
 /// Wrapper for API keys that redacts the value when displayed
@@ -48,7 +47,8 @@ pub fn redact_api_key(input: &str) -> String {
             if i < parts.len() - 1 || !part.is_empty() {
                 result.push_str("...REDACTED");
                 // Keep any text after the key (e.g., punctuation, spaces)
-                if let Some(idx) = part.find(|c: char| !c.is_alphanumeric() && c != '-' && c != '_') {
+                if let Some(idx) = part.find(|c: char| !c.is_alphanumeric() && c != '-' && c != '_')
+                {
                     result.push_str(&part[idx..]);
                 }
             }

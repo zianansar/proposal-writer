@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+
 import "./ScoringBreakdown.css";
 import { ReportScoreModal } from "../features/scoring-feedback/components/ReportScoreModal";
 import { useCanReportScore } from "../features/scoring-feedback/hooks/useCanReportScore";
@@ -99,17 +100,23 @@ function ScoringBreakdownCard({
       {/* Skills Match Metric */}
       <div className="scoring-breakdown__metric">
         <div className="scoring-breakdown__metric-header">
-          <span className="scoring-breakdown__icon" aria-hidden="true">{skillsQ.icon}</span>
+          <span className="scoring-breakdown__icon" aria-hidden="true">
+            {skillsQ.icon}
+          </span>
           <span className="scoring-breakdown__metric-name">
             Skills Match: {skillsMatchPct !== null ? `${skillsMatchPct}%` : "N/A"}
           </span>
-          <span className={`scoring-breakdown__label scoring-breakdown__label--${skillsQ.className}`}>
+          <span
+            className={`scoring-breakdown__label scoring-breakdown__label--${skillsQ.className}`}
+          >
             ({skillsQ.label})
           </span>
         </div>
         {skillsMatchPct !== null ? (
           <div className="scoring-breakdown__metric-detail">
-            <p>You have {skillsMatchedCount}/{skillsTotalCount} required skills</p>
+            <p>
+              You have {skillsMatchedCount}/{skillsTotalCount} required skills
+            </p>
             {skillsMatchedList.length > 0 && (
               <p className="scoring-breakdown__skills-list">
                 <strong>Matched:</strong> {skillsMatchedList.join(", ")}
@@ -129,11 +136,15 @@ function ScoringBreakdownCard({
       {/* Client Quality Metric */}
       <div className="scoring-breakdown__metric">
         <div className="scoring-breakdown__metric-header">
-          <span className="scoring-breakdown__icon" aria-hidden="true">{clientQ.icon}</span>
+          <span className="scoring-breakdown__icon" aria-hidden="true">
+            {clientQ.icon}
+          </span>
           <span className="scoring-breakdown__metric-name">
             Client Quality: {clientQualityScore !== null ? clientQualityScore : "N/A"}
           </span>
-          <span className={`scoring-breakdown__label scoring-breakdown__label--${clientQ.className}`}>
+          <span
+            className={`scoring-breakdown__label scoring-breakdown__label--${clientQ.className}`}
+          >
             ({clientQ.label})
           </span>
         </div>
@@ -143,11 +154,15 @@ function ScoringBreakdownCard({
       {/* Budget Alignment Metric */}
       <div className="scoring-breakdown__metric">
         <div className="scoring-breakdown__metric-header">
-          <span className="scoring-breakdown__icon" aria-hidden="true">{budgetQ.icon}</span>
+          <span className="scoring-breakdown__icon" aria-hidden="true">
+            {budgetQ.icon}
+          </span>
           <span className="scoring-breakdown__metric-name">
             Budget: {budgetAlignmentPct !== null ? `${budgetAlignmentPct}%` : "N/A"}
           </span>
-          <span className={`scoring-breakdown__label scoring-breakdown__label--${budgetQ.className}`}>
+          <span
+            className={`scoring-breakdown__label scoring-breakdown__label--${budgetQ.className}`}
+          >
             ({budgetQ.label})
           </span>
         </div>
@@ -156,7 +171,9 @@ function ScoringBreakdownCard({
 
       {/* Recommendation */}
       <div className="scoring-breakdown__recommendation">
-        <span className="scoring-breakdown__recommendation-icon" aria-hidden="true">💡</span>
+        <span className="scoring-breakdown__recommendation-icon" aria-hidden="true">
+          💡
+        </span>
         {recommendation}
       </div>
 

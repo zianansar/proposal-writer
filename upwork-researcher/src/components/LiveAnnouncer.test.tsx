@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { LiveAnnouncerProvider, useAnnounce } from './LiveAnnouncer';
-import { act } from 'react';
+import { render, screen } from "@testing-library/react";
+import { act } from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { LiveAnnouncerProvider, useAnnounce } from "./LiveAnnouncer";
 
 // Test component that uses the hook
 function TestComponent() {
@@ -9,17 +10,13 @@ function TestComponent() {
 
   return (
     <div>
-      <button onClick={() => announce('Test message')}>
-        Announce Polite
-      </button>
-      <button onClick={() => announce('Urgent message', 'assertive')}>
-        Announce Assertive
-      </button>
+      <button onClick={() => announce("Test message")}>Announce Polite</button>
+      <button onClick={() => announce("Urgent message", "assertive")}>Announce Assertive</button>
     </div>
   );
 }
 
-describe('LiveAnnouncer', () => {
+describe("LiveAnnouncer", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -29,127 +26,127 @@ describe('LiveAnnouncer', () => {
     vi.useRealTimers();
   });
 
-  describe('LiveAnnouncerProvider', () => {
-    it('renders children', () => {
+  describe("LiveAnnouncerProvider", () => {
+    it("renders children", () => {
       render(
         <LiveAnnouncerProvider>
           <div>Test Content</div>
-        </LiveAnnouncerProvider>
+        </LiveAnnouncerProvider>,
       );
 
-      expect(screen.getByText('Test Content')).toBeInTheDocument();
+      expect(screen.getByText("Test Content")).toBeInTheDocument();
     });
 
-    it('renders polite live region with role=status', () => {
+    it("renders polite live region with role=status", () => {
       render(
         <LiveAnnouncerProvider>
           <div>Content</div>
-        </LiveAnnouncerProvider>
+        </LiveAnnouncerProvider>,
       );
 
-      const politeRegion = screen.getByRole('status');
-      expect(politeRegion).toHaveAttribute('aria-live', 'polite');
-      expect(politeRegion).toHaveAttribute('aria-atomic', 'true');
-      expect(politeRegion).toHaveClass('sr-only');
+      const politeRegion = screen.getByRole("status");
+      expect(politeRegion).toHaveAttribute("aria-live", "polite");
+      expect(politeRegion).toHaveAttribute("aria-atomic", "true");
+      expect(politeRegion).toHaveClass("sr-only");
     });
 
-    it('renders assertive live region with role=alert', () => {
+    it("renders assertive live region with role=alert", () => {
       render(
         <LiveAnnouncerProvider>
           <div>Content</div>
-        </LiveAnnouncerProvider>
+        </LiveAnnouncerProvider>,
       );
 
-      const assertiveRegion = screen.getByRole('alert');
-      expect(assertiveRegion).toHaveAttribute('aria-live', 'assertive');
-      expect(assertiveRegion).toHaveAttribute('aria-atomic', 'true');
-      expect(assertiveRegion).toHaveClass('sr-only');
+      const assertiveRegion = screen.getByRole("alert");
+      expect(assertiveRegion).toHaveAttribute("aria-live", "assertive");
+      expect(assertiveRegion).toHaveAttribute("aria-atomic", "true");
+      expect(assertiveRegion).toHaveClass("sr-only");
     });
   });
 
-  describe('useAnnounce hook', () => {
-    it('throws error when used outside provider', () => {
+  describe("useAnnounce hook", () => {
+    it("throws error when used outside provider", () => {
       // Suppress console.error for this test
       const originalError = console.error;
       console.error = vi.fn();
 
       expect(() => {
         render(<TestComponent />);
-      }).toThrow('useAnnounce must be used within LiveAnnouncerProvider');
+      }).toThrow("useAnnounce must be used within LiveAnnouncerProvider");
 
       console.error = originalError;
     });
 
-    it('announces polite messages to status region', () => {
+    it("announces polite messages to status region", () => {
       render(
         <LiveAnnouncerProvider>
           <TestComponent />
-        </LiveAnnouncerProvider>
+        </LiveAnnouncerProvider>,
       );
 
-      const button = screen.getByText('Announce Polite');
-      const politeRegion = screen.getByRole('status');
+      const button = screen.getByText("Announce Polite");
+      const politeRegion = screen.getByRole("status");
 
       act(() => {
         button.click();
       });
 
-      expect(politeRegion).toHaveTextContent('Test message');
+      expect(politeRegion).toHaveTextContent("Test message");
 
       // Message should clear after timeout
       act(() => {
         vi.advanceTimersByTime(1000);
       });
 
-      expect(politeRegion).toHaveTextContent('');
+      expect(politeRegion).toHaveTextContent("");
     });
 
-    it('announces assertive messages to alert region', () => {
+    it("announces assertive messages to alert region", () => {
       render(
         <LiveAnnouncerProvider>
           <TestComponent />
-        </LiveAnnouncerProvider>
+        </LiveAnnouncerProvider>,
       );
 
-      const button = screen.getByText('Announce Assertive');
-      const assertiveRegion = screen.getByRole('alert');
+      const button = screen.getByText("Announce Assertive");
+      const assertiveRegion = screen.getByRole("alert");
 
       act(() => {
         button.click();
       });
 
-      expect(assertiveRegion).toHaveTextContent('Urgent message');
+      expect(assertiveRegion).toHaveTextContent("Urgent message");
 
       // Message should clear after timeout
       act(() => {
         vi.advanceTimersByTime(1000);
       });
 
-      expect(assertiveRegion).toHaveTextContent('');
+      expect(assertiveRegion).toHaveTextContent("");
     });
 
-    it('clears previous announcement when new one is made', () => {
+    it("clears previous announcement when new one is made", () => {
       render(
         <LiveAnnouncerProvider>
           <TestComponent />
-        </LiveAnnouncerProvider>
+        </LiveAnnouncerProvider>,
       );
 
-      const politeButton = screen.getByText('Announce Polite');
-      const politeRegion = screen.getByRole('status');
+      const politeButton = screen.getByText("Announce Polite");
+      const politeRegion = screen.getByRole("status");
 
       act(() => {
         politeButton.click();
       });
 
-      expect(politeRegion).toHaveTextContent('Test message');
+      expect(politeRegion).toHaveTextContent("Test message");
 
       act(() => {
         politeButton.click();
       });
 
       // Should still have the message (previous timeout cleared)
-      expect(politeRegion).toHaveTextContent('Test message');
+      expect(politeRegion).toHaveTextContent("Test message");
     });
   });
 });

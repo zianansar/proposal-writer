@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, it, expect, beforeEach } from "vitest";
+
 import { useOnboardingStore } from "../../stores/useOnboardingStore";
+
 import WelcomeStep from "./WelcomeStep";
 
 describe("WelcomeStep", () => {
@@ -11,15 +13,13 @@ describe("WelcomeStep", () => {
 
   it("displays welcome message", () => {
     render(<WelcomeStep />);
-    expect(
-      screen.getByText("Welcome to Upwork Research Agent!")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Welcome to Upwork Research Agent!")).toBeInTheDocument();
   });
 
   it("displays conversational explanation", () => {
     render(<WelcomeStep />);
     expect(
-      screen.getByText("This tool helps you write personalized proposals faster.")
+      screen.getByText("This tool helps you write personalized proposals faster."),
     ).toBeInTheDocument();
   });
 

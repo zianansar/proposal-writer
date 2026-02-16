@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { VoiceProfile } from './types';
+import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect } from "react";
+
+import type { VoiceProfile } from "./types";
 
 interface UseVoiceProfileResult {
   profile: VoiceProfile | null;
@@ -20,10 +21,10 @@ export function useVoiceProfile(): UseVoiceProfileResult {
       setError(null);
 
       // Call Tauri command from Story 5-5b
-      const result = await invoke<VoiceProfile | null>('get_voice_profile');
+      const result = await invoke<VoiceProfile | null>("get_voice_profile");
       setProfile(result);
     } catch (err) {
-      console.error('Failed to load voice profile:', err);
+      console.error("Failed to load voice profile:", err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
@@ -38,6 +39,6 @@ export function useVoiceProfile(): UseVoiceProfileResult {
     profile,
     loading,
     error,
-    refetch: fetchProfile
+    refetch: fetchProfile,
   };
 }

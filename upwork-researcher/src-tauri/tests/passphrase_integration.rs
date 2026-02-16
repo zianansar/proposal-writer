@@ -1,7 +1,7 @@
 //! Integration tests for passphrase and SQLCipher (Story 2.1, Task 7)
 
-use upwork_research_agent_lib::{db, passphrase};
 use tempfile::tempdir;
+use upwork_research_agent_lib::{db, passphrase};
 
 #[test]
 fn test_passphrase_to_sqlcipher_database_open() {

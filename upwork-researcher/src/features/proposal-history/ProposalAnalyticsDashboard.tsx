@@ -1,10 +1,10 @@
 // Analytics Dashboard component (Story 7.5)
-import { useAnalyticsSummary } from './useProposalAnalytics';
-import { OutcomeDistributionChart } from './OutcomeDistributionChart';
-import { StrategyPerformanceChart } from './StrategyPerformanceChart';
-import { WeeklyActivityChart } from './WeeklyActivityChart';
-import { formatLabel } from './OutcomeDropdown';
-import './ProposalAnalyticsDashboard.css';
+import { OutcomeDistributionChart } from "./OutcomeDistributionChart";
+import { formatLabel } from "./OutcomeDropdown";
+import { StrategyPerformanceChart } from "./StrategyPerformanceChart";
+import { useAnalyticsSummary } from "./useProposalAnalytics";
+import { WeeklyActivityChart } from "./WeeklyActivityChart";
+import "./ProposalAnalyticsDashboard.css";
 
 // CR R2 M-2: Accept optional onBack prop for reuse outside tab navigation
 interface ProposalAnalyticsDashboardProps {
@@ -54,7 +54,7 @@ export function ProposalAnalyticsDashboard({ onBack }: ProposalAnalyticsDashboar
 
   // Response rate color: >20% green, 10-20% yellow, <10% red
   const responseRateColor =
-    summary.responseRate > 20 ? '#4ade80' : summary.responseRate >= 10 ? '#fbbf24' : '#f87171';
+    summary.responseRate > 20 ? "#4ade80" : summary.responseRate >= 10 ? "#fbbf24" : "#f87171";
 
   return (
     <div className="analytics-dashboard">
@@ -77,7 +77,7 @@ export function ProposalAnalyticsDashboard({ onBack }: ProposalAnalyticsDashboar
         <div className="metric-card">
           <div className="metric-label">Best Strategy</div>
           <div className="metric-value-small">
-            {summary.bestStrategy ? formatLabel(summary.bestStrategy) : 'N/A'}
+            {summary.bestStrategy ? formatLabel(summary.bestStrategy) : "N/A"}
           </div>
           {summary.bestStrategy && (
             <div className="metric-subtitle">{summary.bestStrategyRate.toFixed(1)}%</div>

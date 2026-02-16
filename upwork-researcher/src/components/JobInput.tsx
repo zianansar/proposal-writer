@@ -80,11 +80,7 @@ function JobInput({ onJobContentChange, onInputTypeChange, value, error }: JobIn
       />
       {/* Story 8.3 AC8: Error message with role="alert" for immediate announcement */}
       {error && (
-        <div
-          id="job-content-error"
-          className="job-input__error"
-          role="alert"
-        >
+        <div id="job-content-error" className="job-input__error" role="alert">
           {error}
         </div>
       )}

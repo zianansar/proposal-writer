@@ -149,7 +149,9 @@ pub fn delete_key_from_keychain(key_name: &str) -> Result<(), EncryptionSpikeErr
 
 /// Measures key derivation time for UX validation
 /// Target: 200-500ms per architecture requirements
-pub fn measure_key_derivation_time(passphrase: &str) -> Result<std::time::Duration, EncryptionSpikeError> {
+pub fn measure_key_derivation_time(
+    passphrase: &str,
+) -> Result<std::time::Duration, EncryptionSpikeError> {
     let start = Instant::now();
     let _ = derive_key_from_passphrase(passphrase)?;
     Ok(start.elapsed())
@@ -172,8 +174,15 @@ pub enum EncryptionSpikeError {
 impl std::fmt::Display for EncryptionSpikeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::PassphraseTooShort { min_length, actual_length } => {
-                write!(f, "Passphrase too short: minimum {} characters, got {}", min_length, actual_length)
+            Self::PassphraseTooShort {
+                min_length,
+                actual_length,
+            } => {
+                write!(
+                    f,
+                    "Passphrase too short: minimum {} characters, got {}",
+                    min_length, actual_length
+                )
             }
             Self::KeyDerivationFailed(msg) => write!(f, "Key derivation failed: {}", msg),
             Self::InvalidSalt(msg) => write!(f, "Invalid salt: {}", msg),
@@ -214,7 +223,10 @@ mod tests {
 
         assert!(result.is_err(), "Should reject short passphrase");
         match result.unwrap_err() {
-            EncryptionSpikeError::PassphraseTooShort { min_length, actual_length } => {
+            EncryptionSpikeError::PassphraseTooShort {
+                min_length,
+                actual_length,
+            } => {
                 assert_eq!(min_length, MIN_PASSPHRASE_LENGTH);
                 assert_eq!(actual_length, 5);
             }
@@ -235,7 +247,10 @@ mod tests {
 
         let reproduced_key = derive_key_with_salt(passphrase, &salt).unwrap();
 
-        assert_eq!(original_key, reproduced_key, "Same passphrase + salt should produce same key");
+        assert_eq!(
+            original_key, reproduced_key,
+            "Same passphrase + salt should produce same key"
+        );
     }
 
     #[test]
@@ -243,7 +258,10 @@ mod tests {
         let (key1, _) = derive_key_from_passphrase("passphrase-one").unwrap();
         let (key2, _) = derive_key_from_passphrase("passphrase-two").unwrap();
 
-        assert_ne!(key1, key2, "Different passphrases should produce different keys");
+        assert_ne!(
+            key1, key2,
+            "Different passphrases should produce different keys"
+        );
     }
 
     #[test]
@@ -267,7 +285,10 @@ mod tests {
         // Log performance for monitoring
         let ideal_max = std::time::Duration::from_millis(2000);
         if duration > ideal_max {
-            eprintln!("PERF WARNING: Key derivation {:?} exceeds 2s ideal target", duration);
+            eprintln!(
+                "PERF WARNING: Key derivation {:?} exceeds 2s ideal target",
+                duration
+            );
         }
     }
 
@@ -311,7 +332,10 @@ mod tests {
         match entry2.get_password() {
             Ok(retrieved) => {
                 println!("✅ Retrieve succeeded");
-                assert_eq!(retrieved, key_value, "Retrieved value should match stored value");
+                assert_eq!(
+                    retrieved, key_value,
+                    "Retrieved value should match stored value"
+                );
             }
             Err(e) => {
                 // This is a known limitation in test environment, not a test failure

@@ -57,10 +57,7 @@ pub fn create_revision(
 }
 
 /// Get revision summaries for a proposal (newest first)
-pub fn get_revisions(
-    conn: &Connection,
-    proposal_id: i64,
-) -> Result<Vec<RevisionSummary>, String> {
+pub fn get_revisions(conn: &Connection, proposal_id: i64) -> Result<Vec<RevisionSummary>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, proposal_id, revision_type, restored_from_id, created_at,
@@ -356,8 +353,7 @@ mod tests {
         let proposal_id = conn.last_insert_rowid();
 
         // Test generation type
-        let gen_id =
-            create_revision(&conn, proposal_id, "Generated", "generation", None).unwrap();
+        let gen_id = create_revision(&conn, proposal_id, "Generated", "generation", None).unwrap();
         let gen_rev = get_revision(&conn, gen_id).unwrap();
         assert_eq!(gen_rev.revision_type, "generation");
 
@@ -507,14 +503,8 @@ mod tests {
             create_revision(&conn, proposal_id, "Original", "generation", None).unwrap();
 
         // Create restore revision
-        let restored_id = create_revision(
-            &conn,
-            proposal_id,
-            "Original",
-            "restore",
-            Some(original_id),
-        )
-        .unwrap();
+        let restored_id =
+            create_revision(&conn, proposal_id, "Original", "restore", Some(original_id)).unwrap();
 
         let restored = get_revision(&conn, restored_id).unwrap();
         assert_eq!(restored.revision_type, "restore");
@@ -556,8 +546,11 @@ mod tests {
     fn setup_test_db_with_archive() -> Connection {
         let conn = setup_test_db();
         // Add archived_revisions column
-        conn.execute("ALTER TABLE proposals ADD COLUMN archived_revisions BLOB", [])
-            .unwrap();
+        conn.execute(
+            "ALTER TABLE proposals ADD COLUMN archived_revisions BLOB",
+            [],
+        )
+        .unwrap();
         conn
     }
 
@@ -782,7 +775,8 @@ mod tests {
 
         // Create exactly 5 revisions (at threshold)
         for i in 1..=5 {
-            let id = create_revision(&conn, proposal_id, &format!("Rev {}", i), "edit", None).unwrap();
+            let id =
+                create_revision(&conn, proposal_id, &format!("Rev {}", i), "edit", None).unwrap();
             conn.execute(
                 "UPDATE proposal_revisions SET created_at = datetime(?) WHERE id = ?",
                 params![format!("2024-01-01 {:02}:00:00", i), id],
@@ -837,7 +831,8 @@ mod tests {
 
         // Create 5 revisions
         for i in 1..=5 {
-            let id = create_revision(&conn, proposal_id, &format!("Rev {}", i), "edit", None).unwrap();
+            let id =
+                create_revision(&conn, proposal_id, &format!("Rev {}", i), "edit", None).unwrap();
             conn.execute(
                 "UPDATE proposal_revisions SET created_at = datetime(?) WHERE id = ?",
                 params![format!("2024-01-01 {:02}:00:00", i), id],

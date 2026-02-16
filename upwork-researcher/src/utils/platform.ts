@@ -29,10 +29,7 @@ export function getShiftKey(): string {
  * @param modifiers - Array of modifiers ('cmd', 'shift', 'alt')
  * @returns Formatted shortcut string (e.g., '⌘B' or 'Ctrl+B')
  */
-export function formatShortcut(
-  key: string,
-  modifiers: string[] = ["cmd"]
-): string {
+export function formatShortcut(key: string, modifiers: string[] = ["cmd"]): string {
   const parts: string[] = [];
   const mac = isMac();
 

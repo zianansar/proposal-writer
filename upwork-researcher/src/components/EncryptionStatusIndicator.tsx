@@ -12,10 +12,7 @@ interface EncryptionStatusIndicatorProps {
   onOpenDetails: () => void;
 }
 
-function EncryptionStatusIndicator({
-  status,
-  onOpenDetails,
-}: EncryptionStatusIndicatorProps) {
+function EncryptionStatusIndicator({ status, onOpenDetails }: EncryptionStatusIndicatorProps) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const handleMouseEnter = useCallback(() => {
@@ -38,7 +35,7 @@ function EncryptionStatusIndicator({
         onOpenDetails();
       }
     },
-    [onOpenDetails]
+    [onOpenDetails],
   );
 
   // Show tooltip on focus for screen readers

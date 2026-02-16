@@ -74,7 +74,9 @@
   border-radius: var(--radius-md, 6px);
   color: var(--color-text-primary, #e0e0e0);
   font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .passphrase-unlock-input-wrapper .passphrase-unlock-input {
@@ -107,7 +109,9 @@
   color: var(--color-text-secondary, #a0a0a0);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  transition: color 0.2s, border-color 0.2s;
+  transition:
+    color 0.2s,
+    border-color 0.2s;
 }
 
 .passphrase-unlock-toggle:hover {
@@ -199,7 +203,9 @@
 .passphrase-unlock-strength-bar {
   height: 4px;
   border-radius: 2px;
-  transition: width 0.3s, background-color 0.3s;
+  transition:
+    width 0.3s,
+    background-color 0.3s;
   flex: 1;
 }
 
@@ -209,4 +215,3 @@
   min-width: 4rem;
   text-align: right;
 }
-

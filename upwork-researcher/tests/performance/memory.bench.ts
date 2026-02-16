@@ -7,20 +7,23 @@
 // Skipped until Story 8.9 (E2E Test Suite) provides the Playwright + Tauri
 // integration harness needed to run these benchmarks against a live app.
 
-import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { NFR_THRESHOLDS, BENCHMARK_CONFIG } from './config';
-import { getMemoryUsage, bytesToMB } from './helpers/memory';
-import { seedDatabase, clearDatabase } from './helpers/dbSeeder';
+import { describe, it, expect, beforeAll, vi } from "vitest";
+
+import { NFR_THRESHOLDS, BENCHMARK_CONFIG } from "./config";
+import { seedDatabase, clearDatabase } from "./helpers/dbSeeder";
+import { getMemoryUsage, bytesToMB } from "./helpers/memory";
 
 // Mock @tauri-apps/api/core since invoke() is not available in Vitest/Node.
 // These benchmarks need the actual Tauri runtime to produce meaningful results.
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn().mockRejectedValue(
-    new Error('Tauri invoke() not available in Vitest - requires Tauri runtime')
-  ),
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi
+    .fn()
+    .mockRejectedValue(
+      new Error("Tauri invoke() not available in Vitest - requires Tauri runtime"),
+    ),
 }));
 
-describe.skip('NFR-2: Memory Usage', () => {
+describe.skip("NFR-2: Memory Usage", () => {
   // Skipped: Requires Tauri runtime + running app for meaningful memory measurement.
   // The memory helpers (getMemoryUsage) call invoke('get_memory_usage') which needs
   // the Rust backend. The interaction tests need Playwright for UI operations.
@@ -29,7 +32,7 @@ describe.skip('NFR-2: Memory Usage', () => {
     await clearDatabase();
   });
 
-  it('stays under 200MB at idle', async () => {
+  it("stays under 200MB at idle", async () => {
     const snapshot = await getMemoryUsage();
     const memoryMB = bytesToMB(snapshot.rssBytes);
 
@@ -38,7 +41,7 @@ describe.skip('NFR-2: Memory Usage', () => {
     expect(memoryMB).toBeLessThan(NFR_THRESHOLDS.MEMORY_IDLE_MB);
   });
 
-  it('stays under 300MB after loading 500 proposals', async () => {
+  it("stays under 300MB after loading 500 proposals", async () => {
     await seedDatabase({ proposals: BENCHMARK_CONFIG.SEED_PROPOSAL_COUNT });
 
     // TODO: Requires Playwright integration from Story 8.9
@@ -54,7 +57,7 @@ describe.skip('NFR-2: Memory Usage', () => {
     expect(memoryMB).toBeLessThan(NFR_THRESHOLDS.MEMORY_PEAK_MB);
   });
 
-  it('does not leak memory during scrolling', async () => {
+  it("does not leak memory during scrolling", async () => {
     // TODO: Requires Playwright integration from Story 8.9
     // Need scrollToBottom() and scrollToTop() helpers that interact with
     // the actual app UI via Playwright. These should scroll the proposal
@@ -71,11 +74,11 @@ describe.skip('NFR-2: Memory Usage', () => {
     //   }
 
     // Placeholder: measureMemoryDelta needs real app interaction
-    console.log('[PERF] Memory leak test requires Playwright E2E harness (Story 8.9)');
+    console.log("[PERF] Memory leak test requires Playwright E2E harness (Story 8.9)");
     expect(true).toBe(true); // Placeholder assertion
   });
 
-  it('measures baseline memory usage', async () => {
+  it("measures baseline memory usage", async () => {
     const snapshot = await getMemoryUsage();
     const memoryMB = bytesToMB(snapshot.rssBytes);
 

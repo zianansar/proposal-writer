@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
+import { create } from "zustand";
 
 /** Setting entry from database */
 interface Setting {
@@ -35,63 +35,61 @@ const initialState: SettingsState = {
   isInitialized: false,
 };
 
-export const useSettingsStore = create<SettingsState & SettingsActions>(
-  (set, get) => ({
-    ...initialState,
+export const useSettingsStore = create<SettingsState & SettingsActions>((set, get) => ({
+  ...initialState,
 
-    loadSettings: async () => {
-      set({ isLoading: true, error: null });
+  loadSettings: async () => {
+    set({ isLoading: true, error: null });
 
-      try {
-        const settings = await invoke<Setting[]>("get_all_settings");
+    try {
+      const settings = await invoke<Setting[]>("get_all_settings");
 
-        // Convert array to map
-        const settingsMap: Record<string, string> = {};
-        for (const setting of settings) {
-          settingsMap[setting.key] = setting.value;
-        }
-
-        set({
-          settings: settingsMap,
-          isLoading: false,
-          isInitialized: true,
-        });
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        set({
-          error: errorMessage,
-          isLoading: false,
-          isInitialized: true,
-        });
+      // Convert array to map
+      const settingsMap: Record<string, string> = {};
+      for (const setting of settings) {
+        settingsMap[setting.key] = setting.value;
       }
-    },
 
-    setSetting: async (key: string, value: string) => {
-      const previousValue = get().settings[key];
+      set({
+        settings: settingsMap,
+        isLoading: false,
+        isInitialized: true,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      set({
+        error: errorMessage,
+        isLoading: false,
+        isInitialized: true,
+      });
+    }
+  },
 
-      // Optimistic update and clear any previous error
+  setSetting: async (key: string, value: string) => {
+    const previousValue = get().settings[key];
+
+    // Optimistic update and clear any previous error
+    set((state) => ({
+      settings: { ...state.settings, [key]: value },
+      error: null,
+    }));
+
+    try {
+      await invoke("set_setting", { key, value });
+    } catch (err) {
+      // Revert on error
       set((state) => ({
-        settings: { ...state.settings, [key]: value },
-        error: null,
+        settings: { ...state.settings, [key]: previousValue },
+        error: err instanceof Error ? err.message : String(err),
       }));
+      throw err; // Re-throw so caller knows it failed
+    }
+  },
 
-      try {
-        await invoke("set_setting", { key, value });
-      } catch (err) {
-        // Revert on error
-        set((state) => ({
-          settings: { ...state.settings, [key]: previousValue },
-          error: err instanceof Error ? err.message : String(err),
-        }));
-        throw err; // Re-throw so caller knows it failed
-      }
-    },
-
-    getSetting: (key: string) => {
-      return get().settings[key];
-    },
-  })
-);
+  getSetting: (key: string) => {
+    return get().settings[key];
+  },
+}));
 
 // Selector helpers for typed access
 export const getTheme = (state: SettingsState): "dark" | "light" => {
@@ -119,4 +117,24 @@ export const getHumanizationIntensity = (state: SettingsState): HumanizationInte
     return value;
   }
   return "medium"; // Default (AC6)
+};
+
+/** Auto-update enabled flag (Story 9.7 Task 2.1). Defaults to true. */
+export const getAutoUpdateEnabled = (state: SettingsState): boolean => {
+  const value = state.settings.auto_update_enabled;
+  // Default to true if not set
+  if (value === undefined || value === null || value === '') {
+    return true;
+  }
+  return value === "true";
+};
+
+/** Skipped version (Story 9.7 Task 2.2). Defaults to empty string. */
+export const getSkippedVersion = (state: SettingsState): string => {
+  return state.settings.skipped_version || "";
+};
+
+/** Last update check timestamp (Story 9.7 Task 2.3). Defaults to empty string. */
+export const getLastUpdateCheck = (state: SettingsState): string => {
+  return state.settings.last_update_check || "";
 };

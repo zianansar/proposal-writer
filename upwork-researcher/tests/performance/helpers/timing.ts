@@ -20,7 +20,7 @@ export async function measureTiming(
   name: string,
   fn: () => Promise<void>,
   threshold: number,
-  iterations: number = 5
+  iterations: number = 5,
 ): Promise<TimingResult> {
   const timings: number[] = [];
 
@@ -38,7 +38,7 @@ export async function measureTiming(
   const passed = median <= threshold;
 
   console.log(
-    `[PERF] ${name}: ${median.toFixed(1)}ms ${passed ? '✓' : '✗'} (threshold: ${threshold}ms)`
+    `[PERF] ${name}: ${median.toFixed(1)}ms ${passed ? "✓" : "✗"} (threshold: ${threshold}ms)`,
   );
 
   return {
@@ -57,7 +57,7 @@ export async function measureTiming(
 export function assertTiming(result: TimingResult): void {
   if (!result.passed) {
     throw new Error(
-      `Performance threshold exceeded: ${result.name} took ${result.durationMs.toFixed(1)}ms (threshold: ${result.threshold}ms)`
+      `Performance threshold exceeded: ${result.name} took ${result.durationMs.toFixed(1)}ms (threshold: ${result.threshold}ms)`,
     );
   }
 }

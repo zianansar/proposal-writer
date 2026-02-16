@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
 import { useOnboardingStore } from "../../stores/useOnboardingStore";
+
 import VoiceCalibrationStep from "./VoiceCalibrationStep";
 
 // Mock GoldenSetUpload to avoid Tauri API calls in tests
@@ -16,11 +18,7 @@ vi.mock("../../features/voice-learning", () => ({
 
 // Wrapper for components that use react-router
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(
-    <MemoryRouter>
-      {ui}
-    </MemoryRouter>
-  );
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
 };
 
 describe("VoiceCalibrationStep", () => {
@@ -30,32 +28,20 @@ describe("VoiceCalibrationStep", () => {
 
   it("displays voice calibration heading with optional label", () => {
     renderWithRouter(<VoiceCalibrationStep />);
-    expect(
-      screen.getByText("Voice Calibration (Optional)")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Voice Calibration (Optional)")).toBeInTheDocument();
   });
 
   it("displays both upload and questionnaire options", () => {
     renderWithRouter(<VoiceCalibrationStep />);
-    expect(
-      screen.getByText("Option 1: Upload Past Proposals")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Option 2: Quick Questionnaire")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Option 1: Upload Past Proposals")).toBeInTheDocument();
+    expect(screen.getByText("Option 2: Quick Questionnaire")).toBeInTheDocument();
   });
 
   it("shows option hints and questionnaire coming soon placeholder", () => {
     renderWithRouter(<VoiceCalibrationStep />);
-    expect(
-      screen.getByText(/Upload 3-5 of your best proposals/)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Answer 5 questions about your approach/)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Coming soon/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Upload 3-5 of your best proposals/)).toBeInTheDocument();
+    expect(screen.getByText(/Answer 5 questions about your approach/)).toBeInTheDocument();
+    expect(screen.getByText(/Coming soon/)).toBeInTheDocument();
   });
 
   it("has Skip for now button prominently displayed", () => {

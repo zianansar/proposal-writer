@@ -1,54 +1,74 @@
-import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event"; // Story 2-7b
-import JobInput from "./components/JobInput";
-import AnalyzeButton from "./components/AnalyzeButton";
+import { useState, useEffect, useRef, useCallback } from "react";
+
 import AnalysisProgress from "./components/AnalysisProgress"; // Story 4a.6
 import type { AnalysisStage } from "./components/AnalysisProgress"; // Story 4a.6
-import JobAnalysisPanel from "./components/JobAnalysisPanel"; // Story 4a.7
-import HookStrategySelector from "./components/HookStrategySelector"; // Story 5.2
-import GenerateButton from "./components/GenerateButton";
-import ProposalOutput from "./components/ProposalOutput";
-import Navigation from "./components/Navigation";
+import AnalyzeButton from "./components/AnalyzeButton";
 // TODO: Old HistoryList replaced by ProposalHistoryList (Story 7.4 AC-7)
 // import HistoryList from "./components/HistoryList";
-import { ProposalHistoryList, ProposalDetailView, ProposalAnalyticsDashboard } from "./features/proposal-history";
 import ApiKeySetup from "./components/ApiKeySetup";
-import ExportButton from "./components/ExportButton";
+import { AutoUpdateNotification } from "./components/AutoUpdateNotification"; // Story 9.7
+import { DatabaseMigration } from "./components/DatabaseMigration";
 import DraftRecoveryModal from "./components/DraftRecoveryModal";
+import EncryptionDetailsModal from "./components/EncryptionDetailsModal";
+import EncryptionStatusIndicator from "./components/EncryptionStatusIndicator";
+import type { EncryptionStatus } from "./components/EncryptionStatusIndicator";
+import ExportButton from "./components/ExportButton";
+import GenerateButton from "./components/GenerateButton";
+import HookStrategySelector from "./components/HookStrategySelector"; // Story 5.2
+import JobAnalysisPanel from "./components/JobAnalysisPanel"; // Story 4a.7
+import JobInput from "./components/JobInput";
+import { LiveAnnouncerProvider, useAnnounce } from "./components/LiveAnnouncer"; // Story 8.3
+import { MandatoryUpdateDialog } from "./components/MandatoryUpdateDialog"; // Story 9.8
+import { MigrationVerification } from "./components/MigrationVerification";
+import Navigation from "./components/Navigation";
 import OnboardingWizard from "./components/OnboardingWizard";
-import SettingsPanel from "./components/SettingsPanel";
+import OverrideConfirmDialog from "./components/OverrideConfirmDialog";
 import PassphraseEntry from "./components/PassphraseEntry";
 import PassphraseUnlock from "./components/PassphraseUnlock"; // Story 2-7b
-import SkipLink from "./components/SkipLink"; // Story 8.2
-import { LiveAnnouncerProvider, useAnnounce } from "./components/LiveAnnouncer"; // Story 8.3
 import { PreMigrationBackup } from "./components/PreMigrationBackup";
-import { DatabaseMigration } from "./components/DatabaseMigration";
-import { MigrationVerification } from "./components/MigrationVerification";
+import ProposalOutput from "./components/ProposalOutput";
+import RecoveryOptions from "./components/RecoveryOptions";
 import SafetyWarningModal from "./components/SafetyWarningModal";
-import OverrideConfirmDialog from "./components/OverrideConfirmDialog";
+import SettingsPanel from "./components/SettingsPanel";
+import SkipLink from "./components/SkipLink"; // Story 8.2
 import ThresholdAdjustmentNotification, {
   ThresholdSuggestion,
 } from "./components/ThresholdAdjustmentNotification";
-import EncryptionStatusIndicator from "./components/EncryptionStatusIndicator";
-import type { EncryptionStatus } from "./components/EncryptionStatusIndicator";
-import EncryptionDetailsModal from "./components/EncryptionDetailsModal";
-import RecoveryOptions from "./components/RecoveryOptions";
-import { useGenerationStore, getStreamedText } from "./stores/useGenerationStore";
-import { useSettingsStore, getHumanizationIntensity } from "./stores/useSettingsStore";
-import { useOnboardingStore } from "./stores/useOnboardingStore";
+import {
+  ProposalHistoryList,
+  ProposalDetailView,
+  ProposalAnalyticsDashboard,
+} from "./features/proposal-history";
 import { useGenerationStream } from "./hooks/useGenerationStream";
-import { useRehumanization } from "./hooks/useRehumanization";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useSafeCopy } from "./hooks/useSafeCopy";
 import { useNetworkBlockedNotification } from "./hooks/useNetworkBlockedNotification"; // Story 8.13 Task 4.3
+import { useRehumanization } from "./hooks/useRehumanization";
+import { useSafeCopy } from "./hooks/useSafeCopy";
+import { useUpdater } from "./hooks/useUpdater"; // Story 9.8
+import { useGenerationStore, getStreamedText } from "./stores/useGenerationStore";
+import { useOnboardingStore } from "./stores/useOnboardingStore";
+import {
+  useSettingsStore,
+  getHumanizationIntensity,
+  getAutoUpdateEnabled, // Story 9.7
+  getSkippedVersion, // Story 9.7
+} from "./stores/useSettingsStore";
 import type { PerplexityAnalysis } from "./types/perplexity";
 import { DEFAULT_PERPLEXITY_THRESHOLD } from "./types/perplexity";
 import "./styles/tokens.css";
 import "./App.css";
 
 type View = "generate" | "history" | "settings" | "proposal-detail" | "analytics";
-type MigrationPhase = "idle" | "recovery-options" | "backup" | "migration" | "verification" | "complete" | "failed";
+type MigrationPhase =
+  | "idle"
+  | "recovery-options"
+  | "backup"
+  | "migration"
+  | "verification"
+  | "complete"
+  | "failed";
 
 function AppContent() {
   // Story 8.3 AC3: Live region announcements for status updates
@@ -84,6 +104,10 @@ function AppContent() {
   // Threshold adjustment notification state (Story 3.7)
   const [thresholdSuggestion, setThresholdSuggestion] = useState<ThresholdSuggestion | null>(null);
 
+  // Story 9.7: Auto-update settings
+  const autoUpdateEnabled = useSettingsStore(getAutoUpdateEnabled);
+  const skippedVersion = useSettingsStore(getSkippedVersion);
+
   // Perplexity analysis state (Stories 3.1 + 3.2 integration)
   const [perplexityAnalysis, setPerplexityAnalysis] = useState<PerplexityAnalysis | null>(null);
   // Track which fullText was already analyzed to prevent re-analysis after modal dismissal
@@ -96,6 +120,69 @@ function AppContent() {
 
   // Story 8.13 Task 4.3: Network blocked notification
   const networkBlockedToast = useNetworkBlockedNotification();
+
+  // Story 9.8: Mandatory critical update enforcement
+  // Story 9.7 & 9.8: Auto-updater with UI notification support
+  const {
+    pendingCriticalUpdate, // Story 9.8
+    updateInfo,
+    downloadAndInstall,
+    retryDownload, // Story 9.8
+    relaunchApp,
+    isDownloading,
+    error: updaterError,
+    updateAvailable, // Story 9.7
+    downloadProgress, // Story 9.7
+    isDownloaded, // Story 9.7
+    clearError, // Story 9.7
+    cancelDownload, // Story 9.7
+  } = useUpdater({
+    autoCheckEnabled: autoUpdateEnabled,
+    skippedVersion,
+  });
+
+  // Story 9.7: Auto-update notification handlers
+  const handleUpdateNow = useCallback(async () => {
+    try {
+      await downloadAndInstall();
+    } catch (err) {
+      console.error("Failed to download update:", err);
+    }
+  }, [downloadAndInstall]);
+
+  const handleUpdateLater = useCallback(() => {
+    // User dismissed the toast - notification will auto-dismiss
+  }, []);
+
+  const handleSkipVersion = useCallback(async () => {
+    if (updateInfo) {
+      try {
+        await invoke("set_setting", {
+          key: "skipped_version",
+          value: updateInfo.version,
+        });
+      } catch (err) {
+        console.error("Failed to skip version:", err);
+      }
+    }
+  }, [updateInfo]);
+
+  const handleRestart = useCallback(async () => {
+    try {
+      await relaunchApp();
+    } catch (err) {
+      console.error("Failed to restart app:", err);
+    }
+  }, [relaunchApp]);
+
+  const handleRemindLater = useCallback(() => {
+    // User dismissed restart dialog - will be prompted again later
+  }, []);
+
+  const handleCancelDownload = useCallback(() => {
+    cancelDownload();
+    clearError();
+  }, [cancelDownload, clearError]);
 
   // Streaming state from Zustand store
   const {
@@ -134,7 +221,9 @@ function AppContent() {
 
   // Story 4b.2: Skills match percentage state
   const [skillsMatchPercentage, setSkillsMatchPercentage] = useState<number | null>(null);
-  const [skillsMatchReason, setSkillsMatchReason] = useState<'no-user-skills' | 'no-job-skills' | null>(null);
+  const [skillsMatchReason, setSkillsMatchReason] = useState<
+    "no-user-skills" | "no-job-skills" | null
+  >(null);
 
   // Story 4b.3: Client quality score state
   const [clientQualityScore, setClientQualityScore] = useState<number | null>(null);
@@ -201,34 +290,26 @@ function AppContent() {
   const { setShowOnboarding } = useOnboardingStore();
 
   // Re-humanization hook (Story 3.4)
-  const {
-    attemptCount,
-    previousScore,
-    isRegenerating,
-    handleRegenerate,
-    resetAttempts,
-  } = useRehumanization(jobContent, humanizationIntensity, perplexityAnalysis?.score, {
-    // L1 fix (Review 3): Second param `analysis` unused - we only need the text since
-    // score is now passing (< threshold), so we close modal rather than display analysis
-    onSuccess: (text) => {
-      setPerplexityAnalysis(null);
-      useGenerationStore.getState().setComplete(text);
-    },
-    onAnalysisComplete: (analysis) => {
-      // Regeneration done but still failing - update modal with new score
-      setPerplexityAnalysis(analysis);
-    },
-    onFailure: (error) => {
-      console.error("Regeneration failed:", error);
-      useGenerationStore.getState().setError(error);
-    },
-  });
+  const { attemptCount, previousScore, isRegenerating, handleRegenerate, resetAttempts } =
+    useRehumanization(jobContent, humanizationIntensity, perplexityAnalysis?.score, {
+      // L1 fix (Review 3): Second param `analysis` unused - we only need the text since
+      // score is now passing (< threshold), so we close modal rather than display analysis
+      onSuccess: (text) => {
+        setPerplexityAnalysis(null);
+        useGenerationStore.getState().setComplete(text);
+      },
+      onAnalysisComplete: (analysis) => {
+        // Regeneration done but still failing - update modal with new score
+        setPerplexityAnalysis(analysis);
+      },
+      onFailure: (error) => {
+        console.error("Regeneration failed:", error);
+        useGenerationStore.getState().setError(error);
+      },
+    });
 
   // Story 3.9: Safe copy hook for keyboard shortcut-triggered copies
-  const {
-    state: safeCopyState,
-    actions: safeCopyActions,
-  } = useSafeCopy();
+  const { state: safeCopyState, actions: safeCopyActions } = useSafeCopy();
 
   // Load settings and check for API key on startup
   useEffect(() => {
@@ -325,7 +406,15 @@ function AppContent() {
         });
 
       // Wait for all to complete
-      await Promise.all([settingsPromise, apiKeyPromise, draftPromise, encryptionPromise, cooldownPromise, learningPromise, decreasePromise]);
+      await Promise.all([
+        settingsPromise,
+        apiKeyPromise,
+        draftPromise,
+        encryptionPromise,
+        cooldownPromise,
+        learningPromise,
+        decreasePromise,
+      ]);
       setCheckingApiKey(false);
 
       // Check for first launch ONLY if API key is configured (Review Fix: #1, #2, #8)
@@ -513,7 +602,9 @@ function AppContent() {
   // Handler for migration completion (Story 2.3, Subtask 10.4)
   const handleMigrationComplete = useCallback((metadata: any) => {
     if (import.meta.env.DEV) {
-      console.log(`[Migration] Complete: ${metadata.proposalsMigrated} proposals, ${metadata.settingsMigrated} settings, ${metadata.jobPostsMigrated} job posts migrated in ${metadata.durationMs}ms`);
+      console.log(
+        `[Migration] Complete: ${metadata.proposalsMigrated} proposals, ${metadata.settingsMigrated} settings, ${metadata.jobPostsMigrated} job posts migrated in ${metadata.durationMs}ms`,
+      );
     }
     // Story 2.4, Subtask 7.2: Proceed to verification UI
     setMigrationPhase("verification");
@@ -593,7 +684,7 @@ function AppContent() {
 
       // Story 8.3 AC3: Announce successful generation
       if (!isStreaming) {
-        announce('Proposal generated successfully');
+        announce("Proposal generated successfully");
       }
     }
   }, [fullText, streamError, isStreaming, announce]);
@@ -601,16 +692,16 @@ function AppContent() {
   // Story 8.3 AC3: Announce errors assertively
   useEffect(() => {
     if (streamError) {
-      announce(`Error: ${streamError}`, 'assertive');
+      announce(`Error: ${streamError}`, "assertive");
     }
   }, [streamError, announce]);
 
   // Story 8.3 AC7: Announce job analysis status updates
   useEffect(() => {
-    if (analysisStage === 'complete') {
-      announce('Job analysis complete');
-    } else if (analysisStage === 'error' && analysisError) {
-      announce(`Analysis error: ${analysisError}`, 'assertive');
+    if (analysisStage === "complete") {
+      announce("Job analysis complete");
+    } else if (analysisStage === "error" && analysisError) {
+      announce(`Analysis error: ${analysisError}`, "assertive");
     }
   }, [analysisStage, analysisError, announce]);
 
@@ -715,14 +806,11 @@ function AppContent() {
 
     try {
       // Story 4a.8: Save job post first to get ID for analysis
-      const saveResult = await invoke<{ id: number; saved: boolean }>(
-        "save_job_post",
-        {
-          jobContent: jobContent,
-          url: detectedUrl,
-          clientName: null, // Will be updated by analysis
-        }
-      );
+      const saveResult = await invoke<{ id: number; saved: boolean }>("save_job_post", {
+        jobContent: jobContent,
+        url: detectedUrl,
+        clientName: null, // Will be updated by analysis
+      });
 
       const jobPostId = saveResult.id;
       setJobPostId(jobPostId); // Story 4b.6: Store for scoring breakdown
@@ -735,13 +823,10 @@ function AppContent() {
         hiddenNeeds: Array<{ need: string; evidence: string }>;
         wasTruncated: boolean; // Story 4a.9: AC-3 - truncation flag
         clientQualityScore: number | null; // Story 4b.3: Client quality score
-      }>(
-        "analyze_job_post",
-        {
-          rawContent: jobContent,
-          jobPostId: jobPostId, // Story 4a.8: Pass ID for atomic save
-        }
-      );
+      }>("analyze_job_post", {
+        rawContent: jobContent,
+        jobPostId: jobPostId, // Story 4a.8: Pass ID for atomic save
+      });
 
       // Story 4a.6 AC-3: Clear extracting timer (may not have fired yet for fast responses)
       if (extractingTimerRef.current) {
@@ -758,18 +843,17 @@ function AppContent() {
 
       // Story 4b.2: Calculate skills match after analysis completes
       try {
-        const matchResult = await invoke<number | null>(
-          "calculate_and_store_skills_match",
-          { jobPostId: jobPostId }
-        );
+        const matchResult = await invoke<number | null>("calculate_and_store_skills_match", {
+          jobPostId: jobPostId,
+        });
         setSkillsMatchPercentage(matchResult);
         // Determine reason for null: check if user has skills configured
         if (matchResult === null) {
           const userSkills = await invoke<Array<{ id: number; skill: string }>>("get_user_skills");
           if (userSkills.length === 0) {
-            setSkillsMatchReason('no-user-skills');
+            setSkillsMatchReason("no-user-skills");
           } else if ((result.keySkills || []).length === 0) {
-            setSkillsMatchReason('no-job-skills');
+            setSkillsMatchReason("no-job-skills");
           } else {
             setSkillsMatchReason(null);
           }
@@ -832,7 +916,7 @@ function AppContent() {
     resetAttempts();
 
     // Story 8.3 AC3: Announce generation start
-    announce('Generating proposal...');
+    announce("Generating proposal...");
 
     try {
       // Ensure event listeners are registered before invoking
@@ -879,12 +963,9 @@ function AppContent() {
   };
 
   // Story 4a.1: Handle input type detection
-  const handleInputTypeChange = useCallback(
-    (_type: "url" | "text" | null, url: string | null) => {
-      setDetectedUrl(url);
-    },
-    []
-  );
+  const handleInputTypeChange = useCallback((_type: "url" | "text" | null, url: string | null) => {
+    setDetectedUrl(url);
+  }, []);
 
   // Story 1.13: Save job for later when API fails
   const handleSaveForLater = async () => {
@@ -915,15 +996,9 @@ function AppContent() {
   // Story 3.9: Keyboard shortcuts
   // Compute whether actions are allowed
   const canGenerate =
-    activeView === "generate" &&
-    jobContent.trim() !== "" &&
-    !isStreaming &&
-    cooldownRemaining <= 0;
+    activeView === "generate" && jobContent.trim() !== "" && !isStreaming && cooldownRemaining <= 0;
 
-  const canCopy =
-    !!fullText &&
-    !isStreaming &&
-    !safeCopyState.analyzing;
+  const canCopy = !!fullText && !isStreaming && !safeCopyState.analyzing;
 
   useKeyboardShortcuts({
     onGenerate: handleGenerate,
@@ -942,10 +1017,14 @@ function AppContent() {
   const displayError = inputError || streamError;
 
   // Show streamed text while streaming, or full text when complete
-  const displayText = isStreaming ? streamedText : (fullText || streamedText);
+  const displayText = isStreaming ? streamedText : fullText || streamedText;
 
   // Story 4a.7: Derived state for panel visibility
-  const hasAnalysisResults = clientName !== null || keySkills.length > 0 || hiddenNeeds.length > 0 || clientQualityScore !== null;
+  const hasAnalysisResults =
+    clientName !== null ||
+    keySkills.length > 0 ||
+    hiddenNeeds.length > 0 ||
+    clientQualityScore !== null;
 
   // Show loading while checking API key
   if (checkingApiKey) {
@@ -954,6 +1033,42 @@ function AppContent() {
         <h1>Upwork Research Agent</h1>
         <div className="api-key-setup__loading">Loading...</div>
       </main>
+    );
+  }
+
+  // Story 9.8 AC-3: Block all app functionality for critical updates
+  // This must be checked FIRST, before any other UI renders
+  if (pendingCriticalUpdate && updateInfo) {
+    const handleUpdateNow = async () => {
+      try {
+        await downloadAndInstall();
+        // AC-2: Automatic restart after download completes
+        await relaunchApp();
+      } catch (_error) {
+        // Error is tracked in updaterError state, retry button will appear
+        // Silent catch - error displayed in UI
+      }
+    };
+
+    const handleRetry = async () => {
+      try {
+        await retryDownload();
+        await relaunchApp();
+      } catch (_error) {
+        // Error is tracked in updaterError state
+        // Silent catch - error displayed in UI
+      }
+    };
+
+    return (
+      <MandatoryUpdateDialog
+        updateInfo={updateInfo}
+        onUpdateNow={handleUpdateNow}
+        onRetry={handleRetry}
+        downloadProgress={null} // Detailed progress not exposed by hook, use isDownloading instead
+        downloadError={updaterError}
+        isDownloading={isDownloading}
+      />
     );
   }
 
@@ -1003,9 +1118,7 @@ function AppContent() {
     return (
       <div className="container">
         <h1>Database Migration</h1>
-        <p style={{ textAlign: "center", color: "#a0a0a0" }}>
-          Migrating to encrypted database...
-        </p>
+        <p style={{ textAlign: "center", color: "#a0a0a0" }}>Migrating to encrypted database...</p>
         <DatabaseMigration
           passphrase={migrationPassphrase}
           backupPath={backupFilePath}
@@ -1021,10 +1134,7 @@ function AppContent() {
   // This runs AFTER migration is complete
   if (migrationPhase === "verification") {
     return (
-      <MigrationVerification
-        onDeleteDatabase={handleDeleteDatabase}
-        onKeepBoth={handleKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={handleDeleteDatabase} onKeepBoth={handleKeepBoth} />
     );
   }
 
@@ -1042,31 +1152,54 @@ function AppContent() {
     <>
       {/* Story 8.2: Skip link for keyboard navigation */}
       <SkipLink />
+      {/* Story 9.7: Auto-update notification UI */}
+      <AutoUpdateNotification
+        updateAvailable={updateAvailable && !pendingCriticalUpdate}
+        updateInfo={updateInfo}
+        downloadProgress={downloadProgress}
+        isDownloading={isDownloading}
+        isDownloaded={isDownloaded}
+        onUpdateNow={handleUpdateNow}
+        onLater={handleUpdateLater}
+        onSkip={handleSkipVersion}
+        onRestart={handleRestart}
+        onRemindLater={handleRemindLater}
+        onCancel={handleCancelDownload}
+      />
       {/* Story 8.13 Task 4.3: Network blocked notification toast */}
       {networkBlockedToast && (
         <div
           role="alert"
           aria-live="assertive"
           style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            backgroundColor: '#dc3545',
-            color: 'white',
-            padding: '16px 24px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            position: "fixed",
+            top: "20px",
+            right: "20px",
+            backgroundColor: "#dc3545",
+            color: "white",
+            padding: "16px 24px",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
             zIndex: 9999,
-            maxWidth: '400px',
-            fontSize: '14px',
-            lineHeight: '1.5',
+            maxWidth: "400px",
+            fontSize: "14px",
+            lineHeight: "1.5",
           }}
         >
           <strong>⚠️ Blocked Network Request</strong>
-          <div style={{ marginTop: '8px' }}>
-            Unauthorized domain: <code style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '4px' }}>{networkBlockedToast.domain}</code>
+          <div style={{ marginTop: "8px" }}>
+            Unauthorized domain:{" "}
+            <code
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                padding: "2px 6px",
+                borderRadius: "4px",
+              }}
+            >
+              {networkBlockedToast.domain}
+            </code>
           </div>
-          <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.9 }}>
+          <div style={{ marginTop: "8px", fontSize: "12px", opacity: 0.9 }}>
             Only requests to api.anthropic.com are allowed for security.
           </div>
         </div>
@@ -1086,263 +1219,252 @@ function AppContent() {
 
         {/* Story 8.3: Semantic main landmark (AC5) */}
         <main role="main" id="main-content">
+          {/* Story 8.3: Tabpanel for generate view */}
+          <div
+            id="generate-panel"
+            role="tabpanel"
+            aria-labelledby="generate-tab"
+            hidden={activeView !== "generate"}
+          >
+            {activeView === "generate" && (
+              <>
+                <h2 className="sr-only">Generate Proposal</h2>
+                <JobInput
+                  onJobContentChange={setJobContent}
+                  onInputTypeChange={handleInputTypeChange}
+                  value={jobContent}
+                  error={inputError}
+                />
+                <AnalyzeButton
+                  onClick={handleAnalyze}
+                  disabled={!jobContent.trim()}
+                  loading={analyzingJob}
+                />
+                {/* Story 4a.6: Progress indicator below Analyze button */}
+                <AnalysisProgress stage={analysisStage} errorMessage={analysisError || undefined} />
+                {/* Story 4a.9: AC-3 - Truncation warning */}
+                {wasTruncated && hasAnalysisResults && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      marginTop: "8px",
+                      backgroundColor: "#fffbeb",
+                      border: "1px solid #fbbf24",
+                      borderRadius: "4px",
+                      color: "#92400e",
+                      fontSize: "14px",
+                      lineHeight: "1.5",
+                    }}
+                  >
+                    ⚠️ Job post too long. Content was trimmed to fit analysis limits. Consider
+                    summarizing the post manually.
+                  </div>
+                )}
+                {/* Story 4a.7: Unified job analysis panel */}
+                <JobAnalysisPanel
+                  jobPostId={jobPostId}
+                  clientName={clientName}
+                  keySkills={keySkills}
+                  hiddenNeeds={hiddenNeeds}
+                  onGenerateClick={handleGenerate}
+                  visible={hasAnalysisResults}
+                  isGenerating={isStreaming}
+                  skillsMatchPercentage={skillsMatchPercentage}
+                  skillsMatchReason={skillsMatchReason}
+                  clientQualityScore={clientQualityScore}
+                />
+                {/* Story 5.2: Hook Strategy Selection UI (AC-1, AC-4) */}
+                {hasAnalysisResults && (
+                  <HookStrategySelector onSelectionChange={setSelectedStrategyId} />
+                )}
+                <GenerateButton
+                  onClick={handleGenerate}
+                  disabled={!jobContent.trim()}
+                  loading={isStreaming}
+                  cooldownSeconds={cooldownRemaining}
+                />
+                <ProposalOutput
+                  proposal={displayText || null}
+                  loading={isStreaming}
+                  error={displayError}
+                  isSaved={isSaved}
+                  proposalId={savedId}
+                  onRetry={handleRetry}
+                  onSaveForLater={handleSaveForLater}
+                  getPlainTextRef={getPlainTextRef}
+                  retryCount={retryCount}
+                  enableEditor={true}
+                />
+                {/* Story 4a.9 H3: Show truncation warning when generation input was truncated */}
+                {generationWasTruncated && fullText && !isStreaming && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      marginTop: "8px",
+                      backgroundColor: "#fffbeb",
+                      border: "1px solid #fbbf24",
+                      borderRadius: "4px",
+                      color: "#92400e",
+                      fontSize: "14px",
+                      lineHeight: "1.5",
+                    }}
+                    role="alert"
+                  >
+                    ⚠️ Job post too long. Content was trimmed to fit generation limits. The proposal
+                    may not address all details from the original post.
+                  </div>
+                )}
+                {/* M3 fix (Review 3): Show subtle warning when safety analysis was skipped */}
+                {analysisSkipped && fullText && !isStreaming && (
+                  <div className="analysis-skipped-warning" role="alert">
+                    ⚠️ AI detection check was skipped due to an error. Review your proposal before
+                    submitting.
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
-      {/* Story 8.3: Tabpanel for generate view */}
-      <div
-        id="generate-panel"
-        role="tabpanel"
-        aria-labelledby="generate-tab"
-        hidden={activeView !== "generate"}
-      >
-        {activeView === "generate" && (
-        <>
-          <h2 className="sr-only">Generate Proposal</h2>
-          <JobInput
-            onJobContentChange={setJobContent}
-            onInputTypeChange={handleInputTypeChange}
-            value={jobContent}
-            error={inputError}
-          />
-          <AnalyzeButton
-            onClick={handleAnalyze}
-            disabled={!jobContent.trim()}
-            loading={analyzingJob}
-          />
-          {/* Story 4a.6: Progress indicator below Analyze button */}
-          <AnalysisProgress
-            stage={analysisStage}
-            errorMessage={analysisError || undefined}
-          />
-          {/* Story 4a.9: AC-3 - Truncation warning */}
-          {wasTruncated && hasAnalysisResults && (
-            <div
-              style={{
-                padding: "8px 12px",
-                marginTop: "8px",
-                backgroundColor: "#fffbeb",
-                border: "1px solid #fbbf24",
-                borderRadius: "4px",
-                color: "#92400e",
-                fontSize: "14px",
-                lineHeight: "1.5",
-              }}
-            >
-              ⚠️ Job post too long. Content was trimmed to fit analysis limits.
-              Consider summarizing the post manually.
-            </div>
+          {/* Story 8.3: Tabpanel for history view */}
+          {/* Story 7.4 AC-7: ProposalHistoryList replaces old HistoryList */}
+          {/* H-1 CR fix: Panel stays mounted during detail view to preserve scroll position and filter state (AC-2) */}
+          <div
+            id="history-panel"
+            role="tabpanel"
+            aria-labelledby="history-tab"
+            hidden={activeView !== "history"}
+          >
+            <h2 className="sr-only">Proposal History</h2>
+            {(activeView === "history" || activeView === "proposal-detail") && (
+              <ProposalHistoryList
+                onProposalSelect={(id) => {
+                  setSelectedProposalId(id);
+                  setActiveView("proposal-detail");
+                }}
+              />
+            )}
+          </div>
+
+          {/* Story 7.4: Proposal detail view (sub-view of history) */}
+          {activeView === "proposal-detail" && selectedProposalId != null && (
+            <ProposalDetailView proposalId={selectedProposalId} onBack={handleBackFromDetail} />
           )}
-          {/* Story 4a.7: Unified job analysis panel */}
-          <JobAnalysisPanel
-            jobPostId={jobPostId}
-            clientName={clientName}
-            keySkills={keySkills}
-            hiddenNeeds={hiddenNeeds}
-            onGenerateClick={handleGenerate}
-            visible={hasAnalysisResults}
-            isGenerating={isStreaming}
-            skillsMatchPercentage={skillsMatchPercentage}
-            skillsMatchReason={skillsMatchReason}
-            clientQualityScore={clientQualityScore}
-          />
-          {/* Story 5.2: Hook Strategy Selection UI (AC-1, AC-4) */}
-          {hasAnalysisResults && (
-            <HookStrategySelector
-              onSelectionChange={setSelectedStrategyId}
+
+          {/* Story 7.5: Analytics dashboard view */}
+          <div
+            id="analytics-panel"
+            role="tabpanel"
+            aria-labelledby="analytics-tab"
+            hidden={activeView !== "analytics"}
+          >
+            <h2 className="sr-only">Proposal Analytics</h2>
+            {activeView === "analytics" && <ProposalAnalyticsDashboard />}
+          </div>
+
+          {/* Story 8.3: Tabpanel for settings view */}
+          <div
+            id="settings-panel"
+            role="tabpanel"
+            aria-labelledby="settings-tab"
+            hidden={activeView !== "settings"}
+          >
+            {activeView === "settings" && (
+              <>
+                <SettingsPanel />
+                <ApiKeySetup onComplete={() => setActiveView("generate")} existingKey={null} />
+                <div className="settings-section">
+                  <h3>Data Export</h3>
+                  <p className="settings-description">
+                    Export your proposals to a JSON file for backup before database migration.
+                  </p>
+                  <ExportButton />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Draft Recovery Modal (Story 1.14) */}
+          {draftRecovery && <DraftRecoveryModal onContinue={handleContinueDraft} />}
+
+          {/* Onboarding Wizard (Story 1.15) */}
+          <OnboardingWizard />
+
+          {/* Encryption Details Modal (Story 2.8) */}
+          {showEncryptionDetails && encryptionStatus && (
+            <EncryptionDetailsModal
+              status={encryptionStatus}
+              onClose={handleCloseEncryptionDetails}
             />
           )}
-          <GenerateButton
-            onClick={handleGenerate}
-            disabled={!jobContent.trim()}
-            loading={isStreaming}
-            cooldownSeconds={cooldownRemaining}
-          />
-          <ProposalOutput
-            proposal={displayText || null}
-            loading={isStreaming}
-            error={displayError}
-            isSaved={isSaved}
-            proposalId={savedId}
-            onRetry={handleRetry}
-            onSaveForLater={handleSaveForLater}
-            getPlainTextRef={getPlainTextRef}
-            retryCount={retryCount}
-            enableEditor={true}
-          />
-          {/* Story 4a.9 H3: Show truncation warning when generation input was truncated */}
-          {generationWasTruncated && fullText && !isStreaming && (
-            <div
-              style={{
-                padding: "8px 12px",
-                marginTop: "8px",
-                backgroundColor: "#fffbeb",
-                border: "1px solid #fbbf24",
-                borderRadius: "4px",
-                color: "#92400e",
-                fontSize: "14px",
-                lineHeight: "1.5",
+
+          {/* Threshold Adjustment Notification (Story 3.7) */}
+          {thresholdSuggestion && (
+            <ThresholdAdjustmentNotification
+              suggestion={thresholdSuggestion}
+              onAccept={handleThresholdAccept}
+              onReject={handleThresholdReject}
+              onRemindLater={handleThresholdRemindLater}
+            />
+          )}
+
+          {/* Safety Warning Modal (Stories 3.1 + 3.2 + 3.4 integration) */}
+          {perplexityAnalysis && perplexityAnalysis.score >= DEFAULT_PERPLEXITY_THRESHOLD && (
+            <SafetyWarningModal
+              score={perplexityAnalysis.score}
+              threshold={DEFAULT_PERPLEXITY_THRESHOLD}
+              flaggedSentences={perplexityAnalysis.flaggedSentences}
+              humanizationIntensity={humanizationIntensity}
+              onRegenerate={handleRegenerate}
+              attemptCount={attemptCount}
+              previousScore={previousScore}
+              isRegenerating={isRegenerating}
+              onEdit={() => {
+                // Close modal and let user edit proposal
+                setPerplexityAnalysis(null);
+                resetAttempts();
               }}
-              role="alert"
-            >
-              ⚠️ Job post too long. Content was trimmed to fit generation limits.
-              The proposal may not address all details from the original post.
-            </div>
-          )}
-          {/* M3 fix (Review 3): Show subtle warning when safety analysis was skipped */}
-          {analysisSkipped && fullText && !isStreaming && (
-            <div className="analysis-skipped-warning" role="alert">
-              ⚠️ AI detection check was skipped due to an error. Review your proposal before submitting.
-            </div>
-          )}
-        </>
-        )}
-      </div>
-
-      {/* Story 8.3: Tabpanel for history view */}
-      {/* Story 7.4 AC-7: ProposalHistoryList replaces old HistoryList */}
-      {/* H-1 CR fix: Panel stays mounted during detail view to preserve scroll position and filter state (AC-2) */}
-      <div
-        id="history-panel"
-        role="tabpanel"
-        aria-labelledby="history-tab"
-        hidden={activeView !== "history"}
-      >
-        <h2 className="sr-only">Proposal History</h2>
-        {(activeView === "history" || activeView === "proposal-detail") && (
-          <ProposalHistoryList
-            onProposalSelect={(id) => {
-              setSelectedProposalId(id);
-              setActiveView("proposal-detail");
-            }}
-          />
-        )}
-      </div>
-
-      {/* Story 7.4: Proposal detail view (sub-view of history) */}
-      {activeView === "proposal-detail" && selectedProposalId != null && (
-        <ProposalDetailView
-          proposalId={selectedProposalId}
-          onBack={handleBackFromDetail}
-        />
-      )}
-
-      {/* Story 7.5: Analytics dashboard view */}
-      <div
-        id="analytics-panel"
-        role="tabpanel"
-        aria-labelledby="analytics-tab"
-        hidden={activeView !== "analytics"}
-      >
-        <h2 className="sr-only">Proposal Analytics</h2>
-        {activeView === "analytics" && <ProposalAnalyticsDashboard />}
-      </div>
-
-      {/* Story 8.3: Tabpanel for settings view */}
-      <div
-        id="settings-panel"
-        role="tabpanel"
-        aria-labelledby="settings-tab"
-        hidden={activeView !== "settings"}
-      >
-        {activeView === "settings" && (
-        <>
-          <SettingsPanel />
-          <ApiKeySetup
-            onComplete={() => setActiveView("generate")}
-            existingKey={null}
-          />
-          <div className="settings-section">
-            <h3>Data Export</h3>
-            <p className="settings-description">
-              Export your proposals to a JSON file for backup before database migration.
-            </p>
-            <ExportButton />
-          </div>
-        </>
-        )}
-      </div>
-
-      {/* Draft Recovery Modal (Story 1.14) */}
-      {draftRecovery && <DraftRecoveryModal onContinue={handleContinueDraft} />}
-
-      {/* Onboarding Wizard (Story 1.15) */}
-      <OnboardingWizard />
-
-      {/* Encryption Details Modal (Story 2.8) */}
-      {showEncryptionDetails && encryptionStatus && (
-        <EncryptionDetailsModal
-          status={encryptionStatus}
-          onClose={handleCloseEncryptionDetails}
-        />
-      )}
-
-      {/* Threshold Adjustment Notification (Story 3.7) */}
-      {thresholdSuggestion && (
-        <ThresholdAdjustmentNotification
-          suggestion={thresholdSuggestion}
-          onAccept={handleThresholdAccept}
-          onReject={handleThresholdReject}
-          onRemindLater={handleThresholdRemindLater}
-        />
-      )}
-
-      {/* Safety Warning Modal (Stories 3.1 + 3.2 + 3.4 integration) */}
-      {perplexityAnalysis && perplexityAnalysis.score >= DEFAULT_PERPLEXITY_THRESHOLD && (
-        <SafetyWarningModal
-          score={perplexityAnalysis.score}
-          threshold={DEFAULT_PERPLEXITY_THRESHOLD}
-          flaggedSentences={perplexityAnalysis.flaggedSentences}
-          humanizationIntensity={humanizationIntensity}
-          onRegenerate={handleRegenerate}
-          attemptCount={attemptCount}
-          previousScore={previousScore}
-          isRegenerating={isRegenerating}
-          onEdit={() => {
-            // Close modal and let user edit proposal
-            setPerplexityAnalysis(null);
-            resetAttempts();
-          }}
-          onOverride={() => {
-            // User chooses to proceed despite warning (Story 3.6 + 3.7)
-            // Record override for adaptive learning if proposal is saved
-            if (savedId && perplexityAnalysis) {
-              invoke("record_safety_override", {
-                proposalId: savedId,
-                aiScore: perplexityAnalysis.score,
-                threshold: perplexityAnalysis.threshold,
-              }).catch((err) => {
-                if (import.meta.env.DEV) {
-                  console.warn("Override recording failed:", err);
+              onOverride={() => {
+                // User chooses to proceed despite warning (Story 3.6 + 3.7)
+                // Record override for adaptive learning if proposal is saved
+                if (savedId && perplexityAnalysis) {
+                  invoke("record_safety_override", {
+                    proposalId: savedId,
+                    aiScore: perplexityAnalysis.score,
+                    threshold: perplexityAnalysis.threshold,
+                  }).catch((err) => {
+                    if (import.meta.env.DEV) {
+                      console.warn("Override recording failed:", err);
+                    }
+                  });
                 }
-              });
-            }
-            setPerplexityAnalysis(null);
-            resetAttempts();
-          }}
-        />
-      )}
+                setPerplexityAnalysis(null);
+                resetAttempts();
+              }}
+            />
+          )}
 
-      {/* Story 3.9: Safety Warning Modal for keyboard shortcut-triggered copies */}
-      {safeCopyState.showWarningModal && safeCopyState.analysisResult && (
-        <SafetyWarningModal
-          score={safeCopyState.analysisResult.score}
-          threshold={safeCopyState.analysisResult.threshold}
-          flaggedSentences={safeCopyState.analysisResult.flaggedSentences}
-          onEdit={() => safeCopyActions.dismissWarning()}
-          onOverride={() => safeCopyActions.showOverrideDialog()}
-        />
-      )}
+          {/* Story 3.9: Safety Warning Modal for keyboard shortcut-triggered copies */}
+          {safeCopyState.showWarningModal && safeCopyState.analysisResult && (
+            <SafetyWarningModal
+              score={safeCopyState.analysisResult.score}
+              threshold={safeCopyState.analysisResult.threshold}
+              flaggedSentences={safeCopyState.analysisResult.flaggedSentences}
+              onEdit={() => safeCopyActions.dismissWarning()}
+              onOverride={() => safeCopyActions.showOverrideDialog()}
+            />
+          )}
 
-      {/* Story 3.9: Override Confirmation Dialog for keyboard shortcut-triggered copies */}
-      {safeCopyState.showOverrideConfirm && (
-        <OverrideConfirmDialog
-          onCancel={() => safeCopyActions.cancelOverride()}
-          onConfirm={() => {
-            if (fullText) {
-              safeCopyActions.confirmOverride(fullText, savedId);
-            }
-          }}
-        />
-      )}
+          {/* Story 3.9: Override Confirmation Dialog for keyboard shortcut-triggered copies */}
+          {safeCopyState.showOverrideConfirm && (
+            <OverrideConfirmDialog
+              onCancel={() => safeCopyActions.cancelOverride()}
+              onConfirm={() => {
+                if (fullText) {
+                  safeCopyActions.confirmOverride(fullText, savedId);
+                }
+              }}
+            />
+          )}
         </main>
       </div>
     </>

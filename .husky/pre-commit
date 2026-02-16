@@ -1,0 +1,25 @@
+#\!/usr/bin/env sh
+set -e
+
+cd upwork-researcher || exit 1
+
+# Run lint-staged for TS/TSX/JSON/CSS/MD files
+npx lint-staged
+
+# Rust formatting check (blocks commit if unformatted — run `cargo fmt` to fix)
+cd src-tauri || exit 1
+cargo fmt --check
+
+# Rust linting with Clippy
+# NOTE: Currently warnings-only (exit 0) — no blocking until -D warnings is enabled
+# TODO: Enable strict mode (-D warnings) after fixing pre-existing clippy warnings
+cargo clippy
+
+# Specta binding synchronization check (AC-4)
+# TODO: Implement once tauri-specta is configured to generate bindings
+# When bindings.ts exists, uncomment the following:
+# cargo build 2>/dev/null || true
+# cd .. && git diff --exit-code src/shared/types/generated/bindings.ts || {
+#   echo "Specta bindings out of sync. Regenerate with 'cargo build' and commit changes."
+#   exit 1
+# }

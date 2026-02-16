@@ -2,8 +2,8 @@
 // Story 4b.8: Added fallback event listening
 // Listens to RSS import events and tracks progress
 
-import { useEffect, useState } from 'react';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { useEffect, useState } from "react";
 
 interface RssImportProgress {
   batch_id: string;
@@ -47,49 +47,38 @@ export function useRssImport() {
     let unlistenFallback: UnlistenFn | undefined;
 
     const setup = async () => {
-      unlistenProgress = await listen<RssImportProgress>(
-        'rss:import-progress',
-        (event) => {
-          setProgress(event.payload);
-          setIsComplete(false);
-          setIsFallingBack(false); // Clear fallback state when progress resumes
-        }
-      );
+      unlistenProgress = await listen<RssImportProgress>("rss:import-progress", (event) => {
+        setProgress(event.payload);
+        setIsComplete(false);
+        setIsFallingBack(false); // Clear fallback state when progress resumes
+      });
 
-      unlistenComplete = await listen<RssImportComplete>(
-        'rss:import-complete',
-        (event) => {
-          setIsComplete(true);
-          setCompletionData(event.payload);
-          setIsFallingBack(false);
+      unlistenComplete = await listen<RssImportComplete>("rss:import-complete", (event) => {
+        setIsComplete(true);
+        setCompletionData(event.payload);
+        setIsFallingBack(false);
 
-          // Story 4b.7: Show browser notification if permission granted
-          if ('Notification' in window && Notification.permission === 'granted') {
-            const { total_analyzed, failed_count } = event.payload;
-            const message = failed_count > 0
+        // Story 4b.7: Show browser notification if permission granted
+        if ("Notification" in window && Notification.permission === "granted") {
+          const { total_analyzed, failed_count } = event.payload;
+          const message =
+            failed_count > 0
               ? `${total_analyzed} jobs analyzed, ${failed_count} failed`
               : `All ${total_analyzed} jobs analyzed successfully`;
-            new Notification('RSS Import Complete', { body: message });
-          }
+          new Notification("RSS Import Complete", { body: message });
         }
-      );
+      });
 
-      unlistenError = await listen<string>(
-        'rss:import-error',
-        (event) => {
-          setError(event.payload);
-          setIsFallingBack(false);
-        }
-      );
+      unlistenError = await listen<string>("rss:import-error", (event) => {
+        setError(event.payload);
+        setIsFallingBack(false);
+      });
 
       // Story 4b.8: Listen for fallback event
-      unlistenFallback = await listen<RssFallbackPayload>(
-        'rss:fallback-started',
-        (event) => {
-          setIsFallingBack(true);
-          setFallbackMessage('RSS blocked. Trying alternative method...');
-        }
-      );
+      unlistenFallback = await listen<RssFallbackPayload>("rss:fallback-started", (event) => {
+        setIsFallingBack(true);
+        setFallbackMessage("RSS blocked. Trying alternative method...");
+      });
     };
 
     setup();

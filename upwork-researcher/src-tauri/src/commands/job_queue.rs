@@ -3,7 +3,9 @@
 //! Provides Tauri commands for querying the job queue with sorting and filtering.
 
 use crate::db::AppDatabase;
-use crate::job::types::{ColorCounts, JobQueueItem, JobQueueResponse, ScoreColor, ScoreFilter, SortField};
+use crate::job::types::{
+    ColorCounts, JobQueueItem, JobQueueResponse, ScoreColor, ScoreFilter, SortField,
+};
 use rusqlite::Connection;
 use tauri::State;
 use tracing::{error, info};
@@ -265,7 +267,8 @@ mod tests {
         )
         .unwrap();
 
-        let result = query_job_queue_internal(&conn, &SortField::Score, &ScoreFilter::GreenOnly, 50, 0);
+        let result =
+            query_job_queue_internal(&conn, &SortField::Score, &ScoreFilter::GreenOnly, 50, 0);
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -294,7 +297,13 @@ mod tests {
         )
         .unwrap();
 
-        let result = query_job_queue_internal(&conn, &SortField::Score, &ScoreFilter::YellowAndGreen, 50, 0);
+        let result = query_job_queue_internal(
+            &conn,
+            &SortField::Score,
+            &ScoreFilter::YellowAndGreen,
+            50,
+            0,
+        );
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -354,7 +363,8 @@ mod tests {
         )
         .unwrap();
 
-        let result = query_job_queue_internal(&conn, &SortField::ClientName, &ScoreFilter::All, 50, 0);
+        let result =
+            query_job_queue_internal(&conn, &SortField::ClientName, &ScoreFilter::All, 50, 0);
 
         assert!(result.is_ok());
         let response = result.unwrap();

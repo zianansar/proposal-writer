@@ -1,6 +1,16 @@
 # Windows Code Signing Script
 # Called by Tauri via signCommand with file path as first argument
 # Supports cloud HSM workflows via base64-encoded PFX certificate
+#
+# SECURITY NOTE: The PFX certificate is temporarily written to a temp file
+# (password-protected, not plaintext) for Import-PfxCertificate. The file
+# is cleaned up in the finally block. GitHub Actions runners are ephemeral
+# and destroyed after each job, limiting the exposure window.
+#
+# PATH NOTE: signCommand in tauri.conf.json uses a relative path resolved
+# from the CWD of the Tauri CLI process. In CI (tauri-action with
+# --project-path), CWD is the workspace root where this script lives.
+# For local builds, use: npm run tauri build -- --no-sign
 
 param(
     [Parameter(Mandatory=$true)]
@@ -24,7 +34,7 @@ Write-Host "Signing file: $FilePath"
 
 # Decode base64 certificate and save to temporary PFX file
 $pfxBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
-$pfxPath = [System.IO.Path]::GetTempFileName() + ".pfx"
+$pfxPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [System.IO.Path]::GetRandomFileName() + ".pfx")
 
 try {
     # Write PFX to temporary file

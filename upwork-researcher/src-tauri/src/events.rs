@@ -1,6 +1,5 @@
 /// Event name constants for Tauri events.
 /// Convention: {feature}:{action}, lowercase, two levels max.
-
 use serde::{Deserialize, Serialize};
 
 pub const GENERATION_TOKEN: &str = "generation:token";

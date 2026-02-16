@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import ProposalEditor from "./ProposalEditor";
 
 // Mock Tauri invoke
@@ -62,9 +63,7 @@ describe("ProposalEditor", () => {
   });
 
   it("renders the editor with toolbar", () => {
-    render(
-      <ProposalEditor content="<p>Test content</p>" proposalId={1} />
-    );
+    render(<ProposalEditor content="<p>Test content</p>" proposalId={1} />);
 
     // Check toolbar is rendered
     expect(screen.getByRole("toolbar")).toBeInTheDocument();
@@ -74,9 +73,7 @@ describe("ProposalEditor", () => {
   });
 
   it("renders toolbar buttons for all required formatting options", () => {
-    render(
-      <ProposalEditor content="<p>Test</p>" proposalId={1} />
-    );
+    render(<ProposalEditor content="<p>Test</p>" proposalId={1} />);
 
     // Story 6.1 AC: Bold, Italic, Bullet list, Numbered list, Clear formatting, Undo/Redo
     expect(screen.getByLabelText("Bold")).toBeInTheDocument();
@@ -89,9 +86,7 @@ describe("ProposalEditor", () => {
   });
 
   it("displays status indicator area", () => {
-    render(
-      <ProposalEditor content="<p>Test</p>" proposalId={1} />
-    );
+    render(<ProposalEditor content="<p>Test</p>" proposalId={1} />);
 
     // Status area should exist (initially idle, no visible status)
     const statusArea = document.querySelector(".proposal-editor-status");
@@ -102,11 +97,7 @@ describe("ProposalEditor", () => {
     const onContentChange = vi.fn();
 
     render(
-      <ProposalEditor
-        content="<p>Initial</p>"
-        proposalId={1}
-        onContentChange={onContentChange}
-      />
+      <ProposalEditor content="<p>Initial</p>" proposalId={1} onContentChange={onContentChange} />,
     );
 
     // Editor content area exists
@@ -115,9 +106,7 @@ describe("ProposalEditor", () => {
   });
 
   it("renders with null proposalId (unsaved proposal)", () => {
-    render(
-      <ProposalEditor content="<p>Draft content</p>" proposalId={null} />
-    );
+    render(<ProposalEditor content="<p>Draft content</p>" proposalId={null} />);
 
     expect(screen.getByRole("toolbar")).toBeInTheDocument();
     expect(screen.getByTestId("editor-content")).toBeInTheDocument();
@@ -126,9 +115,7 @@ describe("ProposalEditor", () => {
   // Story 6.4: Character and word count integration tests
   describe("EditorStatusBar Integration (Story 6.4)", () => {
     it("renders EditorStatusBar with counts", () => {
-      render(
-        <ProposalEditor content="<p>Test content</p>" proposalId={1} />
-      );
+      render(<ProposalEditor content="<p>Test content</p>" proposalId={1} />);
 
       // Status bar should be present
       expect(screen.getByRole("status")).toBeInTheDocument();
@@ -139,9 +126,7 @@ describe("ProposalEditor", () => {
     });
 
     it("EditorStatusBar has accessibility attributes", () => {
-      render(
-        <ProposalEditor content="<p>Test</p>" proposalId={1} />
-      );
+      render(<ProposalEditor content="<p>Test</p>" proposalId={1} />);
 
       const statusBar = screen.getByRole("status");
       expect(statusBar).toHaveAttribute("aria-live", "polite");

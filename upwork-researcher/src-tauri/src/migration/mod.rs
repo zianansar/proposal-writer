@@ -43,7 +43,9 @@ pub enum MigrationError {
     #[error("Data verification failed: {0}. Migration rolled back, your data is safe.")]
     VerificationFailed(String),
 
-    #[error("Failed to create migration marker: {0}. Encrypted database created but not activated.")]
+    #[error(
+        "Failed to create migration marker: {0}. Encrypted database created but not activated."
+    )]
     MarkerCreationFailed(String),
 
     #[error("Failed to rename old database: {0}. Encrypted database created but not activated.")]
@@ -137,7 +139,11 @@ pub fn migrate_to_encrypted_database(
     let old_db_path = app_data_dir.join("upwork-researcher.db");
     let new_db_path = app_data_dir.join("upwork-researcher-encrypted.db");
 
-    tracing::info!("Starting migration from {} to {}", old_db_path.display(), new_db_path.display());
+    tracing::info!(
+        "Starting migration from {} to {}",
+        old_db_path.display(),
+        new_db_path.display()
+    );
 
     // Verify old database exists
     if !old_db_path.exists() {
@@ -157,11 +163,16 @@ pub fn migrate_to_encrypted_database(
         .map_err(|e| MigrationError::KeyDerivationFailed(e.to_string()))?;
 
     // Create new encrypted database with key
-    let new_db = Database::new(new_db_path.clone(), Some(std::mem::take(&mut *encryption_key)))
-        .map_err(|e| MigrationError::NewDatabaseCreationFailed(e.to_string()))?;
+    let new_db = Database::new(
+        new_db_path.clone(),
+        Some(std::mem::take(&mut *encryption_key)),
+    )
+    .map_err(|e| MigrationError::NewDatabaseCreationFailed(e.to_string()))?;
 
     // Lock new database connection for migration
-    let new_conn = new_db.conn.lock()
+    let new_conn = new_db
+        .conn
+        .lock()
         .map_err(|e| MigrationError::DatabaseLockError(e.to_string()))?;
 
     // Subtask 1.6: ATTACH old database to new encrypted connection
@@ -170,8 +181,9 @@ pub fn migrate_to_encrypted_database(
         "ATTACH DATABASE '{}' AS old_db KEY ''",
         old_db_path.display()
     );
-    new_conn.execute(&attach_sql, [])
-        .map_err(|e| MigrationError::AttachFailed(format!("Failed to attach old database: {}", e)))?;
+    new_conn.execute(&attach_sql, []).map_err(|e| {
+        MigrationError::AttachFailed(format!("Failed to attach old database: {}", e))
+    })?;
 
     tracing::info!("Attached old database for migration");
 
@@ -179,11 +191,13 @@ pub fn migrate_to_encrypted_database(
     let row_counts = copy_data_atomic(&new_conn, &old_conn)?;
 
     // Subtask 3.6: DETACH old database after successful copy
-    new_conn.execute("DETACH DATABASE old_db", [])
+    new_conn
+        .execute("DETACH DATABASE old_db", [])
         .map_err(|e| MigrationError::CopyFailed(format!("Failed to detach old database: {}", e)))?;
 
     // Checkpoint WAL to ensure all changes are flushed to main database file
-    old_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])
+    old_conn
+        .execute("PRAGMA wal_checkpoint(TRUNCATE)", [])
         .map_err(|e| {
             tracing::warn!("Failed to checkpoint old database WAL: {}", e);
             // Not fatal - continue anyway
@@ -191,7 +205,8 @@ pub fn migrate_to_encrypted_database(
         .ok();
 
     // Switch old database from WAL to DELETE mode to remove WAL files
-    old_conn.execute("PRAGMA journal_mode=DELETE", [])
+    old_conn
+        .execute("PRAGMA journal_mode=DELETE", [])
         .map_err(|e| {
             tracing::warn!("Failed to switch old database journal mode: {}", e);
         })
@@ -201,7 +216,8 @@ pub fn migrate_to_encrypted_database(
     drop(old_conn);
 
     // Also checkpoint new database WAL
-    new_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])
+    new_conn
+        .execute("PRAGMA wal_checkpoint(TRUNCATE)", [])
         .map_err(|e| {
             tracing::warn!("Failed to checkpoint new database WAL: {}", e);
         })
@@ -222,13 +238,15 @@ pub fn migrate_to_encrypted_database(
 
     // Subtask 4.1: Rename old database to .old extension
     let old_db_backup_path = old_db_path.with_extension("db.old");
-    fs::rename(&old_db_path, &old_db_backup_path)
-        .map_err(|e| MigrationError::RenameFailed(format!("Failed to rename old database: {}", e)))?;
+    fs::rename(&old_db_path, &old_db_backup_path).map_err(|e| {
+        MigrationError::RenameFailed(format!("Failed to rename old database: {}", e))
+    })?;
 
     // Rename new encrypted database to primary name
     let final_db_path = app_data_dir.join("upwork-researcher.db");
-    fs::rename(&new_db_path, &final_db_path)
-        .map_err(|e| MigrationError::RenameFailed(format!("Failed to rename new database: {}", e)))?;
+    fs::rename(&new_db_path, &final_db_path).map_err(|e| {
+        MigrationError::RenameFailed(format!("Failed to rename new database: {}", e))
+    })?;
 
     // Subtask 4.2: Create migration marker file
     create_migration_marker(app_data_dir)?;
@@ -267,7 +285,8 @@ fn copy_data_atomic(
     old_conn: &rusqlite::Connection,
 ) -> Result<RowCounts, MigrationError> {
     // Subtask 2.1: Begin explicit EXCLUSIVE transaction
-    new_conn.execute("BEGIN EXCLUSIVE TRANSACTION", [])
+    new_conn
+        .execute("BEGIN EXCLUSIVE TRANSACTION", [])
         .map_err(|e| MigrationError::CopyFailed(format!("Failed to begin transaction: {}", e)))?;
 
     // Attempt to copy all tables - rollback on any failure
@@ -283,20 +302,22 @@ fn copy_data_atomic(
         .map_err(|e| MigrationError::CopyFailed(format!("Failed to copy proposals: {}", e)))?;
 
         // Subtask 2.3: Copy settings (use REPLACE to handle default settings from migrations)
-        new_conn.execute(
-            "INSERT OR REPLACE INTO settings (key, value, updated_at)
+        new_conn
+            .execute(
+                "INSERT OR REPLACE INTO settings (key, value, updated_at)
              SELECT key, value, updated_at FROM old_db.settings",
-            []
-        )
-        .map_err(|e| MigrationError::CopyFailed(format!("Failed to copy settings: {}", e)))?;
+                [],
+            )
+            .map_err(|e| MigrationError::CopyFailed(format!("Failed to copy settings: {}", e)))?;
 
         // Subtask 2.4: Copy job_posts
-        new_conn.execute(
-            "INSERT INTO job_posts (id, url, raw_content, client_name, created_at)
+        new_conn
+            .execute(
+                "INSERT INTO job_posts (id, url, raw_content, client_name, created_at)
              SELECT id, url, raw_content, client_name, created_at FROM old_db.job_posts",
-            []
-        )
-        .map_err(|e| MigrationError::CopyFailed(format!("Failed to copy job_posts: {}", e)))?;
+                [],
+            )
+            .map_err(|e| MigrationError::CopyFailed(format!("Failed to copy job_posts: {}", e)))?;
 
         // Subtask 2.5: Copy refinery_schema_history (use REPLACE to handle migrations already run)
         new_conn.execute(
@@ -312,8 +333,9 @@ fn copy_data_atomic(
     // Subtask 2.7: If any INSERT fails, ROLLBACK transaction (Story 2.5)
     if let Err(e) = copy_result {
         tracing::error!("Copy failed, executing rollback: {}", e);
-        new_conn.execute("ROLLBACK", [])
-            .map_err(|rollback_err| MigrationError::CopyFailed(format!("Rollback failed: {}", rollback_err)))?;
+        new_conn.execute("ROLLBACK", []).map_err(|rollback_err| {
+            MigrationError::CopyFailed(format!("Rollback failed: {}", rollback_err))
+        })?;
 
         // Verify old database is still intact after rollback
         tracing::info!("Verifying old database integrity after rollback");
@@ -323,11 +345,10 @@ fn copy_data_atomic(
     }
 
     // Subtask 2.6: Commit transaction (all-or-nothing)
-    new_conn.execute("COMMIT", [])
-        .map_err(|e| {
-            tracing::error!("Transaction commit failed: {}", e);
-            MigrationError::TransactionFailed(format!("Failed to commit transaction: {}", e))
-        })?;
+    new_conn.execute("COMMIT", []).map_err(|e| {
+        tracing::error!("Transaction commit failed: {}", e);
+        MigrationError::TransactionFailed(format!("Failed to commit transaction: {}", e))
+    })?;
 
     // Task 3: Verify data integrity after migration
     verify_migration_counts(new_conn, old_conn)
@@ -339,61 +360,108 @@ fn verify_migration_counts(
     _old_conn: &rusqlite::Connection,
 ) -> Result<RowCounts, MigrationError> {
     // Query counts from new encrypted database
-    let new_proposals: usize = new_conn.query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0))
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to count new proposals: {}", e)))?;
+    let new_proposals: usize = new_conn
+        .query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0))
+        .map_err(|e| {
+            MigrationError::VerificationFailed(format!("Failed to count new proposals: {}", e))
+        })?;
 
-    let new_settings: usize = new_conn.query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0))
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to count new settings: {}", e)))?;
+    let new_settings: usize = new_conn
+        .query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0))
+        .map_err(|e| {
+            MigrationError::VerificationFailed(format!("Failed to count new settings: {}", e))
+        })?;
 
-    let new_job_posts: usize = new_conn.query_row("SELECT COUNT(*) FROM job_posts", [], |row| row.get(0))
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to count new job_posts: {}", e)))?;
+    let new_job_posts: usize = new_conn
+        .query_row("SELECT COUNT(*) FROM job_posts", [], |row| row.get(0))
+        .map_err(|e| {
+            MigrationError::VerificationFailed(format!("Failed to count new job_posts: {}", e))
+        })?;
 
-    let new_refinery: usize = new_conn.query_row("SELECT COUNT(*) FROM refinery_schema_history", [], |row| row.get(0))
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to count new refinery_schema_history: {}", e)))?;
+    let new_refinery: usize = new_conn
+        .query_row("SELECT COUNT(*) FROM refinery_schema_history", [], |row| {
+            row.get(0)
+        })
+        .map_err(|e| {
+            MigrationError::VerificationFailed(format!(
+                "Failed to count new refinery_schema_history: {}",
+                e
+            ))
+        })?;
 
     // Query counts from old database via ATTACH
-    let old_proposals: usize = new_conn.query_row("SELECT COUNT(*) FROM old_db.proposals", [], |row| row.get(0))
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to count old proposals: {}", e)))?;
+    let old_proposals: usize = new_conn
+        .query_row("SELECT COUNT(*) FROM old_db.proposals", [], |row| {
+            row.get(0)
+        })
+        .map_err(|e| {
+            MigrationError::VerificationFailed(format!("Failed to count old proposals: {}", e))
+        })?;
 
-    let old_settings: usize = new_conn.query_row("SELECT COUNT(*) FROM old_db.settings", [], |row| row.get(0))
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to count old settings: {}", e)))?;
+    let old_settings: usize = new_conn
+        .query_row("SELECT COUNT(*) FROM old_db.settings", [], |row| row.get(0))
+        .map_err(|e| {
+            MigrationError::VerificationFailed(format!("Failed to count old settings: {}", e))
+        })?;
 
-    let old_job_posts: usize = new_conn.query_row("SELECT COUNT(*) FROM old_db.job_posts", [], |row| row.get(0))
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to count old job_posts: {}", e)))?;
+    let old_job_posts: usize = new_conn
+        .query_row("SELECT COUNT(*) FROM old_db.job_posts", [], |row| {
+            row.get(0)
+        })
+        .map_err(|e| {
+            MigrationError::VerificationFailed(format!("Failed to count old job_posts: {}", e))
+        })?;
 
-    let old_refinery: usize = new_conn.query_row("SELECT COUNT(*) FROM old_db.refinery_schema_history", [], |row| row.get(0))
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to count old refinery_schema_history: {}", e)))?;
+    let old_refinery: usize = new_conn
+        .query_row(
+            "SELECT COUNT(*) FROM old_db.refinery_schema_history",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| {
+            MigrationError::VerificationFailed(format!(
+                "Failed to count old refinery_schema_history: {}",
+                e
+            ))
+        })?;
 
     // Subtask 3.5: Compare all counts - if mismatch, return verification error
     if new_proposals != old_proposals {
-        return Err(MigrationError::VerificationFailed(
-            format!("Proposals count mismatch: old={}, new={}", old_proposals, new_proposals)
-        ));
+        return Err(MigrationError::VerificationFailed(format!(
+            "Proposals count mismatch: old={}, new={}",
+            old_proposals, new_proposals
+        )));
     }
 
     if new_settings != old_settings {
-        return Err(MigrationError::VerificationFailed(
-            format!("Settings count mismatch: old={}, new={}", old_settings, new_settings)
-        ));
+        return Err(MigrationError::VerificationFailed(format!(
+            "Settings count mismatch: old={}, new={}",
+            old_settings, new_settings
+        )));
     }
 
     if new_job_posts != old_job_posts {
-        return Err(MigrationError::VerificationFailed(
-            format!("Job posts count mismatch: old={}, new={}", old_job_posts, new_job_posts)
-        ));
+        return Err(MigrationError::VerificationFailed(format!(
+            "Job posts count mismatch: old={}, new={}",
+            old_job_posts, new_job_posts
+        )));
     }
 
     // New DB may have additional migrations applied after data copy, so
     // new_refinery >= old_refinery is the correct invariant.
     if new_refinery < old_refinery {
-        return Err(MigrationError::VerificationFailed(
-            format!("Refinery history count mismatch: old={}, new={}", old_refinery, new_refinery)
-        ));
+        return Err(MigrationError::VerificationFailed(format!(
+            "Refinery history count mismatch: old={}, new={}",
+            old_refinery, new_refinery
+        )));
     }
 
     tracing::info!(
         "Verification passed: {} proposals, {} settings, {} job_posts, {} refinery entries",
-        new_proposals, new_settings, new_job_posts, new_refinery
+        new_proposals,
+        new_settings,
+        new_job_posts,
+        new_refinery
     );
 
     Ok(RowCounts {
@@ -410,29 +478,20 @@ fn verify_migration_counts(
 /// This confirms that rollback was successful and user data is safe.
 fn verify_old_database_intact(old_conn: &rusqlite::Connection) -> Result<(), MigrationError> {
     // Verify database is readable by counting rows in each table
-    let proposals_count: Result<i64, _> = old_conn.query_row(
-        "SELECT COUNT(*) FROM proposals",
-        [],
-        |row| row.get(0)
-    );
+    let proposals_count: Result<i64, _> =
+        old_conn.query_row("SELECT COUNT(*) FROM proposals", [], |row| row.get(0));
 
-    let settings_count: Result<i64, _> = old_conn.query_row(
-        "SELECT COUNT(*) FROM settings",
-        [],
-        |row| row.get(0)
-    );
+    let settings_count: Result<i64, _> =
+        old_conn.query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0));
 
-    let job_posts_count: Result<i64, _> = old_conn.query_row(
-        "SELECT COUNT(*) FROM job_posts",
-        [],
-        |row| row.get(0)
-    );
+    let job_posts_count: Result<i64, _> =
+        old_conn.query_row("SELECT COUNT(*) FROM job_posts", [], |row| row.get(0));
 
     // If any query fails, database is corrupted
     if proposals_count.is_err() || settings_count.is_err() || job_posts_count.is_err() {
         tracing::error!("Old database verification failed - database may be corrupted");
         return Err(MigrationError::VerificationFailed(
-            "Old database is not readable after rollback. Please restore from backup.".to_string()
+            "Old database is not readable after rollback. Please restore from backup.".to_string(),
         ));
     }
 
@@ -471,7 +530,10 @@ pub fn cleanup_failed_migration(app_data_dir: &Path) {
 
     if new_db_path.exists() {
         match fs::remove_file(&new_db_path) {
-            Ok(_) => tracing::warn!("Cleaned up incomplete encrypted database: {}", new_db_path.display()),
+            Ok(_) => tracing::warn!(
+                "Cleaned up incomplete encrypted database: {}",
+                new_db_path.display()
+            ),
             Err(e) => tracing::error!("Failed to clean up incomplete encrypted database: {}", e),
         }
     }
@@ -500,15 +562,17 @@ pub fn delete_old_database(old_db_path: &str) -> Result<String, MigrationError> 
     }
 
     // Subtask 2.3: Delete .old database
-    fs::remove_file(path).map_err(|e| {
-        MigrationError::IoError(format!("Failed to delete old database: {}", e))
-    })?;
+    fs::remove_file(path)
+        .map_err(|e| MigrationError::IoError(format!("Failed to delete old database: {}", e)))?;
 
     // Subtask 2.5: Log deletion
     tracing::info!("Deleted unencrypted database: {}", old_db_path);
 
     // Subtask 2.4: Return success message
-    Ok(format!("Unencrypted database deleted successfully: {}", old_db_path))
+    Ok(format!(
+        "Unencrypted database deleted successfully: {}",
+        old_db_path
+    ))
 }
 
 /// Get verification data for post-migration UI (Story 2.4, Task 3)
@@ -527,17 +591,17 @@ pub fn get_migration_verification(
     app_data_dir: &Path,
 ) -> Result<MigrationVerification, MigrationError> {
     // Subtask 3.2: Query encrypted database for current counts
-    let proposals_count = database
-        .query_proposals_count()
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to query proposals: {}", e)))?;
+    let proposals_count = database.query_proposals_count().map_err(|e| {
+        MigrationError::VerificationFailed(format!("Failed to query proposals: {}", e))
+    })?;
 
-    let settings_count = database
-        .query_settings_count()
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to query settings: {}", e)))?;
+    let settings_count = database.query_settings_count().map_err(|e| {
+        MigrationError::VerificationFailed(format!("Failed to query settings: {}", e))
+    })?;
 
-    let job_posts_count = database
-        .query_job_posts_count()
-        .map_err(|e| MigrationError::VerificationFailed(format!("Failed to query job_posts: {}", e)))?;
+    let job_posts_count = database.query_job_posts_count().map_err(|e| {
+        MigrationError::VerificationFailed(format!("Failed to query job_posts: {}", e))
+    })?;
 
     // Subtask 3.3: Read backup path from last backup location
     // Note: Using default pattern since backup path isn't stored in marker

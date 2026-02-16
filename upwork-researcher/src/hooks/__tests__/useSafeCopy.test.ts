@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { invoke } from "@tauri-apps/api/core";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import { useSafeCopy } from "../useSafeCopy";
 
 vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
@@ -233,9 +234,7 @@ describe("useSafeCopy", () => {
           return Promise.resolve({
             score: 200,
             threshold: 180,
-            flaggedSentences: [
-              { text: "Risky", suggestion: "Fix", index: 0 },
-            ],
+            flaggedSentences: [{ text: "Risky", suggestion: "Fix", index: 0 }],
           });
         }
         if (command === "record_safety_override") {
@@ -325,10 +324,7 @@ describe("useSafeCopy", () => {
 
       expect(mockWriteText).toHaveBeenCalledWith("Test proposal");
       // record_safety_override should not be called yet
-      expect(mockInvoke).not.toHaveBeenCalledWith(
-        "record_safety_override",
-        expect.anything()
-      );
+      expect(mockInvoke).not.toHaveBeenCalledWith("record_safety_override", expect.anything());
       expect(result.current.state.copied).toBe(true);
       // Pending override should be stored
       expect(result.current.state.pendingOverride).toEqual({
@@ -373,10 +369,7 @@ describe("useSafeCopy", () => {
         await result.current.actions.flushPendingOverride(99);
       });
 
-      expect(mockInvoke).not.toHaveBeenCalledWith(
-        "record_safety_override",
-        expect.anything()
-      );
+      expect(mockInvoke).not.toHaveBeenCalledWith("record_safety_override", expect.anything());
     });
   });
 

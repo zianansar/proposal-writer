@@ -1,11 +1,11 @@
 //! Import commands for database restoration from encrypted archives (Story 7.7)
 
+use crate::archive_export::ArchiveMetadata;
 use crate::archive_import::{
     check_schema_compatibility, cleanup_orphaned_temp_files, extract_archive_db,
     import_from_archive, open_archive_for_preview, read_metadata_preview, ArchiveImportError,
     ImportMode, ImportProgress, ImportSummary, SchemaCompatibility,
 };
-use crate::archive_export::ArchiveMetadata;
 use crate::backup::create_pre_migration_backup;
 use crate::db::{AppDatabase, Database};
 use rusqlite::Connection;
@@ -30,13 +30,10 @@ pub struct ImportPreview {
 ///
 /// AC-1, AC-2: Show metadata preview (counts, hint, export date)
 #[tauri::command]
-pub async fn read_archive_metadata(
-    archive_path: String,
-) -> Result<ArchiveMetadata, String> {
+pub async fn read_archive_metadata(archive_path: String) -> Result<ArchiveMetadata, String> {
     let path = PathBuf::from(&archive_path);
 
-    read_metadata_preview(&path)
-        .map_err(|e| format!("Failed to read archive metadata: {}", e))
+    read_metadata_preview(&path).map_err(|e| format!("Failed to read archive metadata: {}", e))
 }
 
 /// Tauri command: Decrypt archive and return import preview
@@ -70,9 +67,12 @@ pub async fn decrypt_archive(
         })?;
 
     // Get current schema version from main DB
-    let database = database.get()
+    let database = database
+        .get()
         .map_err(|e| format!("Failed to access database: {}", e))?;
-    let conn = database.conn.lock()
+    let conn = database
+        .conn
+        .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
     let current_version: i32 = conn
@@ -136,7 +136,8 @@ pub async fn execute_import(
 
     // AC-9 (Task 9): Pre-import backup for ReplaceAll mode
     if import_mode == ImportMode::ReplaceAll {
-        let database_instance = database.get()
+        let database_instance = database
+            .get()
             .map_err(|e| format!("Failed to access database: {}", e))?;
 
         // Get app data directory for backup storage
@@ -148,7 +149,10 @@ pub async fn execute_import(
         let backup_metadata = create_pre_migration_backup(&app_data_dir, &database_instance)
             .map_err(|e| format!("Failed to create pre-import backup: {}", e))?;
 
-        tracing::info!("Pre-import backup created at: {}", backup_metadata.file_path.display());
+        tracing::info!(
+            "Pre-import backup created at: {}",
+            backup_metadata.file_path.display()
+        );
     }
 
     let archive_path_buf = PathBuf::from(&archive_path);
@@ -176,7 +180,8 @@ pub async fn execute_import(
     let hex_key = Zeroizing::new(hex::encode(&*key));
 
     // Get database instance
-    let database_instance = database.get()
+    let database_instance = database
+        .get()
         .map_err(|e| format!("Failed to access database: {}", e))?;
 
     // Progress callback: emit Tauri events

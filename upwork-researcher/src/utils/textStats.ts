@@ -16,5 +16,5 @@ export function countWords(text: string): number {
   if (trimmed.length === 0) {
     return 0;
   }
-  return trimmed.split(/\s+/).filter(word => word.length > 0).length;
+  return trimmed.split(/\s+/).filter((word) => word.length > 0).length;
 }

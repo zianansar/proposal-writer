@@ -275,7 +275,11 @@ pub async fn generate_proposal_streaming_with_key(
     // Story 3.3 + TD-1: Build system prompt with humanization (single API call, zero latency overhead)
     // TD-1: Use rehumanization boost on retry attempts for stronger anti-detection
     let system_prompt = match rehumanization_attempt {
-        Some(attempt) => humanization::build_rehumanization_prompt(SYSTEM_PROMPT, humanization_intensity, attempt),
+        Some(attempt) => humanization::build_rehumanization_prompt(
+            SYSTEM_PROMPT,
+            humanization_intensity,
+            attempt,
+        ),
         None => humanization::build_system_prompt(SYSTEM_PROMPT, humanization_intensity),
     };
 
@@ -314,7 +318,11 @@ pub async fn generate_proposal_streaming_with_key(
     if let Err(e) = network::validate_url(ANTHROPIC_API_URL) {
         match &e {
             network::NetworkError::BlockedDomain(domain) => {
-                network::emit_blocked_event(&app_handle, domain.clone(), ANTHROPIC_API_URL.to_string());
+                network::emit_blocked_event(
+                    &app_handle,
+                    domain.clone(),
+                    ANTHROPIC_API_URL.to_string(),
+                );
             }
             network::NetworkError::InvalidUrl(_) => {
                 // Invalid URL doesn't need event emission, just error
@@ -466,11 +474,7 @@ pub async fn generate_proposal_streaming_with_key(
 
             if let Some(id) = *draft_id {
                 // Update existing draft
-                if let Err(e) = db::queries::proposals::update_proposal_text(
-                    &conn,
-                    id,
-                    &text,
-                ) {
+                if let Err(e) = db::queries::proposals::update_proposal_text(&conn, id, &text) {
                     eprintln!("Warning: Failed to update final queued draft {}: {}", id, e);
                 }
             } else {
@@ -501,7 +505,10 @@ pub async fn generate_proposal_streaming_with_key(
         if let Some(id) = *draft_id {
             // Update final text and mark as completed
             if let Err(e) = db::queries::proposals::update_proposal_text(&conn, id, &full_text) {
-                eprintln!("Warning: Failed to update final draft text for {}: {}", id, e);
+                eprintln!(
+                    "Warning: Failed to update final draft text for {}: {}",
+                    id, e
+                );
             }
             if let Err(e) = db::queries::proposals::update_proposal_status(&conn, id, "completed") {
                 eprintln!("Warning: Failed to mark draft {} as completed: {}", id, e);
@@ -594,7 +601,11 @@ pub fn extract_json_from_response(text: &str) -> &str {
 /// Returns a perplexity score (0-300+). Higher = more human-like.
 /// Threshold: <180 = safe, ≥180 = risky (per FR-11, Story 3.1)
 #[deprecated(note = "Use analyze_perplexity_with_sentences for structured analysis (Story 3.2)")]
-pub async fn analyze_perplexity(text: &str, api_key: Option<&str>, app_handle: Option<&AppHandle>) -> Result<f32, String> {
+pub async fn analyze_perplexity(
+    text: &str,
+    api_key: Option<&str>,
+    app_handle: Option<&AppHandle>,
+) -> Result<f32, String> {
     let api_key = resolve_api_key(api_key)?;
 
     let client = Client::builder()
@@ -700,7 +711,8 @@ pub async fn analyze_perplexity_with_sentences(
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     // Enhanced prompt for sentence-level analysis
-    let system_prompt = "You are an AI detection analyzer. Analyze the given text and return a JSON response with:
+    let system_prompt =
+        "You are an AI detection analyzer. Analyze the given text and return a JSON response with:
 1. Perplexity score (0-300, higher = more human-like)
 2. The 3-5 most AI-sounding sentences with specific humanization suggestions
 
@@ -800,11 +812,14 @@ Return ONLY valid JSON, no other text."#,
     }
 
     let json_str = extract_json_from_response(response_text);
-    let analysis: HaikuAnalysisResponse = serde_json::from_str(json_str)
-        .map_err(|e| {
-            tracing::warn!("Failed to parse sentence analysis JSON: {}. Response: {}", e, response_text);
-            format!("Failed to parse analysis response: {}", e)
-        })?;
+    let analysis: HaikuAnalysisResponse = serde_json::from_str(json_str).map_err(|e| {
+        tracing::warn!(
+            "Failed to parse sentence analysis JSON: {}. Response: {}",
+            e,
+            response_text
+        );
+        format!("Failed to parse analysis response: {}", e)
+    })?;
 
     let result = PerplexityAnalysis {
         score: analysis.score,

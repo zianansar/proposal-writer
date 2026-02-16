@@ -3,19 +3,21 @@
  * Tests AC-7, AC-11
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useInfiniteJobQueue } from './useInfiniteJobQueue';
-import type { JobQueueResponse } from '../types';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import type { JobQueueResponse } from "../types";
+
+import { useInfiniteJobQueue } from "./useInfiniteJobQueue";
 
 // Mock Tauri invoke
 const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
+vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: any[]) => mockInvoke(...args),
 }));
 
-describe('useInfiniteJobQueue', () => {
+describe("useInfiniteJobQueue", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
@@ -37,12 +39,12 @@ describe('useInfiniteJobQueue', () => {
     jobs: [
       {
         id: 1,
-        clientName: 'Acme Corp',
-        jobTitle: 'Senior Developer',
+        clientName: "Acme Corp",
+        jobTitle: "Senior Developer",
         skillsMatchPercent: 85,
         clientQualityPercent: 90,
         overallScore: 87.5,
-        scoreColor: 'green',
+        scoreColor: "green",
         createdAt: new Date().toISOString(),
       },
     ],
@@ -56,50 +58,49 @@ describe('useInfiniteJobQueue', () => {
     },
   };
 
-  describe('AC-11.2: Load initial 50 jobs', () => {
-    it('fetches first page with offset 0 and limit 50', async () => {
+  describe("AC-11.2: Load initial 50 jobs", () => {
+    it("fetches first page with offset 0 and limit 50", async () => {
       mockInvoke.mockResolvedValue(mockResponse);
 
-      const { result } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'score', filter: 'all' }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useInfiniteJobQueue({ sortBy: "score", filter: "all" }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('get_job_queue', {
-        sortBy: 'score',
-        filter: 'all',
+      expect(mockInvoke).toHaveBeenCalledWith("get_job_queue", {
+        sortBy: "score",
+        filter: "all",
         limit: 50,
         offset: 0,
       });
     });
 
-    it('allows custom limit', async () => {
+    it("allows custom limit", async () => {
       mockInvoke.mockResolvedValue(mockResponse);
 
       const { result } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'score', filter: 'all', limit: 25 }),
-        { wrapper }
+        () => useInfiniteJobQueue({ sortBy: "score", filter: "all", limit: 25 }),
+        { wrapper },
       );
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('get_job_queue', {
-        sortBy: 'score',
-        filter: 'all',
+      expect(mockInvoke).toHaveBeenCalledWith("get_job_queue", {
+        sortBy: "score",
+        filter: "all",
         limit: 25,
         offset: 0,
       });
     });
   });
 
-  describe('AC-11.4: Fetch next page when needed', () => {
-    it('calculates next offset based on jobs loaded', async () => {
+  describe("AC-11.4: Fetch next page when needed", () => {
+    it("calculates next offset based on jobs loaded", async () => {
       const page1Response: JobQueueResponse = {
         ...mockResponse,
         jobs: Array(50).fill(mockResponse.jobs[0]),
@@ -114,10 +115,9 @@ describe('useInfiniteJobQueue', () => {
 
       mockInvoke.mockResolvedValueOnce(page1Response).mockResolvedValueOnce(page2Response);
 
-      const { result } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'score', filter: 'all' }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useInfiniteJobQueue({ sortBy: "score", filter: "all" }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -131,17 +131,17 @@ describe('useInfiniteJobQueue', () => {
       });
 
       // Second call should have offset = 50 (number of jobs from page 1)
-      expect(mockInvoke).toHaveBeenNthCalledWith(2, 'get_job_queue', {
-        sortBy: 'score',
-        filter: 'all',
+      expect(mockInvoke).toHaveBeenNthCalledWith(2, "get_job_queue", {
+        sortBy: "score",
+        filter: "all",
         limit: 50,
         offset: 50,
       });
     });
   });
 
-  describe('AC-11.6: Stop fetching when hasMore === false', () => {
-    it('does not provide next page when hasMore is false', async () => {
+  describe("AC-11.6: Stop fetching when hasMore === false", () => {
+    it("does not provide next page when hasMore is false", async () => {
       const finalPageResponse: JobQueueResponse = {
         ...mockResponse,
         hasMore: false,
@@ -149,10 +149,9 @@ describe('useInfiniteJobQueue', () => {
 
       mockInvoke.mockResolvedValue(finalPageResponse);
 
-      const { result } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'score', filter: 'all' }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useInfiniteJobQueue({ sortBy: "score", filter: "all" }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -161,13 +160,12 @@ describe('useInfiniteJobQueue', () => {
       expect(result.current.hasNextPage).toBe(false);
     });
 
-    it('provides next page when hasMore is true', async () => {
+    it("provides next page when hasMore is true", async () => {
       mockInvoke.mockResolvedValue(mockResponse);
 
-      const { result } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'score', filter: 'all' }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useInfiniteJobQueue({ sortBy: "score", filter: "all" }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -177,18 +175,18 @@ describe('useInfiniteJobQueue', () => {
     });
   });
 
-  describe('Query key management', () => {
-    it('uses separate query keys for different sort/filter combinations', async () => {
+  describe("Query key management", () => {
+    it("uses separate query keys for different sort/filter combinations", async () => {
       mockInvoke.mockResolvedValue(mockResponse);
 
       const { result: result1 } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'score', filter: 'all' }),
-        { wrapper }
+        () => useInfiniteJobQueue({ sortBy: "score", filter: "all" }),
+        { wrapper },
       );
 
       const { result: result2 } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'date', filter: 'greenOnly' }),
-        { wrapper }
+        () => useInfiniteJobQueue({ sortBy: "date", filter: "greenOnly" }),
+        { wrapper },
       );
 
       await waitFor(() => {
@@ -201,31 +199,29 @@ describe('useInfiniteJobQueue', () => {
     });
   });
 
-  describe('Error handling', () => {
-    it('handles fetch errors', async () => {
-      mockInvoke.mockRejectedValue(new Error('Database error'));
+  describe("Error handling", () => {
+    it("handles fetch errors", async () => {
+      mockInvoke.mockRejectedValue(new Error("Database error"));
 
-      const { result } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'score', filter: 'all' }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useInfiniteJobQueue({ sortBy: "score", filter: "all" }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
 
-      expect(result.current.error).toEqual(new Error('Database error'));
+      expect(result.current.error).toEqual(new Error("Database error"));
     });
   });
 
-  describe('Cache configuration', () => {
-    it('uses correct staleTime and gcTime', async () => {
+  describe("Cache configuration", () => {
+    it("uses correct staleTime and gcTime", async () => {
       mockInvoke.mockResolvedValue(mockResponse);
 
-      const { result } = renderHook(
-        () => useInfiniteJobQueue({ sortBy: 'score', filter: 'all' }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useInfiniteJobQueue({ sortBy: "score", filter: "all" }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);

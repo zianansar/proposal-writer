@@ -33,10 +33,24 @@
 }
 
 /* Status-specific accent on current */
-.outcome-dropdown__option--current.outcome-dropdown__option--pending { color: #737373; }
-.outcome-dropdown__option--current.outcome-dropdown__option--submitted { color: #93c5fd; }
-.outcome-dropdown__option--current.outcome-dropdown__option--response_received { color: #bef264; }
-.outcome-dropdown__option--current.outcome-dropdown__option--interview { color: #c4b5fd; }
-.outcome-dropdown__option--current.outcome-dropdown__option--hired { color: #4ade80; }
-.outcome-dropdown__option--current.outcome-dropdown__option--no_response { color: #525252; }
-.outcome-dropdown__option--current.outcome-dropdown__option--rejected { color: #fca5a5; }
+.outcome-dropdown__option--current.outcome-dropdown__option--pending {
+  color: #737373;
+}
+.outcome-dropdown__option--current.outcome-dropdown__option--submitted {
+  color: #93c5fd;
+}
+.outcome-dropdown__option--current.outcome-dropdown__option--response_received {
+  color: #bef264;
+}
+.outcome-dropdown__option--current.outcome-dropdown__option--interview {
+  color: #c4b5fd;
+}
+.outcome-dropdown__option--current.outcome-dropdown__option--hired {
+  color: #4ade80;
+}
+.outcome-dropdown__option--current.outcome-dropdown__option--no_response {
+  color: #525252;
+}
+.outcome-dropdown__option--current.outcome-dropdown__option--rejected {
+  color: #fca5a5;
+}

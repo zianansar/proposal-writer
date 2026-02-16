@@ -27,8 +27,8 @@ fn test_migration_v24_using_actual_file() {
         .join("migrations")
         .join("V24__add_archived_revisions_column.sql");
 
-    let migration_sql = fs::read_to_string(&migration_path)
-        .expect("Failed to read V24 migration file");
+    let migration_sql =
+        fs::read_to_string(&migration_path).expect("Failed to read V24 migration file");
 
     // Extract only the SQL statement (skip comments)
     let sql_statements: Vec<&str> = migration_sql
@@ -37,7 +37,8 @@ fn test_migration_v24_using_actual_file() {
         .collect();
 
     for sql in sql_statements {
-        conn.execute(sql, []).expect("Failed to execute migration SQL");
+        conn.execute(sql, [])
+            .expect("Failed to execute migration SQL");
     }
 
     // Verify column exists by selecting from it
@@ -83,10 +84,8 @@ fn test_migration_v24_adds_archived_revisions_column() {
     .unwrap();
 
     // Apply V24 migration
-    conn.execute_batch(
-        "ALTER TABLE proposals ADD COLUMN archived_revisions BLOB;",
-    )
-    .unwrap();
+    conn.execute_batch("ALTER TABLE proposals ADD COLUMN archived_revisions BLOB;")
+        .unwrap();
 
     // Verify column exists by selecting from it
     let stmt = conn

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect, useRef } from "react";
+
 import { useOnboardingStore } from "../../stores/useOnboardingStore";
 
 function ApiKeyStep() {
@@ -24,9 +25,7 @@ function ApiKeyStep() {
 
     // Validate format (sk-ant- prefix)
     if (!apiKeyInput.startsWith("sk-ant-")) {
-      setValidationError(
-        "Invalid API key format. Key must start with 'sk-ant-'"
-      );
+      setValidationError("Invalid API key format. Key must start with 'sk-ant-'");
       return;
     }
 
@@ -38,9 +37,7 @@ function ApiKeyStep() {
       await invoke("set_api_key", { apiKey: apiKeyInput });
       setCurrentStep(3);
     } catch (err) {
-      setValidationError(
-        err instanceof Error ? err.message : "Failed to save API key"
-      );
+      setValidationError(err instanceof Error ? err.message : "Failed to save API key");
     } finally {
       setIsValidating(false);
     }
@@ -77,25 +74,15 @@ function ApiKeyStep() {
         />
         <p className="onboarding-step__hint">
           Get a key at{" "}
-          <a
-            href="https://console.anthropic.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">
             console.anthropic.com
           </a>
         </p>
-        {validationError && (
-          <p className="onboarding-step__error">{validationError}</p>
-        )}
+        {validationError && <p className="onboarding-step__error">{validationError}</p>}
       </div>
 
       <div className="onboarding-step__actions">
-        <button
-          className="button button--secondary"
-          onClick={handleBack}
-          disabled={isValidating}
-        >
+        <button className="button button--secondary" onClick={handleBack} disabled={isValidating}>
           Back
         </button>
         <button

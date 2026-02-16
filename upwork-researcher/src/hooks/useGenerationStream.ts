@@ -1,5 +1,6 @@
-import { useEffect, useRef, useCallback } from "react";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { useEffect, useRef, useCallback } from "react";
+
 import { useGenerationStore } from "../stores/useGenerationStore";
 import type { StageStatus } from "../types/pipeline";
 

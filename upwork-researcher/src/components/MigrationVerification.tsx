@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect } from "react";
 import "./MigrationVerification.css";
 
 interface MigrationVerificationProps {
@@ -136,22 +136,14 @@ export function MigrationVerification({
 
       {/* Subtask 4.6: Display backup file path */}
       <div className="migration-verification__info">
-        <p className="migration-verification__info-label">
-          Original database backed up to:
-        </p>
-        <p className="migration-verification__info-value">
-          {verificationData.backup_path}
-        </p>
+        <p className="migration-verification__info-label">Original database backed up to:</p>
+        <p className="migration-verification__info-value">{verificationData.backup_path}</p>
       </div>
 
       {/* Subtask 4.7: Display old database path */}
       <div className="migration-verification__info">
-        <p className="migration-verification__info-label">
-          Unencrypted database location:
-        </p>
-        <p className="migration-verification__info-value">
-          {verificationData.old_db_path}
-        </p>
+        <p className="migration-verification__info-label">Unencrypted database location:</p>
+        <p className="migration-verification__info-value">{verificationData.old_db_path}</p>
       </div>
 
       {/* Subtask 5.1, 6.1: Action buttons */}
@@ -178,9 +170,8 @@ export function MigrationVerification({
           <div className="migration-verification__dialog">
             <h2>⚠️ Warning</h2>
             <p>
-              Deleting the unencrypted database is permanent. Only proceed if
-              you're confident the migration was successful. Do you want to
-              continue?
+              Deleting the unencrypted database is permanent. Only proceed if you're confident the
+              migration was successful. Do you want to continue?
             </p>
             <div className="migration-verification__dialog-actions">
               <button
@@ -227,12 +218,9 @@ export function MigrationVerification({
           <div className="migration-verification__dialog">
             <h2>Keep Both Databases</h2>
             <p>
-              Both databases will remain on your system. You can manually delete
-              the .old file at:
+              Both databases will remain on your system. You can manually delete the .old file at:
             </p>
-            <p className="migration-verification__dialog-path">
-              {verificationData.old_db_path}
-            </p>
+            <p className="migration-verification__dialog-path">{verificationData.old_db_path}</p>
             <p>when you're ready.</p>
             <div className="migration-verification__dialog-actions">
               <button

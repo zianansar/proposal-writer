@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import SafetyWarningModal from "./SafetyWarningModal";
-import OverrideConfirmDialog from "./OverrideConfirmDialog";
-import { useSafeCopy } from "../hooks/useSafeCopy";
+import { useCallback, useEffect, useRef } from "react";
+
 import { getShortcutDisplay } from "../hooks/usePlatform";
+import { useSafeCopy } from "../hooks/useSafeCopy";
+
 import { useAnnounce } from "./LiveAnnouncer";
+import OverrideConfirmDialog from "./OverrideConfirmDialog";
+import SafetyWarningModal from "./SafetyWarningModal";
 
 interface CopyButtonProps {
   /** Static text to copy (fallback if no getContent) */
@@ -30,14 +32,15 @@ interface CopyButtonProps {
 function CopyButton({ text, getContent, disabled = false, proposalId }: CopyButtonProps) {
   const { state, actions } = useSafeCopy();
   const { analyzing, copied, error, showWarningModal, showOverrideConfirm, analysisResult } = state;
-  const { triggerCopy, dismissWarning, showOverrideDialog, cancelOverride, confirmOverride } = actions;
+  const { triggerCopy, dismissWarning, showOverrideDialog, cancelOverride, confirmOverride } =
+    actions;
 
   // Story 8.3 AC3: Announce clipboard copy
   const announce = useAnnounce();
 
   useEffect(() => {
     if (copied) {
-      announce('Copied to clipboard');
+      announce("Copied to clipboard");
     }
   }, [copied, announce]);
 
@@ -50,11 +53,10 @@ function CopyButton({ text, getContent, disabled = false, proposalId }: CopyButt
     // 1. Copy just succeeded (copied changed from false to true)
     // 2. getContent is provided (indicates edited proposal, not initial generation)
     if (copied && !prevCopiedRef.current && getContent) {
-      invoke<number>('increment_proposals_edited')
-        .catch((err) => {
-          // Silent failure for non-critical tracking - don't block user workflow
-          console.error('Failed to increment proposals edited count:', err);
-        });
+      invoke<number>("increment_proposals_edited").catch((err) => {
+        // Silent failure for non-critical tracking - don't block user workflow
+        console.error("Failed to increment proposals edited count:", err);
+      });
     }
     prevCopiedRef.current = copied;
   }, [copied, getContent]);
@@ -104,11 +106,7 @@ function CopyButton({ text, getContent, disabled = false, proposalId }: CopyButt
           onClick={handleCopy}
           disabled={disabled || !hasContent || analyzing}
           aria-label={
-            analyzing
-              ? "Checking safety..."
-              : copied
-              ? "Copied to clipboard"
-              : "Copy to clipboard"
+            analyzing ? "Checking safety..." : copied ? "Copied to clipboard" : "Copy to clipboard"
           }
           title={`Copy to clipboard (${shortcutHint})`}
         >
@@ -155,10 +153,7 @@ function CopyButton({ text, getContent, disabled = false, proposalId }: CopyButt
 
       {/* Story 3.6: Override Confirmation Dialog */}
       {showOverrideConfirm && (
-        <OverrideConfirmDialog
-          onCancel={handleOverrideCancel}
-          onConfirm={handleOverrideConfirm}
-        />
+        <OverrideConfirmDialog onCancel={handleOverrideCancel} onConfirm={handleOverrideConfirm} />
       )}
     </>
   );

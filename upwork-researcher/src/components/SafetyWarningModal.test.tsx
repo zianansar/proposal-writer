@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+
 import SafetyWarningModal from "./SafetyWarningModal";
 
 describe("SafetyWarningModal", () => {
@@ -12,14 +13,12 @@ describe("SafetyWarningModal", () => {
     },
     {
       text: "I possess extensive experience in this domain.",
-      suggestion:
-        "Replace 'possess' with 'have' and 'domain' with 'area' for casual tone.",
+      suggestion: "Replace 'possess' with 'have' and 'domain' with 'area' for casual tone.",
       index: 1,
     },
     {
       text: "I would be honored to leverage my expertise.",
-      suggestion:
-        "Replace 'honored to leverage' with 'happy to use' - less formal.",
+      suggestion: "Replace 'honored to leverage' with 'happy to use' - less formal.",
       index: 2,
     },
   ];
@@ -37,7 +36,7 @@ describe("SafetyWarningModal", () => {
 
     // Check warning header
     expect(
-      screen.getByRole("heading", { name: /AI Detection Risk Detected/i })
+      screen.getByRole("heading", { name: /AI Detection Risk Detected/i }),
     ).toBeInTheDocument();
 
     // Check score display
@@ -50,25 +49,17 @@ describe("SafetyWarningModal", () => {
     render(<SafetyWarningModal {...defaultProps} />);
 
     // Check all 3 flagged sentences are displayed
-    expect(
-      screen.getByText("I am delighted to delve into this opportunity.")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("I possess extensive experience in this domain.")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("I would be honored to leverage my expertise.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("I am delighted to delve into this opportunity.")).toBeInTheDocument();
+    expect(screen.getByText("I possess extensive experience in this domain.")).toBeInTheDocument();
+    expect(screen.getByText("I would be honored to leverage my expertise.")).toBeInTheDocument();
 
     // Check all 3 suggestions are displayed
     expect(
-      screen.getByText(/Replace 'delighted to delve' with 'excited to work on'/i)
+      screen.getByText(/Replace 'delighted to delve' with 'excited to work on'/i),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Replace 'possess' with 'have'/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Replace 'possess' with 'have'/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Replace 'honored to leverage' with 'happy to use'/i)
+      screen.getByText(/Replace 'honored to leverage' with 'happy to use'/i),
     ).toBeInTheDocument();
   });
 
@@ -89,15 +80,9 @@ describe("SafetyWarningModal", () => {
 
     // Verify specific text content in highlight elements
     const textElements = container.querySelectorAll(".flagged-sentence__text");
-    expect(textElements[0].textContent).toBe(
-      "I am delighted to delve into this opportunity."
-    );
-    expect(textElements[1].textContent).toBe(
-      "I possess extensive experience in this domain."
-    );
-    expect(textElements[2].textContent).toBe(
-      "I would be honored to leverage my expertise."
-    );
+    expect(textElements[0].textContent).toBe("I am delighted to delve into this opportunity.");
+    expect(textElements[1].textContent).toBe("I possess extensive experience in this domain.");
+    expect(textElements[2].textContent).toBe("I would be honored to leverage my expertise.");
   });
 
   it("renders action buttons correctly", () => {
@@ -141,18 +126,15 @@ describe("SafetyWarningModal", () => {
   });
 
   it("handles empty flagged sentences array", () => {
-    render(
-      <SafetyWarningModal {...defaultProps} flaggedSentences={[]} />
-    );
+    render(<SafetyWarningModal {...defaultProps} flaggedSentences={[]} />);
 
     // Modal should still render
     expect(
-      screen.getByRole("heading", { name: /AI Detection Risk Detected/i })
+      screen.getByRole("heading", { name: /AI Detection Risk Detected/i }),
     ).toBeInTheDocument();
 
     // But no flagged sentences should be shown
-    const flaggedSentenceElements =
-      document.querySelectorAll(".flagged-sentence");
+    const flaggedSentenceElements = document.querySelectorAll(".flagged-sentence");
     expect(flaggedSentenceElements.length).toBe(0);
   });
 
@@ -181,7 +163,7 @@ describe("SafetyWarningModal", () => {
     const editButton = screen.getByRole("button", { name: /Edit Proposal/i });
 
     // Story 8.2: useFocusTrap uses requestAnimationFrame for focus, so wait for it
-    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
     expect(document.activeElement).toBe(editButton);
   });
@@ -195,7 +177,7 @@ describe("SafetyWarningModal", () => {
           {...defaultProps}
           onRegenerate={onRegenerate}
           humanizationIntensity="medium"
-        />
+        />,
       );
 
       const regenerateButton = screen.getByRole("button", {
@@ -212,7 +194,7 @@ describe("SafetyWarningModal", () => {
           {...defaultProps}
           onRegenerate={onRegenerate}
           humanizationIntensity="medium"
-        />
+        />,
       );
 
       const regenerateButton = screen.getByRole("button", {
@@ -230,7 +212,7 @@ describe("SafetyWarningModal", () => {
           onRegenerate={vi.fn()}
           humanizationIntensity="medium"
           attemptCount={1}
-        />
+        />,
       );
 
       expect(screen.getByText(/Attempt 2 of 3/i)).toBeInTheDocument();
@@ -242,18 +224,16 @@ describe("SafetyWarningModal", () => {
           {...defaultProps}
           onRegenerate={vi.fn()}
           humanizationIntensity="heavy"
-        />
+        />,
       );
 
       expect(
         screen.queryByRole("button", {
           name: /Regenerate with More Humanization/i,
-        })
+        }),
       ).not.toBeInTheDocument();
 
-      expect(
-        screen.getByText(/Already at maximum humanization intensity/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Already at maximum humanization intensity/i)).toBeInTheDocument();
     });
 
     it("disables regeneration when max attempts reached", () => {
@@ -263,18 +243,16 @@ describe("SafetyWarningModal", () => {
           onRegenerate={vi.fn()}
           humanizationIntensity="medium"
           attemptCount={3}
-        />
+        />,
       );
 
       expect(
         screen.queryByRole("button", {
           name: /Regenerate with More Humanization/i,
-        })
+        }),
       ).not.toBeInTheDocument();
 
-      expect(
-        screen.getByText(/Maximum regeneration attempts \(3\) reached/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Maximum regeneration attempts \(3\) reached/i)).toBeInTheDocument();
     });
 
     it("shows loading state when isRegenerating is true", () => {
@@ -284,7 +262,7 @@ describe("SafetyWarningModal", () => {
           onRegenerate={vi.fn()}
           humanizationIntensity="medium"
           isRegenerating={true}
-        />
+        />,
       );
 
       const regenerateButton = screen.getByRole("button", {
@@ -302,7 +280,7 @@ describe("SafetyWarningModal", () => {
           humanizationIntensity="medium"
           attemptCount={1}
           previousScore={185.5}
-        />
+        />,
       );
 
       expect(screen.getByText(/Previous: 185.5/i)).toBeInTheDocument();
@@ -318,7 +296,7 @@ describe("SafetyWarningModal", () => {
           humanizationIntensity="medium"
           attemptCount={1}
           previousScore={185.5}
-        />
+        />,
       );
 
       expect(screen.getByText(/Previous: 185.5/i)).toBeInTheDocument();
@@ -326,17 +304,12 @@ describe("SafetyWarningModal", () => {
     });
 
     it("does not show regeneration section when onRegenerate not provided", () => {
-      render(
-        <SafetyWarningModal
-          {...defaultProps}
-          humanizationIntensity="medium"
-        />
-      );
+      render(<SafetyWarningModal {...defaultProps} humanizationIntensity="medium" />);
 
       expect(
         screen.queryByRole("button", {
           name: /Regenerate with More Humanization/i,
-        })
+        }),
       ).not.toBeInTheDocument();
     });
   });

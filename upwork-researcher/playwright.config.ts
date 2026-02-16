@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
 /**
  * Playwright configuration for Tauri E2E tests
@@ -15,7 +15,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: "./tests/e2e",
 
   // Run tests sequentially - Tauri app can only have one instance
   fullyParallel: false,
@@ -31,9 +31,9 @@ export default defineConfig({
 
   // Test reporters
   reporter: [
-    ['list'],
-    ['html', { open: 'never', outputFolder: 'playwright-report' }],
-    ['json', { outputFile: 'test-results/results.json' }],
+    ["list"],
+    ["html", { open: "never", outputFolder: "playwright-report" }],
+    ["json", { outputFile: "test-results/results.json" }],
   ],
 
   // Global timeout for each test (2 minutes)
@@ -46,16 +46,16 @@ export default defineConfig({
 
   use: {
     // Capture trace on first retry for debugging
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
 
     // Capture video on failure
-    video: 'retain-on-failure',
+    video: "retain-on-failure",
 
     // Capture screenshot on failure
-    screenshot: 'only-on-failure',
+    screenshot: "only-on-failure",
 
     // Base URL (will be overridden by Tauri test context)
-    baseURL: 'tauri://localhost',
+    baseURL: "tauri://localhost",
 
     // Viewport size
     viewport: { width: 1280, height: 720 },
@@ -67,15 +67,15 @@ export default defineConfig({
   // Test projects (single project for Tauri app)
   projects: [
     {
-      name: 'tauri-e2e',
+      name: "tauri-e2e",
       testMatch: /.*\.spec\.ts$/,
     },
   ],
 
   // Output folders
-  outputDir: 'test-results',
+  outputDir: "test-results",
 
   // Global setup/teardown
-  globalSetup: './tests/e2e/global-setup.ts',
-  globalTeardown: './tests/e2e/global-teardown.ts',
+  globalSetup: "./tests/e2e/global-setup.ts",
+  globalTeardown: "./tests/e2e/global-teardown.ts",
 });

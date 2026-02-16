@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import HookStrategySelector from "./HookStrategySelector";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import { HookStrategy } from "../types/hooks";
+
+import HookStrategySelector from "./HookStrategySelector";
 
 // Mock Tauri invoke
 vi.mock("@tauri-apps/api/core", () => ({
@@ -13,8 +15,8 @@ const mockInvoke = vi.mocked(invoke);
 
 describe("HookStrategySelector", () => {
   // M3 Code Review Fix: Mock console methods to silence expected error/warn logs
-  const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
   afterEach(() => {
     consoleErrorSpy.mockClear();
@@ -223,9 +225,7 @@ describe("HookStrategySelector", () => {
 
   it("should default to first strategy if Social Proof not found", async () => {
     // Story 5.2: Subtask 4.4 - Fallback behavior
-    const strategiesWithoutSocialProof = mockStrategies.filter(
-      (s) => s.name !== "Social Proof"
-    );
+    const strategiesWithoutSocialProof = mockStrategies.filter((s) => s.name !== "Social Proof");
 
     mockInvoke.mockResolvedValue(strategiesWithoutSocialProof);
 

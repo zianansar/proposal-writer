@@ -1,5 +1,5 @@
-import { axe, type AxeResults } from "vitest-axe";
 import type { Result, RunOptions } from "axe-core";
+import { axe, type AxeResults } from "vitest-axe";
 
 /**
  * Axe-core configuration for WCAG AA compliance testing
@@ -10,8 +10,8 @@ import type { Result, RunOptions } from "axe-core";
  */
 export const WCAG_AA_CONFIG: RunOptions = {
   runOnly: {
-    type: 'tag',
-    values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'],
+    type: "tag",
+    values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
   },
 };
 
@@ -20,7 +20,7 @@ export const WCAG_AA_CONFIG: RunOptions = {
  */
 export async function runAxeAudit(
   container: Element,
-  config = WCAG_AA_CONFIG
+  config = WCAG_AA_CONFIG,
 ): Promise<AxeResults> {
   return axe(container, config);
 }
@@ -32,9 +32,7 @@ export async function runAxeAudit(
 export function assertNoViolations(results: AxeResults): void {
   if (results.violations.length > 0) {
     const violationSummary = formatViolations(results.violations);
-    throw new Error(
-      `Accessibility violations found:\n\n${violationSummary}`
-    );
+    throw new Error(`Accessibility violations found:\n\n${violationSummary}`);
   }
 }
 
@@ -50,7 +48,7 @@ Description: ${violation.description}
 Help: ${violation.help}
 Affected elements (${violation.nodes.length}):
 ${violation.nodes.map((node) => `  - ${node.html}`).join("\n")}
-`
+`,
     )
     .join("\n" + "=".repeat(80) + "\n");
 }
@@ -60,10 +58,10 @@ ${violation.nodes.map((node) => `  - ${node.html}`).join("\n")}
  */
 export function filterViolationsByImpact(
   results: AxeResults,
-  impacts: Array<"critical" | "serious" | "moderate" | "minor">
+  impacts: Array<"critical" | "serious" | "moderate" | "minor">,
 ): Result[] {
   return results.violations.filter((v) =>
-    impacts.includes(v.impact as "critical" | "serious" | "moderate" | "minor")
+    impacts.includes(v.impact as "critical" | "serious" | "moderate" | "minor"),
   );
 }
 

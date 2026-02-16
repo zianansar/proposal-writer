@@ -5,8 +5,8 @@
  * Replaces duplicate __dirname polyfills across test files.
  */
 
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 
 /**
  * Get __dirname equivalent for ES modules

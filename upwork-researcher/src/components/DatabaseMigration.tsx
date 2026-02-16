@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect } from "react";
 import "./DatabaseMigration.css";
 
 interface DatabaseMigrationProps {
@@ -113,27 +113,23 @@ export function DatabaseMigration({
       {state === "success" && result && (
         <div className="database-migration__success">
           {/* Subtask 9.4: Display success message with counts */}
-          <div className="database-migration__success-icon" aria-hidden="true">✓</div>
+          <div className="database-migration__success-icon" aria-hidden="true">
+            ✓
+          </div>
           <h2>Migration Complete</h2>
           <p className="database-migration__success-message">{result.message}</p>
 
           <div className="database-migration__counts">
             <div className="database-migration__count-item">
-              <span className="database-migration__count-value">
-                {result.proposals_migrated}
-              </span>
+              <span className="database-migration__count-value">{result.proposals_migrated}</span>
               <span className="database-migration__count-label">Proposals</span>
             </div>
             <div className="database-migration__count-item">
-              <span className="database-migration__count-value">
-                {result.settings_migrated}
-              </span>
+              <span className="database-migration__count-value">{result.settings_migrated}</span>
               <span className="database-migration__count-label">Settings</span>
             </div>
             <div className="database-migration__count-item">
-              <span className="database-migration__count-value">
-                {result.job_posts_migrated}
-              </span>
+              <span className="database-migration__count-value">{result.job_posts_migrated}</span>
               <span className="database-migration__count-label">Job Posts</span>
             </div>
           </div>
@@ -156,10 +152,12 @@ export function DatabaseMigration({
 
           {/* Story 2.5: Recovery status indicator */}
           <div className="database-migration__recovery-status">
-            <div className="database-migration__recovery-status-icon" aria-hidden="true">✓</div>
+            <div className="database-migration__recovery-status-icon" aria-hidden="true">
+              ✓
+            </div>
             <p className="database-migration__recovery-status-text">
-              <strong>Your data is safe.</strong> The migration was rolled back
-              automatically and your unencrypted database remains intact.
+              <strong>Your data is safe.</strong> The migration was rolled back automatically and
+              your unencrypted database remains intact.
             </p>
           </div>
 
@@ -188,7 +186,9 @@ export function DatabaseMigration({
               <li>Migration encountered an error and stopped automatically</li>
               <li>All partial changes were rolled back</li>
               <li>Your original database is unchanged and fully functional</li>
-              <li>A backup was created before migration started at: <code>{backupPath}</code></li>
+              <li>
+                A backup was created before migration started at: <code>{backupPath}</code>
+              </li>
             </ul>
 
             <h3>Next Steps:</h3>

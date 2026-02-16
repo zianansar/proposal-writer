@@ -3,13 +3,13 @@
  * Circular badge with score number and colored background (AC-2)
  */
 
-import type { ScoreColor } from '../types';
-import './JobScoreBadge.css';
+import type { ScoreColor } from "../types";
+import "./JobScoreBadge.css";
 
 interface JobScoreBadgeProps {
   score: number | null;
   color: ScoreColor;
-  size?: 'sm' | 'lg';
+  size?: "sm" | "lg";
 }
 
 /**
@@ -19,14 +19,13 @@ interface JobScoreBadgeProps {
  * AC-7.5: Accessibility - role="status", descriptive aria-label
  * AC-7.6: Handle null score - display "—" with Gray background
  */
-export default function JobScoreBadge({ score, color, size = 'sm' }: JobScoreBadgeProps) {
+export default function JobScoreBadge({ score, color, size = "sm" }: JobScoreBadgeProps) {
   // AC-7.5: Descriptive aria-label
-  const ariaLabel = score !== null
-    ? `Score: ${score.toFixed(1)}, ${getColorDescription(color)}`
-    : 'Not yet scored';
+  const ariaLabel =
+    score !== null ? `Score: ${score.toFixed(1)}, ${getColorDescription(color)}` : "Not yet scored";
 
   // AC-7.6: Display "—" for null scores
-  const displayValue = score !== null ? score.toFixed(1) : '—';
+  const displayValue = score !== null ? score.toFixed(1) : "—";
 
   return (
     <div
@@ -41,13 +40,13 @@ export default function JobScoreBadge({ score, color, size = 'sm' }: JobScoreBad
 
 function getColorDescription(color: ScoreColor): string {
   switch (color) {
-    case 'green':
-      return 'good match';
-    case 'yellow':
-      return 'moderate match';
-    case 'red':
-      return 'poor match';
-    case 'gray':
-      return 'not scored';
+    case "green":
+      return "good match";
+    case "yellow":
+      return "moderate match";
+    case "red":
+      return "poor match";
+    case "gray":
+      return "not scored";
   }
 }

@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { useState } from "react";
 import "./RecoveryOptions.css";
 
 interface RecoveryOptionsProps {
@@ -114,11 +114,13 @@ function RecoveryOptions({ passphrase, onComplete, onSkip }: RecoveryOptionsProp
 
         <div className="recovery-options-grid">
           {/* Option 1: Recovery Key */}
-          <div className={`recovery-option-card ${selectedOption === "recovery-key" ? "selected" : ""}`}>
+          <div
+            className={`recovery-option-card ${selectedOption === "recovery-key" ? "selected" : ""}`}
+          >
             <h2 className="option-title">🔑 Generate Recovery Key</h2>
             <p className="option-description">
-              Generate a 32-character recovery key that can unlock your data if you forget your passphrase.
-              Print or write it down and store it securely offline.
+              Generate a 32-character recovery key that can unlock your data if you forget your
+              passphrase. Print or write it down and store it securely offline.
             </p>
 
             {!recoveryKey ? (
@@ -137,7 +139,11 @@ function RecoveryOptions({ passphrase, onComplete, onSkip }: RecoveryOptionsProp
                 </div>
 
                 <div className="recovery-key-actions">
-                  <button type="button" onClick={handleCopy} className={`action-btn ${copied ? "copied" : ""}`}>
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className={`action-btn ${copied ? "copied" : ""}`}
+                  >
                     {copied ? "✅ Copied!" : "📋 Copy"}
                   </button>
                   <button type="button" onClick={handlePrint} className="action-btn">
@@ -167,9 +173,7 @@ function RecoveryOptions({ passphrase, onComplete, onSkip }: RecoveryOptionsProp
             <p className="option-description">
               Export your data as an unencrypted JSON file. Keep this file in a secure location.
             </p>
-            <div className="backup-warning">
-              ⚠️ This backup is NOT encrypted. Keep it secure.
-            </div>
+            <div className="backup-warning">⚠️ This backup is NOT encrypted. Keep it secure.</div>
 
             {backupPath ? (
               <div className="backup-success">
@@ -191,14 +195,11 @@ function RecoveryOptions({ passphrase, onComplete, onSkip }: RecoveryOptionsProp
           <div className={`recovery-option-card ${selectedOption === "skipped" ? "selected" : ""}`}>
             <h2 className="option-title">⏭️ Skip Recovery Setup</h2>
             <p className="option-description">
-              Continue without recovery options. You won't be able to recover your data if you forget your passphrase.
+              Continue without recovery options. You won't be able to recover your data if you
+              forget your passphrase.
             </p>
 
-            <button
-              type="button"
-              onClick={handleSkipClick}
-              className="option-btn warning"
-            >
+            <button type="button" onClick={handleSkipClick} className="option-btn warning">
               Skip
             </button>
           </div>
@@ -220,11 +221,19 @@ function RecoveryOptions({ passphrase, onComplete, onSkip }: RecoveryOptionsProp
 
       {/* Skip Confirmation Modal (L2 fix: accessibility attributes) */}
       {showSkipConfirmation && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="skip-modal-title">
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="skip-modal-title"
+        >
           <div className="modal-content">
-            <h2 className="modal-title" id="skip-modal-title">Skip Recovery Setup?</h2>
+            <h2 className="modal-title" id="skip-modal-title">
+              Skip Recovery Setup?
+            </h2>
             <p className="modal-warning">
-              Without a recovery option, forgotten passphrases CANNOT be recovered. You will lose all your data.
+              Without a recovery option, forgotten passphrases CANNOT be recovered. You will lose
+              all your data.
             </p>
 
             <div className="modal-actions">

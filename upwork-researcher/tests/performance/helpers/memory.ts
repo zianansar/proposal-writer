@@ -1,6 +1,6 @@
 // Memory measurement utilities for performance benchmarks
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 export interface MemorySnapshot {
   rssBytes: number;
@@ -14,7 +14,7 @@ export interface MemorySnapshot {
  */
 export async function getMemoryUsage(): Promise<MemorySnapshot> {
   // Get Rust-side memory via Tauri command
-  const rustMemory = await invoke<{ rss_bytes: number }>('get_memory_usage');
+  const rustMemory = await invoke<{ rss_bytes: number }>("get_memory_usage");
 
   // Get JS heap usage (if available in browser/webview)
   const jsMemory = (performance as any).memory?.usedJSHeapSize ?? 0;
@@ -38,17 +38,17 @@ export function bytesToMB(bytes: number): number {
  * Forces GC if available for more accurate measurements
  */
 export async function measureMemoryDelta(
-  fn: () => Promise<void>
+  fn: () => Promise<void>,
 ): Promise<{ before: MemorySnapshot; after: MemorySnapshot; deltaMB: number }> {
   // Force GC if available (requires --expose-gc flag in Node/V8)
-  if (typeof (global as any).gc === 'function') (global as any).gc();
+  if (typeof (global as any).gc === "function") (global as any).gc();
 
   const before = await getMemoryUsage();
   await fn();
 
   // Allow cleanup
-  await new Promise(r => setTimeout(r, 100));
-  if (typeof (global as any).gc === 'function') (global as any).gc();
+  await new Promise((r) => setTimeout(r, 100));
+  if (typeof (global as any).gc === "function") (global as any).gc();
 
   const after = await getMemoryUsage();
 

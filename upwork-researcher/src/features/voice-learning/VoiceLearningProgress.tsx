@@ -2,6 +2,7 @@
 // Shows progress indicator with status message based on proposals edited count
 
 import { Progress } from "../../components/ui/progress";
+
 import { VoiceLearningProgress as ProgressType } from "./types";
 import "./VoiceLearningProgress.css";
 
@@ -14,11 +15,11 @@ export function VoiceLearningProgress({ progress }: VoiceLearningProgressProps) 
 
   // Generate status message based on count
   const getStatusMessage = () => {
-    if (status === 'initial') {
+    if (status === "initial") {
       return `Proposals edited: ${proposalsEditedCount} (no proposals yet)`;
-    } else if (status === 'learning') {
+    } else if (status === "learning") {
       return `Proposals edited: ${proposalsEditedCount}/5 (learning in progress)`;
-    } else if (status === 'refining') {
+    } else if (status === "refining") {
       return `Proposals edited: ${proposalsEditedCount}/10 (refining your style)`;
     } else {
       // personalized
@@ -29,11 +30,7 @@ export function VoiceLearningProgress({ progress }: VoiceLearningProgressProps) 
   return (
     <div className="voice-learning-progress">
       <div className="progress-header">
-        <span
-          className="progress-label"
-          aria-live="polite"
-          aria-atomic="true"
-        >
+        <span className="progress-label" aria-live="polite" aria-atomic="true">
           {getStatusMessage()}
         </span>
       </div>
@@ -48,15 +45,15 @@ export function VoiceLearningProgress({ progress }: VoiceLearningProgressProps) 
       {/* Milestone markers at 5 and 10 */}
       <div className="progress-markers">
         <div
-          className={`progress-marker ${proposalsEditedCount >= 5 ? 'progress-marker--reached' : ''}`}
-          style={{ left: '50%' }}
+          className={`progress-marker ${proposalsEditedCount >= 5 ? "progress-marker--reached" : ""}`}
+          style={{ left: "50%" }}
           aria-hidden="true"
         >
           <span className="marker-label">5</span>
         </div>
         <div
-          className={`progress-marker ${proposalsEditedCount >= 10 ? 'progress-marker--reached' : ''}`}
-          style={{ left: '100%' }}
+          className={`progress-marker ${proposalsEditedCount >= 10 ? "progress-marker--reached" : ""}`}
+          style={{ left: "100%" }}
           aria-hidden="true"
         >
           <span className="marker-label">10</span>

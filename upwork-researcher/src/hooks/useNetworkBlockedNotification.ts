@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { useAnnounce } from '../components/LiveAnnouncer';
+import { listen } from "@tauri-apps/api/event";
+import { useEffect, useState } from "react";
+
+import { useAnnounce } from "../components/LiveAnnouncer";
 
 /**
  * Network blocked event payload (matches Rust NetworkBlockedPayload)
@@ -39,7 +40,7 @@ export function useNetworkBlockedNotification(): NetworkBlockedToast | null {
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
 
-    const unlisten = listen<NetworkBlockedPayload>('network:blocked', (event) => {
+    const unlisten = listen<NetworkBlockedPayload>("network:blocked", (event) => {
       const { domain, url, timestamp } = event.payload;
 
       // Clear previous timer to prevent stale closure from dismissing new toast
@@ -51,7 +52,7 @@ export function useNetworkBlockedNotification(): NetworkBlockedToast | null {
       setToast({ domain, url, timestamp });
 
       // Announce to screen readers (Story 8.3)
-      announce(`Blocked network request to unauthorized domain: ${domain}`, 'assertive');
+      announce(`Blocked network request to unauthorized domain: ${domain}`, "assertive");
 
       // Auto-dismiss after 5 seconds
       timeoutId = setTimeout(() => {

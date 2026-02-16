@@ -15,11 +15,7 @@ function WelcomeStep() {
       </p>
 
       <div className="onboarding-step__actions">
-        <button
-          className="button button--primary"
-          onClick={handleNext}
-          autoFocus
-        >
+        <button className="button button--primary" onClick={handleNext} autoFocus>
           Get Started
         </button>
       </div>

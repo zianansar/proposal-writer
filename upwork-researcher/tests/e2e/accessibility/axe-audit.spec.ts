@@ -11,12 +11,13 @@
  * - WCAG AA color contrast verified
  */
 
-import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
-import { launchTauriApp, closeTauriApp } from '../helpers/tauriDriver';
-import { clearDatabase, seedDatabase } from '../helpers/dbUtils';
+import AxeBuilder from "@axe-core/playwright";
+import { test, expect } from "@playwright/test";
 
-test.describe('Accessibility: axe-core Audits', () => {
+import { clearDatabase, seedDatabase } from "../helpers/dbUtils";
+import { launchTauriApp, closeTauriApp } from "../helpers/tauriDriver";
+
+test.describe("Accessibility: axe-core Audits", () => {
   test.beforeAll(async () => {
     await launchTauriApp({ useBuild: false });
   });
@@ -25,92 +26,88 @@ test.describe('Accessibility: axe-core Audits', () => {
     await closeTauriApp();
   });
 
-  test('onboarding screen has no accessibility violations', async ({ page }) => {
+  test("onboarding screen has no accessibility violations", async ({ page }) => {
     clearDatabase();
-    await page.goto('tauri://localhost');
+    await page.goto("tauri://localhost");
 
     const accessibilityResults = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
 
     const criticalViolations = accessibilityResults.violations.filter(
-      (v) => v.impact === 'critical' || v.impact === 'serious'
+      (v) => v.impact === "critical" || v.impact === "serious",
     );
 
     expect(criticalViolations).toHaveLength(0);
     console.log(`✓ No critical violations (${accessibilityResults.violations.length} total)`);
   });
 
-  test('main editor has no accessibility violations', async ({ page }) => {
-    seedDatabase('with-api-key');
-    await page.goto('tauri://localhost');
+  test("main editor has no accessibility violations", async ({ page }) => {
+    seedDatabase("with-api-key");
+    await page.goto("tauri://localhost");
 
     const accessibilityResults = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa'])
+      .withTags(["wcag2a", "wcag2aa"])
       .analyze();
 
     const criticalViolations = accessibilityResults.violations.filter(
-      (v) => v.impact === 'critical' || v.impact === 'serious'
+      (v) => v.impact === "critical" || v.impact === "serious",
     );
 
     expect(criticalViolations).toHaveLength(0);
   });
 
-  test('settings modal has no accessibility violations', async ({ page }) => {
-    seedDatabase('with-api-key');
-    await page.goto('tauri://localhost');
+  test("settings modal has no accessibility violations", async ({ page }) => {
+    seedDatabase("with-api-key");
+    await page.goto("tauri://localhost");
 
     // Open settings modal
-    await page.getByRole('button', { name: /settings/i }).click();
+    await page.getByRole("button", { name: /settings/i }).click();
 
     const accessibilityResults = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa'])
+      .withTags(["wcag2a", "wcag2aa"])
       .analyze();
 
     const criticalViolations = accessibilityResults.violations.filter(
-      (v) => v.impact === 'critical' || v.impact === 'serious'
+      (v) => v.impact === "critical" || v.impact === "serious",
     );
 
     expect(criticalViolations).toHaveLength(0);
   });
 
-  test('color contrast meets WCAG AA standards', async ({ page }) => {
+  test("color contrast meets WCAG AA standards", async ({ page }) => {
     clearDatabase();
-    await page.goto('tauri://localhost');
+    await page.goto("tauri://localhost");
 
     // M1 FIX: Use .withRules() for rule filtering, not .include() which takes CSS selectors
     const contrastResults = await new AxeBuilder({ page })
-      .withTags(['wcag2aa'])
-      .withRules(['color-contrast'])
+      .withTags(["wcag2aa"])
+      .withRules(["color-contrast"])
       .analyze();
 
     expect(contrastResults.violations).toHaveLength(0);
-    console.log('✓ Color contrast meets WCAG AA standards');
+    console.log("✓ Color contrast meets WCAG AA standards");
   });
 
-  test('all images have alt text', async ({ page }) => {
-    seedDatabase('with-api-key');
-    await page.goto('tauri://localhost');
+  test("all images have alt text", async ({ page }) => {
+    seedDatabase("with-api-key");
+    await page.goto("tauri://localhost");
 
     // M1 FIX: Use .withRules() instead of .include() for rule-based filtering
-    const imageResults = await new AxeBuilder({ page })
-      .withRules(['image-alt'])
-      .analyze();
+    const imageResults = await new AxeBuilder({ page }).withRules(["image-alt"]).analyze();
 
     expect(imageResults.violations).toHaveLength(0);
-    console.log('✓ All images have appropriate alt text');
+    console.log("✓ All images have appropriate alt text");
   });
 
-  test('form labels are properly associated', async ({ page }) => {
+  test("form labels are properly associated", async ({ page }) => {
     clearDatabase();
-    await page.goto('tauri://localhost');
+    await page.goto("tauri://localhost");
 
     // M1 FIX: Use .withRules() instead of .include() for rule-based filtering
-    const labelResults = await new AxeBuilder({ page })
-      .withRules(['label'])
-      .analyze();
+    const labelResults = await new AxeBuilder({ page }).withRules(["label"]).analyze();
 
     expect(labelResults.violations).toHaveLength(0);
-    console.log('✓ Form labels properly associated');
+    console.log("✓ Form labels properly associated");
   });
 });

@@ -9,15 +9,15 @@
 //! Security: Recovery key shown to user (print/save), then encrypted at rest
 //! using AES-256-GCM with Argon2id-derived key.
 
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use aes_gcm::aead::Aead;
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2, ParamsBuilder, Version,
 };
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
-use rand::{thread_rng, Rng, RngCore};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng, RngCore};
 
 /// Recovery key length (32 alphanumeric characters)
 pub const RECOVERY_KEY_LENGTH: usize = 32;
@@ -37,7 +37,9 @@ pub enum RecoveryError {
     #[error("Failed to decrypt recovery key: {0}")]
     DecryptionFailed(String),
 
-    #[error("Invalid recovery key format (expected {RECOVERY_KEY_LENGTH} alphanumeric characters)")]
+    #[error(
+        "Invalid recovery key format (expected {RECOVERY_KEY_LENGTH} alphanumeric characters)"
+    )]
     InvalidFormat,
 
     #[error("Recovery key derivation failed: {0}")]
@@ -49,9 +51,9 @@ pub enum RecoveryError {
 /// Shared between encrypt and decrypt to avoid code duplication.
 fn derive_encryption_key(passphrase: &str, salt: &SaltString) -> Result<Vec<u8>, RecoveryError> {
     let params = ParamsBuilder::new()
-        .m_cost(65536)  // 64MB (same as passphrase module)
-        .t_cost(3)      // 3 iterations
-        .p_cost(4)      // 4 parallelism
+        .m_cost(65536) // 64MB (same as passphrase module)
+        .t_cost(3) // 3 iterations
+        .p_cost(4) // 4 parallelism
         .output_len(32) // 32-byte key for AES-256
         .build()
         .map_err(|e| RecoveryError::DerivationFailed(format!("Params build failed: {}", e)))?;
@@ -90,9 +92,11 @@ pub fn generate_recovery_key() -> Result<String, RecoveryError> {
         .collect();
 
     if recovery_key.len() != RECOVERY_KEY_LENGTH {
-        return Err(RecoveryError::GenerationFailed(
-            format!("Generated key length {} != {}", recovery_key.len(), RECOVERY_KEY_LENGTH)
-        ));
+        return Err(RecoveryError::GenerationFailed(format!(
+            "Generated key length {} != {}",
+            recovery_key.len(),
+            RECOVERY_KEY_LENGTH
+        )));
     }
 
     tracing::info!("Recovery key generated (32 chars, ~190 bits entropy)");
@@ -139,7 +143,9 @@ pub fn encrypt_recovery_key(recovery_key: &str, passphrase: &str) -> Result<Stri
 
     let ciphertext = cipher
         .encrypt(nonce, recovery_key.as_bytes())
-        .map_err(|e| RecoveryError::EncryptionFailed(format!("AES-256-GCM encrypt failed: {}", e)))?;
+        .map_err(|e| {
+            RecoveryError::EncryptionFailed(format!("AES-256-GCM encrypt failed: {}", e))
+        })?;
 
     // Combine nonce + ciphertext (tag is appended by aes-gcm)
     let mut combined = Vec::with_capacity(NONCE_LENGTH + ciphertext.len());
@@ -171,12 +177,15 @@ pub fn encrypt_recovery_key(recovery_key: &str, passphrase: &str) -> Result<Stri
 ///
 /// # Security
 /// Wrong passphrase will ALWAYS fail (GCM authentication tag mismatch).
-pub fn decrypt_recovery_key(encrypted_data: &str, passphrase: &str) -> Result<String, RecoveryError> {
+pub fn decrypt_recovery_key(
+    encrypted_data: &str,
+    passphrase: &str,
+) -> Result<String, RecoveryError> {
     // Parse salt and encrypted data: "salt:base64(nonce || ciphertext || tag)"
     let parts: Vec<&str> = encrypted_data.splitn(2, ':').collect();
     if parts.len() != 2 {
         return Err(RecoveryError::DecryptionFailed(
-            "Invalid encrypted data format (expected salt:encrypted)".to_string()
+            "Invalid encrypted data format (expected salt:encrypted)".to_string(),
         ));
     }
 
@@ -191,12 +200,13 @@ pub fn decrypt_recovery_key(encrypted_data: &str, passphrase: &str) -> Result<St
     let encryption_key = derive_encryption_key(passphrase, &salt)?;
 
     // Decode the combined nonce + ciphertext
-    let combined = BASE64_STANDARD.decode(encrypted_b64)
+    let combined = BASE64_STANDARD
+        .decode(encrypted_b64)
         .map_err(|e| RecoveryError::DecryptionFailed(format!("Invalid base64: {}", e)))?;
 
     if combined.len() < NONCE_LENGTH {
         return Err(RecoveryError::DecryptionFailed(
-            "Encrypted data too short (missing nonce)".to_string()
+            "Encrypted data too short (missing nonce)".to_string(),
         ));
     }
 
@@ -208,20 +218,22 @@ pub fn decrypt_recovery_key(encrypted_data: &str, passphrase: &str) -> Result<St
     let cipher = Aes256Gcm::new_from_slice(&encryption_key)
         .map_err(|e| RecoveryError::DecryptionFailed(format!("AES key init failed: {}", e)))?;
 
-    let plaintext = cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| RecoveryError::DecryptionFailed(
-            "Decryption failed (wrong passphrase or corrupted data)".to_string()
-        ))?;
+    let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|_| {
+        RecoveryError::DecryptionFailed(
+            "Decryption failed (wrong passphrase or corrupted data)".to_string(),
+        )
+    })?;
 
     // Convert to string
     let recovery_key = String::from_utf8(plaintext)
         .map_err(|e| RecoveryError::DecryptionFailed(format!("Invalid UTF-8: {}", e)))?;
 
     if recovery_key.len() != RECOVERY_KEY_LENGTH {
-        return Err(RecoveryError::DecryptionFailed(
-            format!("Decrypted key length {} != {}", recovery_key.len(), RECOVERY_KEY_LENGTH)
-        ));
+        return Err(RecoveryError::DecryptionFailed(format!(
+            "Decrypted key length {} != {}",
+            recovery_key.len(),
+            RECOVERY_KEY_LENGTH
+        )));
     }
 
     tracing::info!("Recovery key decrypted successfully");
@@ -270,9 +282,10 @@ pub fn wrap_db_key(db_key: &[u8], recovery_key: &str) -> Result<String, Recovery
     validate_recovery_key(recovery_key)?;
 
     if db_key.len() != 32 {
-        return Err(RecoveryError::EncryptionFailed(
-            format!("DB key must be 32 bytes, got {}", db_key.len())
-        ));
+        return Err(RecoveryError::EncryptionFailed(format!(
+            "DB key must be 32 bytes, got {}",
+            db_key.len()
+        )));
     }
 
     // Generate random salt for Argon2id
@@ -290,9 +303,9 @@ pub fn wrap_db_key(db_key: &[u8], recovery_key: &str) -> Result<String, Recovery
     let cipher = Aes256Gcm::new_from_slice(&encryption_key)
         .map_err(|e| RecoveryError::EncryptionFailed(format!("AES key init failed: {}", e)))?;
 
-    let ciphertext = cipher
-        .encrypt(nonce, db_key)
-        .map_err(|e| RecoveryError::EncryptionFailed(format!("AES-256-GCM encrypt failed: {}", e)))?;
+    let ciphertext = cipher.encrypt(nonce, db_key).map_err(|e| {
+        RecoveryError::EncryptionFailed(format!("AES-256-GCM encrypt failed: {}", e))
+    })?;
 
     // Combine nonce + ciphertext (tag is appended by aes-gcm)
     let mut combined = Vec::with_capacity(NONCE_LENGTH + ciphertext.len());
@@ -329,19 +342,20 @@ pub fn unwrap_db_key(wrapped_key: &str, recovery_key: &str) -> Result<Vec<u8>, R
     let parts: Vec<&str> = wrapped_key.splitn(2, ':').collect();
     if parts.len() != 2 {
         return Err(RecoveryError::DecryptionFailed(
-            "Invalid wrapped key format (expected salt:encrypted)".to_string()
+            "Invalid wrapped key format (expected salt:encrypted)".to_string(),
         ));
     }
 
     let salt = SaltString::from_b64(parts[0])
         .map_err(|e| RecoveryError::DecryptionFailed(format!("Invalid salt: {}", e)))?;
 
-    let combined = BASE64_STANDARD.decode(parts[1])
+    let combined = BASE64_STANDARD
+        .decode(parts[1])
         .map_err(|e| RecoveryError::DecryptionFailed(format!("Invalid base64: {}", e)))?;
 
     if combined.len() < NONCE_LENGTH + 16 {
         return Err(RecoveryError::DecryptionFailed(
-            "Wrapped key data too short".to_string()
+            "Wrapped key data too short".to_string(),
         ));
     }
 
@@ -356,16 +370,17 @@ pub fn unwrap_db_key(wrapped_key: &str, recovery_key: &str) -> Result<Vec<u8>, R
     let cipher = Aes256Gcm::new_from_slice(&encryption_key)
         .map_err(|e| RecoveryError::DecryptionFailed(format!("AES key init failed: {}", e)))?;
 
-    let db_key = cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| RecoveryError::DecryptionFailed(
-            "Unwrap failed (wrong recovery key or corrupted data)".to_string()
-        ))?;
+    let db_key = cipher.decrypt(nonce, ciphertext).map_err(|_| {
+        RecoveryError::DecryptionFailed(
+            "Unwrap failed (wrong recovery key or corrupted data)".to_string(),
+        )
+    })?;
 
     if db_key.len() != 32 {
-        return Err(RecoveryError::DecryptionFailed(
-            format!("Unwrapped key length {} != 32", db_key.len())
-        ));
+        return Err(RecoveryError::DecryptionFailed(format!(
+            "Unwrapped key length {} != 32",
+            db_key.len()
+        )));
     }
 
     tracing::info!("DB key unwrapped successfully");
@@ -420,7 +435,10 @@ mod tests {
         let result = decrypt_recovery_key(&encrypted, wrong_passphrase);
 
         // AES-256-GCM always fails with wrong passphrase (authentication tag mismatch)
-        assert!(result.is_err(), "Decryption with wrong passphrase must fail");
+        assert!(
+            result.is_err(),
+            "Decryption with wrong passphrase must fail"
+        );
     }
 
     #[test]
@@ -452,7 +470,9 @@ mod tests {
     /// (mirrors unlock_with_recovery_key Tauri command logic)
     #[test]
     fn test_recovery_key_argon2id_hash_verify() {
-        use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString, PasswordHash, PasswordVerifier};
+        use argon2::password_hash::{
+            rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+        };
         use argon2::Argon2;
 
         let recovery_key = generate_recovery_key().unwrap();
@@ -467,14 +487,19 @@ mod tests {
         // Verify (same as unlock_with_recovery_key command)
         let parsed_hash = PasswordHash::new(&hash).unwrap();
         let result = Argon2::default().verify_password(recovery_key.as_bytes(), &parsed_hash);
-        assert!(result.is_ok(), "Valid recovery key should verify against its hash");
+        assert!(
+            result.is_ok(),
+            "Valid recovery key should verify against its hash"
+        );
     }
 
     /// Test Argon2id hash rejects wrong recovery key
     /// (mirrors unlock_with_recovery_key rejection path)
     #[test]
     fn test_recovery_key_argon2id_hash_rejects_wrong_key() {
-        use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString, PasswordHash, PasswordVerifier};
+        use argon2::password_hash::{
+            rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+        };
         use argon2::Argon2;
 
         let real_key = generate_recovery_key().unwrap();
@@ -517,6 +542,9 @@ mod tests {
 
         // Verify old passphrase no longer decrypts re-encrypted key
         let result = decrypt_recovery_key(&encrypted_new, old_passphrase);
-        assert!(result.is_err(), "Old passphrase must not decrypt re-encrypted key");
+        assert!(
+            result.is_err(),
+            "Old passphrase must not decrypt re-encrypted key"
+        );
     }
 }

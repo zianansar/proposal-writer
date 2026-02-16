@@ -147,12 +147,42 @@ cd "$APP_DIR"
 if grep -q '"preversion:bump"' package.json; then
   test_pass "preversion:bump pre-flight check script exists"
 
-  # Test would require making working directory dirty, which we won't do here
-  # Instead, just verify the script has the right check
   if npm pkg get scripts.preversion:bump | grep -q "git diff-index"; then
     test_pass "Pre-flight check uses git diff-index"
   else
     test_fail "Pre-flight check missing git diff-index"
+  fi
+
+  # Also verify :minor and :major have pre-flight checks
+  if grep -q '"preversion:bump:minor"' package.json; then
+    test_pass "preversion:bump:minor pre-flight check exists"
+  else
+    test_fail "preversion:bump:minor pre-flight check missing"
+  fi
+
+  if grep -q '"preversion:bump:major"' package.json; then
+    test_pass "preversion:bump:major pre-flight check exists"
+  else
+    test_fail "preversion:bump:major pre-flight check missing"
+  fi
+
+  # Actually test dirty-directory rejection by creating a temp change
+  cd "$REPO_ROOT"
+  DIRTY_TEST_FILE=".dirty-test-temp"
+  echo "dirty" > "$DIRTY_TEST_FILE"
+  git add "$DIRTY_TEST_FILE"
+  cd "$APP_DIR"
+  DIRTY_OUTPUT=$(npm run version:bump:dry 2>&1)
+  DIRTY_EXIT=$?
+  cd "$REPO_ROOT"
+  git reset HEAD "$DIRTY_TEST_FILE" >/dev/null 2>&1
+  rm -f "$DIRTY_TEST_FILE"
+  cd "$APP_DIR"
+
+  if [ $DIRTY_EXIT -ne 0 ] || echo "$DIRTY_OUTPUT" | grep -qi "uncommitted\|error"; then
+    test_pass "Dirty working directory correctly rejected"
+  else
+    test_fail "Dirty working directory NOT rejected (expected failure)"
   fi
 else
   test_fail "preversion:bump pre-flight check NOT configured"

@@ -1,14 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createElement } from 'react';
-import { useProposalDetail } from './useProposalDetail';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import { createElement } from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock('@tauri-apps/api/core', () => ({
+import { useProposalDetail } from "./useProposalDetail";
+
+vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -22,25 +23,25 @@ function createWrapper() {
 
 const mockDetail = {
   id: 1,
-  jobContent: 'Looking for React developer',
-  generatedText: 'I am excited to apply...',
-  createdAt: '2026-02-10T12:00:00',
+  jobContent: "Looking for React developer",
+  generatedText: "I am excited to apply...",
+  createdAt: "2026-02-10T12:00:00",
   updatedAt: null,
-  status: 'draft',
-  outcomeStatus: 'pending' as const,
+  status: "draft",
+  outcomeStatus: "pending" as const,
   outcomeUpdatedAt: null,
-  hookStrategyId: 'social_proof',
+  hookStrategyId: "social_proof",
   jobPostId: 42,
-  jobTitle: 'Acme Corp',
+  jobTitle: "Acme Corp",
   revisionCount: 3,
 };
 
-describe('useProposalDetail', () => {
+describe("useProposalDetail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('fetches proposal detail by id', async () => {
+  it("fetches proposal detail by id", async () => {
     mockInvoke.mockResolvedValueOnce(mockDetail);
 
     const { result } = renderHook(() => useProposalDetail(1), {
@@ -49,12 +50,12 @@ describe('useProposalDetail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(mockInvoke).toHaveBeenCalledWith('get_proposal_detail', { id: 1 });
+    expect(mockInvoke).toHaveBeenCalledWith("get_proposal_detail", { id: 1 });
     expect(result.current.data).toEqual(mockDetail);
   });
 
-  it('handles error from backend', async () => {
-    mockInvoke.mockRejectedValueOnce(new Error('Proposal not found: 999'));
+  it("handles error from backend", async () => {
+    mockInvoke.mockRejectedValueOnce(new Error("Proposal not found: 999"));
 
     const { result } = renderHook(() => useProposalDetail(999), {
       wrapper: createWrapper(),
@@ -62,24 +63,24 @@ describe('useProposalDetail', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('Proposal not found: 999');
+    expect(result.current.error?.message).toBe("Proposal not found: 999");
   });
 
-  it('does not fetch when id is null', () => {
+  it("does not fetch when id is null", () => {
     const { result } = renderHook(() => useProposalDetail(null), {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.fetchStatus).toBe('idle');
+    expect(result.current.fetchStatus).toBe("idle");
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
-  it('does not fetch when id is undefined', () => {
+  it("does not fetch when id is undefined", () => {
     const { result } = renderHook(() => useProposalDetail(undefined), {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.fetchStatus).toBe('idle');
+    expect(result.current.fetchStatus).toBe("idle");
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 });

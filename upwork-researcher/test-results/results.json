@@ -26,18 +26,13 @@
         "name": "tauri-e2e",
         "testDir": "E:/AntiGravity Projects/Upwork Researcher/upwork-researcher/tests/e2e",
         "testIgnore": [],
-        "testMatch": [
-          "/.*\\.spec\\.ts$/"
-        ],
+        "testMatch": ["/.*\\.spec\\.ts$/"],
         "timeout": 120000
       }
     ],
     "quiet": false,
     "reporter": [
-      [
-        "list",
-        null
-      ],
+      ["list", null],
       [
         "html",
         {

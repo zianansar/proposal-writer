@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useRef, useEffect } from "react";
 import "./PassphraseUnlock.css";
 
 interface VerifyPassphraseResult {
@@ -60,7 +60,11 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
   const hasSymbol = /[^A-Za-z0-9]/.test(newPassphrase);
   const criteriaCount = [hasUppercase, hasLowercase, hasNumber, hasSymbol].filter(Boolean).length;
   const strengthLevel = meetsMinLength
-    ? criteriaCount >= 4 ? "strong" : criteriaCount >= 2 ? "medium" : "weak"
+    ? criteriaCount >= 4
+      ? "strong"
+      : criteriaCount >= 2
+        ? "medium"
+        : "weak"
     : "weak";
   const canSubmitNewPassphrase =
     meetsMinLength &&
@@ -77,10 +81,9 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
     setError(null);
 
     try {
-      const result = await invoke<VerifyPassphraseResult>(
-        "verify_passphrase_on_restart",
-        { passphrase }
-      );
+      const result = await invoke<VerifyPassphraseResult>("verify_passphrase_on_restart", {
+        passphrase,
+      });
 
       if (result.success) {
         onUnlocked();
@@ -92,7 +95,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
         inputRef.current?.focus();
       }
     } catch (err) {
-      setError(typeof err === 'string' ? err : String(err));
+      setError(typeof err === "string" ? err : String(err));
     } finally {
       setLoading(false);
     }
@@ -108,7 +111,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
     try {
       const result = await invoke<{ success: boolean; message: string }>(
         "unlock_with_recovery_key",
-        { recoveryKey }
+        { recoveryKey },
       );
 
       if (result.success) {
@@ -117,7 +120,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
         setRecoveryMode(false);
       }
     } catch (err) {
-      setRecoveryError(typeof err === 'string' ? err : String(err));
+      setRecoveryError(typeof err === "string" ? err : String(err));
     } finally {
       setLoading(false);
     }
@@ -142,7 +145,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
       setRecoveryKey("");
       setRekeySuccess(true);
     } catch (err) {
-      const msg = typeof err === 'string' ? err : String(err);
+      const msg = typeof err === "string" ? err : String(err);
       setRekeyError(msg || "Failed to update passphrase. Please try again.");
     } finally {
       setLoading(false);
@@ -152,9 +155,16 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
   // TD-2: Success screen after re-key
   if (rekeySuccess) {
     return (
-      <div className="passphrase-unlock-overlay" role="dialog" aria-modal="true" aria-label="Passphrase updated">
+      <div
+        className="passphrase-unlock-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Passphrase updated"
+      >
         <div className="passphrase-unlock-modal">
-          <div className="passphrase-unlock-icon" aria-hidden="true">&#x2705;</div>
+          <div className="passphrase-unlock-icon" aria-hidden="true">
+            &#x2705;
+          </div>
           <h2 className="passphrase-unlock-title">Passphrase Updated</h2>
           <p className="passphrase-unlock-subtitle">
             Your database is re-encrypted with the new passphrase.
@@ -175,9 +185,16 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
   // TD-2: New passphrase entry after recovery unlock
   if (newPassphraseMode) {
     return (
-      <div className="passphrase-unlock-overlay" role="dialog" aria-modal="true" aria-label="Set new passphrase">
+      <div
+        className="passphrase-unlock-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Set new passphrase"
+      >
         <div className="passphrase-unlock-modal">
-          <div className="passphrase-unlock-icon" aria-hidden="true">&#x1F510;</div>
+          <div className="passphrase-unlock-icon" aria-hidden="true">
+            &#x1F510;
+          </div>
           <h2 className="passphrase-unlock-title">Set New Passphrase</h2>
           <p className="passphrase-unlock-subtitle">
             Recovery successful! Set a new passphrase to re-encrypt your database.
@@ -217,11 +234,20 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
                   className="passphrase-unlock-strength-bar"
                   style={{
                     width: `${strengthLevel === "weak" ? 33 : strengthLevel === "medium" ? 66 : 100}%`,
-                    backgroundColor: strengthLevel === "weak" ? "var(--color-error, #ef4444)" : strengthLevel === "medium" ? "var(--color-warning, #eab308)" : "var(--color-success, #22c55e)",
+                    backgroundColor:
+                      strengthLevel === "weak"
+                        ? "var(--color-error, #ef4444)"
+                        : strengthLevel === "medium"
+                          ? "var(--color-warning, #eab308)"
+                          : "var(--color-success, #22c55e)",
                   }}
                 />
                 <span className="passphrase-unlock-strength-text">
-                  {strengthLevel === "weak" ? "Weak" : strengthLevel === "medium" ? "Medium" : "Strong"}
+                  {strengthLevel === "weak"
+                    ? "Weak"
+                    : strengthLevel === "medium"
+                      ? "Medium"
+                      : "Strong"}
                 </span>
               </div>
             )}
@@ -268,9 +294,16 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
 
   if (recoveryMode) {
     return (
-      <div className="passphrase-unlock-overlay" role="dialog" aria-modal="true" aria-label="Recovery key entry">
+      <div
+        className="passphrase-unlock-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Recovery key entry"
+      >
         <div className="passphrase-unlock-modal">
-          <div className="passphrase-unlock-icon" aria-hidden="true">&#x1F511;</div>
+          <div className="passphrase-unlock-icon" aria-hidden="true">
+            &#x1F511;
+          </div>
           <h2 className="passphrase-unlock-title">Recovery Key</h2>
           <p className="passphrase-unlock-subtitle">
             Enter your 32-character recovery key to unlock your data
@@ -293,9 +326,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
                 autoComplete="off"
                 spellCheck={false}
               />
-              <div className="passphrase-unlock-hint">
-                {recoveryKey.length}/32 characters
-              </div>
+              <div className="passphrase-unlock-hint">{recoveryKey.length}/32 characters</div>
             </div>
 
             {recoveryError && (
@@ -307,7 +338,10 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
             <div className="passphrase-unlock-actions">
               <button
                 type="button"
-                onClick={() => { setRecoveryMode(false); setRecoveryError(null); }}
+                onClick={() => {
+                  setRecoveryMode(false);
+                  setRecoveryError(null);
+                }}
                 className="passphrase-unlock-btn passphrase-unlock-btn-secondary"
               >
                 Back
@@ -327,9 +361,16 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
   }
 
   return (
-    <div className="passphrase-unlock-overlay" role="dialog" aria-modal="true" aria-label="Database unlock">
+    <div
+      className="passphrase-unlock-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Database unlock"
+    >
       <div className="passphrase-unlock-modal">
-        <div className="passphrase-unlock-icon" aria-hidden="true">&#x1F512;</div>
+        <div className="passphrase-unlock-icon" aria-hidden="true">
+          &#x1F512;
+        </div>
         <h2 className="passphrase-unlock-title">Unlock Database</h2>
         <p className="passphrase-unlock-subtitle">
           Enter your passphrase to access your encrypted proposals

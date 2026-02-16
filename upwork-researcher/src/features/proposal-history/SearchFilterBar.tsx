@@ -1,19 +1,20 @@
 // SearchFilterBar component for Story 7.3
 // Search input + filter dropdowns for proposal history
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { OUTCOME_STATUSES } from './useUpdateProposalOutcome';
-import { formatLabel } from './OutcomeDropdown';
-import type { ProposalFilters } from './useSearchProposals';
-import { hasActiveFilters, activeFilterCount, DEFAULT_FILTERS } from './useSearchProposals';
-import './SearchFilterBar.css';
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { formatLabel } from "./OutcomeDropdown";
+import type { ProposalFilters } from "./useSearchProposals";
+import { hasActiveFilters, activeFilterCount, DEFAULT_FILTERS } from "./useSearchProposals";
+import { OUTCOME_STATUSES } from "./useUpdateProposalOutcome";
+import "./SearchFilterBar.css";
 
 const DEBOUNCE_MS = 300;
 
 const DATE_RANGE_OPTIONS = [
-  { label: 'All time', value: 0 },
-  { label: 'Last 7 days', value: 7 },
-  { label: 'Last 30 days', value: 30 },
-  { label: 'Last 90 days', value: 90 },
+  { label: "All time", value: 0 },
+  { label: "Last 7 days", value: 7 },
+  { label: "Last 30 days", value: 30 },
+  { label: "Last 90 days", value: 90 },
 ] as const;
 
 interface SearchFilterBarProps {
@@ -23,7 +24,12 @@ interface SearchFilterBarProps {
   resultCount?: number;
 }
 
-export function SearchFilterBar({ filters, onFilterChange, hookStrategies, resultCount }: SearchFilterBarProps) {
+export function SearchFilterBar({
+  filters,
+  onFilterChange,
+  hookStrategies,
+  resultCount,
+}: SearchFilterBarProps) {
   const [inputValue, setInputValue] = useState(filters.searchText);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ref to latest filters — prevents stale closure in debounce callback (CR M-1)
@@ -32,8 +38,8 @@ export function SearchFilterBar({ filters, onFilterChange, hookStrategies, resul
 
   // Sync input value when filters are cleared externally
   useEffect(() => {
-    if (filters.searchText === '' && inputValue !== '') {
-      setInputValue('');
+    if (filters.searchText === "" && inputValue !== "") {
+      setInputValue("");
     }
   }, [filters.searchText]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -50,7 +56,7 @@ export function SearchFilterBar({ filters, onFilterChange, hookStrategies, resul
         onFilterChange({ ...filtersRef.current, searchText: value });
       }, DEBOUNCE_MS);
     },
-    [onFilterChange]
+    [onFilterChange],
   );
 
   // Cleanup debounce on unmount
@@ -66,25 +72,25 @@ export function SearchFilterBar({ filters, onFilterChange, hookStrategies, resul
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       onFilterChange({ ...filters, outcomeStatus: e.target.value });
     },
-    [filters, onFilterChange]
+    [filters, onFilterChange],
   );
 
   const handleDateRangeChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       onFilterChange({ ...filters, dateRangeDays: Number(e.target.value) });
     },
-    [filters, onFilterChange]
+    [filters, onFilterChange],
   );
 
   const handleHookStrategyChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       onFilterChange({ ...filters, hookStrategy: e.target.value });
     },
-    [filters, onFilterChange]
+    [filters, onFilterChange],
   );
 
   const handleClear = useCallback(() => {
-    setInputValue('');
+    setInputValue("");
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
@@ -166,8 +172,8 @@ export function SearchFilterBar({ filters, onFilterChange, hookStrategies, resul
       {resultCount !== undefined && (
         <div className="search-filter-bar__count" aria-live="polite">
           {isActive
-            ? `${resultCount} result${resultCount !== 1 ? 's' : ''} found`
-            : `Showing ${resultCount} proposal${resultCount !== 1 ? 's' : ''}`}
+            ? `${resultCount} result${resultCount !== 1 ? "s" : ""} found`
+            : `Showing ${resultCount} proposal${resultCount !== 1 ? "s" : ""}`}
         </div>
       )}
     </div>

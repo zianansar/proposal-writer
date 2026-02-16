@@ -1,6 +1,8 @@
 import type { Editor } from "@tiptap/react";
-import { Tooltip } from "./Tooltip";
+
 import { SHORTCUTS } from "../utils/platform";
+
+import { Tooltip } from "./Tooltip";
 
 interface EditorToolbarProps {
   editor: Editor | null;

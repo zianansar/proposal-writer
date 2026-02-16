@@ -42,7 +42,7 @@ fn test_passphrase_validation_length_12_rejected() {
 
     assert!(result.is_err());
     match result {
-        Err(PassphraseError::TooShort) => {}, // Expected error
+        Err(PassphraseError::TooShort) => {} // Expected error
         _ => panic!("Expected TooShort error"),
     }
 }
@@ -153,7 +153,7 @@ fn test_salt_loading_missing_file() {
 
     assert!(result.is_err());
     match result {
-        Err(PassphraseError::SaltReadFailed(_)) => {}, // Expected
+        Err(PassphraseError::SaltReadFailed(_)) => {} // Expected
         _ => panic!("Expected SaltReadFailed error"),
     }
 }
@@ -219,7 +219,11 @@ fn test_key_derivation_timing_acceptable() {
     // Should complete within 5 seconds (debug builds are ~10x slower, system load adds variance)
     // Release builds: ~200ms (NFR-1 target)
     // Debug builds: ~2-3s typical, up to 5s under heavy load (179 concurrent tests)
-    assert!(duration.as_millis() < 5000, "Key derivation took too long: {:?}", duration);
+    assert!(
+        duration.as_millis() < 5000,
+        "Key derivation took too long: {:?}",
+        duration
+    );
 
     println!("Key derivation took: {:?} (target: ~200ms)", duration);
 }
@@ -290,7 +294,7 @@ fn test_verify_passphrase_and_derive_key_salt_missing() {
 
     assert!(result.is_err());
     match result {
-        Err(PassphraseError::SaltReadFailed(_)) => {}, // Expected error
+        Err(PassphraseError::SaltReadFailed(_)) => {} // Expected error
         _ => panic!("Expected SaltReadFailed error when salt file missing"),
     }
 }
@@ -334,11 +338,17 @@ fn test_verify_passphrase_key_derivation_correctness() {
     let key_attempt_1 = verify_passphrase_and_derive_key(correct_passphrase, dir.path()).unwrap();
     let key_attempt_2 = verify_passphrase_and_derive_key(correct_passphrase, dir.path()).unwrap();
     assert_eq!(original_key, key_attempt_1, "Key must be deterministic");
-    assert_eq!(key_attempt_1, key_attempt_2, "Repeated derivation must be identical");
+    assert_eq!(
+        key_attempt_1, key_attempt_2,
+        "Repeated derivation must be identical"
+    );
 
     // Property 2: Sensitivity — wrong passphrase produces different key
     let wrong_key = verify_passphrase_and_derive_key(wrong_passphrase, dir.path()).unwrap();
-    assert_ne!(original_key, wrong_key, "Different passphrase must produce different key");
+    assert_ne!(
+        original_key, wrong_key,
+        "Different passphrase must produce different key"
+    );
 
     // Property 3: Key length — always 32 bytes for AES-256
     assert_eq!(original_key.len(), KEY_LENGTH);
@@ -346,7 +356,10 @@ fn test_verify_passphrase_key_derivation_correctness() {
 
     // Property 4: Similar passphrase (1 char different) still produces different key
     let similar_key = verify_passphrase_and_derive_key("CorrectPass124!", dir.path()).unwrap();
-    assert_ne!(original_key, similar_key, "Similar passphrase must produce different key");
+    assert_ne!(
+        original_key, similar_key,
+        "Similar passphrase must produce different key"
+    );
 }
 
 // ====================
@@ -366,7 +379,10 @@ fn test_derive_key_returns_zeroizing_wrapper() {
     // Verify the key is valid and wrapped in Zeroizing (type system enforces this)
     assert_eq!(key.len(), KEY_LENGTH);
     // Key should contain non-zero bytes (actual cryptographic output)
-    assert!(key.iter().any(|&b| b != 0), "Key should have non-zero bytes before zeroize");
+    assert!(
+        key.iter().any(|&b| b != 0),
+        "Key should have non-zero bytes before zeroize"
+    );
 
     // Explicitly zeroize while buffer is still alive (safe — no use-after-free)
     key.zeroize();
@@ -390,7 +406,10 @@ fn test_set_passphrase_returns_zeroizing_wrapper() {
 
     // Verify key is valid
     assert_eq!(key.len(), KEY_LENGTH);
-    assert!(key.iter().any(|&b| b != 0), "Key should have non-zero bytes before zeroize");
+    assert!(
+        key.iter().any(|&b| b != 0),
+        "Key should have non-zero bytes before zeroize"
+    );
 
     // Explicitly zeroize while buffer is still alive (safe — no use-after-free)
     key.zeroize();
@@ -411,7 +430,10 @@ fn test_zeroizing_string_zeroes_passphrase() {
 
     // Verify passphrase is accessible while alive
     assert_eq!(passphrase.len(), 18);
-    assert!(passphrase.as_bytes().iter().any(|&b| b != 0), "Passphrase should have non-zero bytes");
+    assert!(
+        passphrase.as_bytes().iter().any(|&b| b != 0),
+        "Passphrase should have non-zero bytes"
+    );
 
     // Explicitly zeroize while buffer is still alive (safe — no use-after-free)
     passphrase.zeroize();

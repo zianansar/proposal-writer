@@ -81,9 +81,9 @@ impl HumanizationIntensity {
             Self::Off => Ok(Self::Light),
             Self::Light => Ok(Self::Medium),
             Self::Medium => Ok(Self::Heavy),
-            Self::Heavy => Err(
-                "Already at maximum intensity (Heavy). Consider manual editing.".to_string()
-            ),
+            Self::Heavy => {
+                Err("Already at maximum intensity (Heavy). Consider manual editing.".to_string())
+            }
         }
     }
 }
@@ -352,18 +352,60 @@ pub struct HumanizationMetrics {
 
 /// Common contractions that indicate human-like writing.
 const CONTRACTIONS: &[&str] = &[
-    "i'm", "you're", "we've", "they've", "he's", "she's", "it's", "we're",
-    "they're", "i've", "you've", "i'd", "you'd", "we'd", "they'd", "i'll",
-    "you'll", "we'll", "they'll", "can't", "won't", "don't", "doesn't",
-    "didn't", "isn't", "aren't", "wasn't", "weren't", "hasn't", "haven't",
-    "hadn't", "couldn't", "wouldn't", "shouldn't", "let's", "that's",
-    "what's", "who's", "here's", "there's",
+    "i'm",
+    "you're",
+    "we've",
+    "they've",
+    "he's",
+    "she's",
+    "it's",
+    "we're",
+    "they're",
+    "i've",
+    "you've",
+    "i'd",
+    "you'd",
+    "we'd",
+    "they'd",
+    "i'll",
+    "you'll",
+    "we'll",
+    "they'll",
+    "can't",
+    "won't",
+    "don't",
+    "doesn't",
+    "didn't",
+    "isn't",
+    "aren't",
+    "wasn't",
+    "weren't",
+    "hasn't",
+    "haven't",
+    "hadn't",
+    "couldn't",
+    "wouldn't",
+    "shouldn't",
+    "let's",
+    "that's",
+    "what's",
+    "who's",
+    "here's",
+    "there's",
 ];
 
 /// Informal transition words/phrases that appear at sentence starts.
 const INFORMAL_TRANSITIONS: &[&str] = &[
-    "so", "now", "plus", "anyway", "actually", "honestly", "basically",
-    "look", "listen", "sure",
+    "so",
+    "now",
+    "plus",
+    "anyway",
+    "actually",
+    "honestly",
+    "basically",
+    "look",
+    "listen",
+    "sure",
 ];
 
 /// Multi-word transitions checked at sentence level.
@@ -448,7 +490,8 @@ pub fn analyze_humanization(text: &str) -> HumanizationMetrics {
     }
 
     // Calculate humanization rate per 100 words
-    let humanization_elements = contraction_count + informal_transition_count + sentence_fragment_count;
+    let humanization_elements =
+        contraction_count + informal_transition_count + sentence_fragment_count;
     let rate_per_100_words = if word_count > 0 {
         (humanization_elements as f32 / word_count as f32) * 100.0
     } else {
@@ -477,17 +520,38 @@ mod tests {
 
     #[test]
     fn test_intensity_from_str_all_values() {
-        assert_eq!(HumanizationIntensity::from_str_value("off").unwrap(), HumanizationIntensity::Off);
-        assert_eq!(HumanizationIntensity::from_str_value("light").unwrap(), HumanizationIntensity::Light);
-        assert_eq!(HumanizationIntensity::from_str_value("medium").unwrap(), HumanizationIntensity::Medium);
-        assert_eq!(HumanizationIntensity::from_str_value("heavy").unwrap(), HumanizationIntensity::Heavy);
+        assert_eq!(
+            HumanizationIntensity::from_str_value("off").unwrap(),
+            HumanizationIntensity::Off
+        );
+        assert_eq!(
+            HumanizationIntensity::from_str_value("light").unwrap(),
+            HumanizationIntensity::Light
+        );
+        assert_eq!(
+            HumanizationIntensity::from_str_value("medium").unwrap(),
+            HumanizationIntensity::Medium
+        );
+        assert_eq!(
+            HumanizationIntensity::from_str_value("heavy").unwrap(),
+            HumanizationIntensity::Heavy
+        );
     }
 
     #[test]
     fn test_intensity_from_str_case_insensitive() {
-        assert_eq!(HumanizationIntensity::from_str_value("MEDIUM").unwrap(), HumanizationIntensity::Medium);
-        assert_eq!(HumanizationIntensity::from_str_value("Light").unwrap(), HumanizationIntensity::Light);
-        assert_eq!(HumanizationIntensity::from_str_value(" heavy ").unwrap(), HumanizationIntensity::Heavy);
+        assert_eq!(
+            HumanizationIntensity::from_str_value("MEDIUM").unwrap(),
+            HumanizationIntensity::Medium
+        );
+        assert_eq!(
+            HumanizationIntensity::from_str_value("Light").unwrap(),
+            HumanizationIntensity::Light
+        );
+        assert_eq!(
+            HumanizationIntensity::from_str_value(" heavy ").unwrap(),
+            HumanizationIntensity::Heavy
+        );
     }
 
     #[test]
@@ -751,7 +815,9 @@ mod tests {
     fn test_analyze_ai_hedging_phrases() {
         let text = "It's important to note that this approach requires careful planning. In today's landscape, businesses need robust solutions.";
         let metrics = analyze_humanization(text);
-        assert!(metrics.ai_tells_found.contains(&"it's important to note that".to_string()));
+        assert!(metrics
+            .ai_tells_found
+            .contains(&"it's important to note that".to_string()));
         assert!(metrics.ai_tells_found.contains(&"robust".to_string()));
     }
 
@@ -760,7 +826,9 @@ mod tests {
         let text = "I will facilitate a comprehensive review to harness cutting-edge technology and foster innovation in this ecosystem.";
         let metrics = analyze_humanization(text);
         assert!(metrics.ai_tells_found.contains(&"facilitate".to_string()));
-        assert!(metrics.ai_tells_found.contains(&"comprehensive".to_string()));
+        assert!(metrics
+            .ai_tells_found
+            .contains(&"comprehensive".to_string()));
         assert!(metrics.ai_tells_found.contains(&"harness".to_string()));
         assert!(metrics.ai_tells_found.contains(&"cutting-edge".to_string()));
         assert!(metrics.ai_tells_found.contains(&"foster".to_string()));
@@ -771,62 +839,109 @@ mod tests {
     fn test_analyze_expanded_hedging_phrases() {
         let text = "I am excited to apply. I am confident that my extensive experience and proven track record make me well-suited.";
         let metrics = analyze_humanization(text);
-        assert!(metrics.ai_tells_found.contains(&"i am excited to".to_string()));
-        assert!(metrics.ai_tells_found.contains(&"i am confident that".to_string()));
-        assert!(metrics.ai_tells_found.contains(&"proven track record".to_string()));
+        assert!(metrics
+            .ai_tells_found
+            .contains(&"i am excited to".to_string()));
+        assert!(metrics
+            .ai_tells_found
+            .contains(&"i am confident that".to_string()));
+        assert!(metrics
+            .ai_tells_found
+            .contains(&"proven track record".to_string()));
     }
 
     // -- Prompt/constant sync verification (Code Review H1 fix) --
 
     #[test]
     fn test_medium_prompt_contains_all_ai_tells() {
-        let prompt = get_humanization_prompt(&HumanizationIntensity::Medium).unwrap().to_lowercase();
+        let prompt = get_humanization_prompt(&HumanizationIntensity::Medium)
+            .unwrap()
+            .to_lowercase();
         for tell in AI_TELLS {
-            assert!(prompt.contains(tell), "Medium prompt missing AI_TELLS word: '{}'", tell);
+            assert!(
+                prompt.contains(tell),
+                "Medium prompt missing AI_TELLS word: '{}'",
+                tell
+            );
         }
     }
 
     #[test]
     fn test_heavy_prompt_contains_all_ai_tells() {
-        let prompt = get_humanization_prompt(&HumanizationIntensity::Heavy).unwrap().to_lowercase();
+        let prompt = get_humanization_prompt(&HumanizationIntensity::Heavy)
+            .unwrap()
+            .to_lowercase();
         for tell in AI_TELLS {
-            assert!(prompt.contains(tell), "Heavy prompt missing AI_TELLS word: '{}'", tell);
+            assert!(
+                prompt.contains(tell),
+                "Heavy prompt missing AI_TELLS word: '{}'",
+                tell
+            );
         }
     }
 
     #[test]
     fn test_medium_prompt_contains_all_hedging_phrases() {
-        let prompt = get_humanization_prompt(&HumanizationIntensity::Medium).unwrap().to_lowercase();
+        let prompt = get_humanization_prompt(&HumanizationIntensity::Medium)
+            .unwrap()
+            .to_lowercase();
         for phrase in AI_HEDGING_PHRASES {
             // Prompt may use shortened prefix (e.g. "In today's" for "in today's landscape")
             // Prompt may use shortened prefix (e.g. "In today's" for "in today's landscape")
             let check = if phrase.split_whitespace().count() > 2 {
-                phrase.split_whitespace().take(2).collect::<Vec<_>>().join(" ")
+                phrase
+                    .split_whitespace()
+                    .take(2)
+                    .collect::<Vec<_>>()
+                    .join(" ")
             } else {
                 phrase.to_string()
             };
-            assert!(prompt.contains(&check), "Medium prompt missing hedging phrase (or prefix): '{}'", phrase);
+            assert!(
+                prompt.contains(&check),
+                "Medium prompt missing hedging phrase (or prefix): '{}'",
+                phrase
+            );
         }
     }
 
     #[test]
     fn test_heavy_prompt_contains_all_hedging_phrases() {
-        let prompt = get_humanization_prompt(&HumanizationIntensity::Heavy).unwrap().to_lowercase();
+        let prompt = get_humanization_prompt(&HumanizationIntensity::Heavy)
+            .unwrap()
+            .to_lowercase();
         for phrase in AI_HEDGING_PHRASES {
             let check = if phrase.split_whitespace().count() > 2 {
-                phrase.split_whitespace().take(2).collect::<Vec<_>>().join(" ")
+                phrase
+                    .split_whitespace()
+                    .take(2)
+                    .collect::<Vec<_>>()
+                    .join(" ")
             } else {
                 phrase.to_string()
             };
-            assert!(prompt.contains(&check), "Heavy prompt missing hedging phrase (or prefix): '{}'", phrase);
+            assert!(
+                prompt.contains(&check),
+                "Heavy prompt missing hedging phrase (or prefix): '{}'",
+                phrase
+            );
         }
     }
 
     #[test]
     fn test_rate_description() {
-        assert_eq!(HumanizationIntensity::Off.rate_description(), "No humanization");
-        assert!(HumanizationIntensity::Light.rate_description().contains("0.5-1"));
-        assert!(HumanizationIntensity::Medium.rate_description().contains("1-2"));
-        assert!(HumanizationIntensity::Heavy.rate_description().contains("2-3"));
+        assert_eq!(
+            HumanizationIntensity::Off.rate_description(),
+            "No humanization"
+        );
+        assert!(HumanizationIntensity::Light
+            .rate_description()
+            .contains("0.5-1"));
+        assert!(HumanizationIntensity::Medium
+            .rate_description()
+            .contains("1-2"));
+        assert!(HumanizationIntensity::Heavy
+            .rate_description()
+            .contains("2-3"));
     }
 }

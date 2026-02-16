@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
+
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useOnboardingStore } from "../stores/useOnboardingStore";
-import WelcomeStep from "./onboarding/WelcomeStep";
+
 import ApiKeyStep from "./onboarding/ApiKeyStep";
-import VoiceCalibrationStep from "./onboarding/VoiceCalibrationStep";
 import ReadyStep from "./onboarding/ReadyStep";
+import VoiceCalibrationStep from "./onboarding/VoiceCalibrationStep";
+import WelcomeStep from "./onboarding/WelcomeStep";
 import "./OnboardingWizard.css";
 
 // Review Fix #11: Extract magic number to constant

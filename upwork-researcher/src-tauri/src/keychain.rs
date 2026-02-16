@@ -62,7 +62,11 @@ pub fn store_api_key(api_key: &str) -> Result<(), KeychainError> {
         .set_password(api_key)
         .map_err(|e| KeychainError::StoreFailed(e.to_string()))?;
 
-    tracing::info!("API key stored in OS keychain (service: {}, user: {})", SERVICE_NAME, API_KEY_USERNAME);
+    tracing::info!(
+        "API key stored in OS keychain (service: {}, user: {})",
+        SERVICE_NAME,
+        API_KEY_USERNAME
+    );
 
     Ok(())
 }

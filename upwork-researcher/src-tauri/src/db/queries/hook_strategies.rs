@@ -37,7 +37,7 @@ pub fn get_all_hook_strategies(conn: &Connection) -> Result<Vec<HookStrategy>, r
     let mut stmt = conn.prepare(
         "SELECT id, name, description, examples_json, best_for, created_at
          FROM hook_strategies
-         ORDER BY id"
+         ORDER BY id",
     )?;
 
     let strategies = stmt
@@ -60,11 +60,14 @@ pub fn get_all_hook_strategies(conn: &Connection) -> Result<Vec<HookStrategy>, r
 ///
 /// Returns None if the strategy doesn't exist.
 /// Used by proposal generation to retrieve selected strategy details.
-pub fn get_hook_strategy_by_id(conn: &Connection, id: i64) -> Result<Option<HookStrategy>, rusqlite::Error> {
+pub fn get_hook_strategy_by_id(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<HookStrategy>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT id, name, description, examples_json, best_for, created_at
          FROM hook_strategies
-         WHERE id = ?1"
+         WHERE id = ?1",
     )?;
 
     let mut rows = stmt.query(params![id])?;
@@ -103,7 +106,11 @@ mod tests {
 
         let strategies = get_all_hook_strategies(&conn).unwrap();
 
-        assert_eq!(strategies.len(), 5, "Should return exactly 5 default hook strategies");
+        assert_eq!(
+            strategies.len(),
+            5,
+            "Should return exactly 5 default hook strategies"
+        );
     }
 
     #[test]
@@ -115,11 +122,26 @@ mod tests {
         let strategies = get_all_hook_strategies(&conn).unwrap();
         let names: Vec<&str> = strategies.iter().map(|s| s.name.as_str()).collect();
 
-        assert!(names.contains(&"Social Proof"), "Should include Social Proof strategy");
-        assert!(names.contains(&"Contrarian"), "Should include Contrarian strategy");
-        assert!(names.contains(&"Immediate Value"), "Should include Immediate Value strategy");
-        assert!(names.contains(&"Problem-Aware"), "Should include Problem-Aware strategy");
-        assert!(names.contains(&"Question-Based"), "Should include Question-Based strategy");
+        assert!(
+            names.contains(&"Social Proof"),
+            "Should include Social Proof strategy"
+        );
+        assert!(
+            names.contains(&"Contrarian"),
+            "Should include Contrarian strategy"
+        );
+        assert!(
+            names.contains(&"Immediate Value"),
+            "Should include Immediate Value strategy"
+        );
+        assert!(
+            names.contains(&"Problem-Aware"),
+            "Should include Problem-Aware strategy"
+        );
+        assert!(
+            names.contains(&"Question-Based"),
+            "Should include Question-Based strategy"
+        );
     }
 
     #[test]
@@ -163,7 +185,12 @@ mod tests {
         for strategy in strategies {
             // Parse examples_json to verify it's valid JSON
             let examples: serde_json::Value = serde_json::from_str(&strategy.examples_json)
-                .unwrap_or_else(|_| panic!("Strategy '{}' should have valid JSON examples", strategy.name));
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "Strategy '{}' should have valid JSON examples",
+                        strategy.name
+                    )
+                });
 
             assert!(
                 examples.is_array(),
@@ -192,9 +219,21 @@ mod tests {
 
         assert!(strategy.id > 0, "ID should be positive");
         assert!(!strategy.name.is_empty(), "Name should not be empty");
-        assert!(!strategy.description.is_empty(), "Description should not be empty");
-        assert!(!strategy.examples_json.is_empty(), "Examples JSON should not be empty");
-        assert!(!strategy.best_for.is_empty(), "Best for should not be empty");
-        assert!(!strategy.created_at.is_empty(), "Created at should not be empty");
+        assert!(
+            !strategy.description.is_empty(),
+            "Description should not be empty"
+        );
+        assert!(
+            !strategy.examples_json.is_empty(),
+            "Examples JSON should not be empty"
+        );
+        assert!(
+            !strategy.best_for.is_empty(),
+            "Best for should not be empty"
+        );
+        assert!(
+            !strategy.created_at.is_empty(),
+            "Created at should not be empty"
+        );
     }
 }

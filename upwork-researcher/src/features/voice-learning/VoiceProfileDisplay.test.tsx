@@ -1,20 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { VoiceProfileDisplay } from './VoiceProfileDisplay';
-import type { VoiceProfile } from './types';
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import { VoiceProfileDisplay } from "./VoiceProfileDisplay";
+import type { VoiceProfile } from "./types";
 
 // Mock dependencies
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
+vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
 }));
 
-vi.mock('./useVoiceProfile', () => ({
+vi.mock("./useVoiceProfile", () => ({
   useVoiceProfile: vi.fn(),
 }));
 
-vi.mock('./VoiceProfileEmpty', () => ({
+vi.mock("./VoiceProfileEmpty", () => ({
   VoiceProfileEmpty: ({ onStartCalibration }: { onStartCalibration: () => void }) => (
     <div data-testid="empty-state">
       <button onClick={onStartCalibration}>Start Calibration</button>
@@ -22,7 +23,7 @@ vi.mock('./VoiceProfileEmpty', () => ({
   ),
 }));
 
-import { useVoiceProfile } from './useVoiceProfile';
+import { useVoiceProfile } from "./useVoiceProfile";
 
 const mockProfile: VoiceProfile = {
   tone_score: 6,
@@ -41,17 +42,17 @@ const mockProfile: VoiceProfile = {
     "I'm confident I can help",
   ],
   sample_count: 5,
-  calibration_source: 'GoldenSet',
+  calibration_source: "GoldenSet",
 };
 
-describe('VoiceProfileDisplay', () => {
+describe("VoiceProfileDisplay", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNavigate.mockClear();
   });
 
-  describe('Display Tests (AC-1)', () => {
-    it('renders all 4 metrics (tone, length, structure, technical depth)', () => {
+  describe("Display Tests (AC-1)", () => {
+    it("renders all 4 metrics (tone, length, structure, technical depth)", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: mockProfile,
         loading: false,
@@ -67,7 +68,7 @@ describe('VoiceProfileDisplay', () => {
       expect(screen.getByText(/Technical Depth: Expert/)).toBeInTheDocument();
     });
 
-    it('displays sample count correctly', () => {
+    it("displays sample count correctly", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: mockProfile,
         loading: false,
@@ -93,7 +94,7 @@ describe('VoiceProfileDisplay', () => {
       expect(screen.getByText(/Based on 1 past proposal$/)).toBeInTheDocument();
     });
 
-    it('displays top 3 common phrases only', () => {
+    it("displays top 3 common phrases only", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: mockProfile,
         loading: false,
@@ -122,12 +123,12 @@ describe('VoiceProfileDisplay', () => {
 
       render(<VoiceProfileDisplay />);
 
-      expect(screen.getByRole('button', { name: /Recalibrate Voice/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Recalibrate Voice/i })).toBeInTheDocument();
     });
   });
 
-  describe('Empty State Tests (AC-2)', () => {
-    it('displays VoiceProfileEmpty when profile is null', () => {
+  describe("Empty State Tests (AC-2)", () => {
+    it("displays VoiceProfileEmpty when profile is null", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: null,
         loading: false,
@@ -137,7 +138,7 @@ describe('VoiceProfileDisplay', () => {
 
       render(<VoiceProfileDisplay />);
 
-      expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
     });
 
     it('empty state has "Start Calibration" button', () => {
@@ -150,12 +151,12 @@ describe('VoiceProfileDisplay', () => {
 
       render(<VoiceProfileDisplay />);
 
-      expect(screen.getByRole('button', { name: /Start Calibration/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Start Calibration/i })).toBeInTheDocument();
     });
   });
 
-  describe('Loading State Tests (AC-5)', () => {
-    it('displays skeleton while loading', () => {
+  describe("Loading State Tests (AC-5)", () => {
+    it("displays skeleton while loading", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: null,
         loading: true,
@@ -170,7 +171,7 @@ describe('VoiceProfileDisplay', () => {
       expect(skeletons.length).toBeGreaterThan(0);
     });
 
-    it('skeleton has correct structure (4 metric rows)', () => {
+    it("skeleton has correct structure (4 metric rows)", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: null,
         loading: true,
@@ -181,42 +182,44 @@ describe('VoiceProfileDisplay', () => {
       const { container } = render(<VoiceProfileDisplay />);
 
       // Should have 4 metric rows in skeleton
-      const metricRows = container.querySelectorAll('.flex.items-start.gap-3');
+      const metricRows = container.querySelectorAll(".flex.items-start.gap-3");
       expect(metricRows.length).toBe(4);
     });
   });
 
-  describe('Error State Tests', () => {
-    it('displays error message when fetch fails', () => {
+  describe("Error State Tests", () => {
+    it("displays error message when fetch fails", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: null,
         loading: false,
-        error: 'Database connection failed',
+        error: "Database connection failed",
         refetch: vi.fn(),
       });
 
       render(<VoiceProfileDisplay />);
 
-      expect(screen.getByText(/Failed to load voice profile: Database connection failed/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Failed to load voice profile: Database connection failed/),
+      ).toBeInTheDocument();
     });
 
-    it('error message is user-friendly', () => {
+    it("error message is user-friendly", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: null,
         loading: false,
-        error: 'Network error',
+        error: "Network error",
         refetch: vi.fn(),
       });
 
       render(<VoiceProfileDisplay />);
 
       const errorElement = screen.getByText(/Failed to load voice profile/);
-      expect(errorElement).toHaveClass('text-red-500');
+      expect(errorElement).toHaveClass("text-red-500");
     });
   });
 
-  describe('Privacy Messaging Tests (AC-6)', () => {
-    it('displays privacy message', () => {
+  describe("Privacy Messaging Tests (AC-6)", () => {
+    it("displays privacy message", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: mockProfile,
         loading: false,
@@ -226,13 +229,11 @@ describe('VoiceProfileDisplay', () => {
 
       render(<VoiceProfileDisplay />);
 
-      expect(
-        screen.getByText(/🔒 Your proposals stay on your device/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/🔒 Your proposals stay on your device/)).toBeInTheDocument();
     });
   });
 
-  describe('Accessibility Tests (AC-7)', () => {
+  describe("Accessibility Tests (AC-7)", () => {
     it('emojis have aria-hidden="true"', () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: mockProfile,
@@ -259,13 +260,13 @@ describe('VoiceProfileDisplay', () => {
 
       const list = container.querySelector('[role="list"]');
       expect(list).toBeInTheDocument();
-      expect(list).toHaveAttribute('aria-label', 'Voice profile metrics');
+      expect(list).toHaveAttribute("aria-label", "Voice profile metrics");
 
       const listItems = container.querySelectorAll('[role="listitem"]');
       expect(listItems.length).toBe(4);
     });
 
-    it('metrics have aria-label for screen reader announcements', () => {
+    it("metrics have aria-label for screen reader announcements", () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: mockProfile,
         loading: false,
@@ -282,7 +283,7 @@ describe('VoiceProfileDisplay', () => {
       expect(lengthMetric).toBeInTheDocument();
     });
 
-    it('Recalibrate button is keyboard accessible', async () => {
+    it("Recalibrate button is keyboard accessible", async () => {
       const user = userEvent.setup();
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: mockProfile,
@@ -293,14 +294,14 @@ describe('VoiceProfileDisplay', () => {
 
       render(<VoiceProfileDisplay />);
 
-      const button = screen.getByRole('button', { name: /Recalibrate Voice/i });
+      const button = screen.getByRole("button", { name: /Recalibrate Voice/i });
 
       await user.tab();
       expect(button).toHaveFocus();
     });
   });
 
-  describe('Navigation Tests (AC-4)', () => {
+  describe("Navigation Tests (AC-4)", () => {
     it('"Recalibrate Voice" button triggers navigation to /calibration', async () => {
       vi.mocked(useVoiceProfile).mockReturnValue({
         profile: mockProfile,
@@ -312,11 +313,11 @@ describe('VoiceProfileDisplay', () => {
       const user = userEvent.setup();
       render(<VoiceProfileDisplay />);
 
-      const button = screen.getByRole('button', { name: /Recalibrate Voice/i });
+      const button = screen.getByRole("button", { name: /Recalibrate Voice/i });
       await user.click(button);
 
       expect(mockNavigate).toHaveBeenCalledTimes(1);
-      expect(mockNavigate).toHaveBeenCalledWith('/calibration');
+      expect(mockNavigate).toHaveBeenCalledWith("/calibration");
     });
 
     it('empty state "Start Calibration" button triggers navigation to /calibration', async () => {
@@ -330,13 +331,13 @@ describe('VoiceProfileDisplay', () => {
       const user = userEvent.setup();
       render(<VoiceProfileDisplay />);
 
-      const button = screen.getByRole('button', { name: /Start Calibration/i });
+      const button = screen.getByRole("button", { name: /Start Calibration/i });
       await user.click(button);
 
       // Note: This verifies the mock VoiceProfileEmpty's button calls onStartCalibration,
       // which in turn calls navigate('/calibration')
       expect(mockNavigate).toHaveBeenCalledTimes(1);
-      expect(mockNavigate).toHaveBeenCalledWith('/calibration');
+      expect(mockNavigate).toHaveBeenCalledWith("/calibration");
     });
   });
 });

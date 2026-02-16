@@ -7,7 +7,7 @@
  * 2. Golden Set Upload: Upload past proposals for analysis
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class VoiceCalibrationPage {
   readonly page: Page;
@@ -64,9 +64,9 @@ export class VoiceCalibrationPage {
     this.page = page;
 
     // Quick Calibration
-    this.calibrationContainer = page.getByTestId('voice-calibration-container');
-    this.questionHeading = page.getByTestId('calibration-question');
-    this.questionNumber = page.getByTestId('question-number');
+    this.calibrationContainer = page.getByTestId("voice-calibration-container");
+    this.questionHeading = page.getByTestId("calibration-question");
+    this.questionNumber = page.getByTestId("question-number");
 
     this.toneOptions = page.getByTestId(/tone-option-/);
     this.structureOptions = page.getByTestId(/structure-option-/);
@@ -75,39 +75,39 @@ export class VoiceCalibrationPage {
     this.lengthOptions = page.getByTestId(/length-option-/);
 
     // Navigation
-    this.backButton = page.getByRole('button', { name: /back/i });
-    this.nextButton = page.getByRole('button', { name: /next/i });
-    this.skipButton = page.getByRole('button', { name: /skip/i });
-    this.completeButton = page.getByRole('button', { name: /complete|finish/i });
+    this.backButton = page.getByRole("button", { name: /back/i });
+    this.nextButton = page.getByRole("button", { name: /next/i });
+    this.skipButton = page.getByRole("button", { name: /skip/i });
+    this.completeButton = page.getByRole("button", { name: /complete|finish/i });
 
     // Success
     this.successMessage = page.getByText(/calibration.*complete|profile.*created/i);
-    this.viewProfileButton = page.getByRole('button', { name: /view.*profile/i });
+    this.viewProfileButton = page.getByRole("button", { name: /view.*profile/i });
 
     // Golden Set Upload
-    this.goldenSetContainer = page.getByTestId('golden-set-upload');
+    this.goldenSetContainer = page.getByTestId("golden-set-upload");
     this.fileInput = page.locator('input[type="file"]');
-    this.uploadButton = page.getByRole('button', { name: /upload/i });
-    this.fileList = page.getByTestId('file-list');
-    this.analyzeButton = page.getByRole('button', { name: /analyze/i });
-    this.analysisProgress = page.getByTestId('analysis-progress');
+    this.uploadButton = page.getByRole("button", { name: /upload/i });
+    this.fileList = page.getByTestId("file-list");
+    this.analyzeButton = page.getByRole("button", { name: /analyze/i });
+    this.analysisProgress = page.getByTestId("analysis-progress");
 
     // Voice Profile
-    this.voiceProfileDisplay = page.getByTestId('voice-profile-display');
-    this.toneParameter = page.getByTestId('voice-tone');
-    this.lengthParameter = page.getByTestId('voice-length');
-    this.complexityParameter = page.getByTestId('voice-complexity');
-    this.proposalCountBadge = page.getByTestId('proposal-count');
+    this.voiceProfileDisplay = page.getByTestId("voice-profile-display");
+    this.toneParameter = page.getByTestId("voice-tone");
+    this.lengthParameter = page.getByTestId("voice-length");
+    this.complexityParameter = page.getByTestId("voice-complexity");
+    this.proposalCountBadge = page.getByTestId("proposal-count");
 
     // Privacy
-    this.privacyIndicator = page.getByTestId('privacy-indicator');
+    this.privacyIndicator = page.getByTestId("privacy-indicator");
   }
 
   /**
    * Answer a question in Quick Calibration by question number (1-5)
    */
   async answerQuestion(questionNumber: number, optionText: string): Promise<void> {
-    const optionButton = this.page.getByRole('button', { name: new RegExp(optionText, 'i') });
+    const optionButton = this.page.getByRole("button", { name: new RegExp(optionText, "i") });
     await optionButton.click();
 
     // If not the last question, advance to next
@@ -142,7 +142,7 @@ export class VoiceCalibrationPage {
    * Get current question number
    */
   async getCurrentQuestionNumber(): Promise<number> {
-    const text = (await this.questionNumber.textContent()) ?? '0';
+    const text = (await this.questionNumber.textContent()) ?? "0";
     const match = text.match(/\d+/);
     return match ? parseInt(match[0], 10) : 0;
   }
@@ -180,11 +180,11 @@ export class VoiceCalibrationPage {
     complexity: string;
     proposalCount: number;
   }> {
-    const tone = (await this.toneParameter.textContent()) ?? '';
-    const length = (await this.lengthParameter.textContent()) ?? '';
-    const complexity = (await this.complexityParameter.textContent()) ?? '';
-    const countText = (await this.proposalCountBadge.textContent()) ?? '0';
-    const proposalCount = parseInt(countText.replace(/\D/g, ''), 10);
+    const tone = (await this.toneParameter.textContent()) ?? "";
+    const length = (await this.lengthParameter.textContent()) ?? "";
+    const complexity = (await this.complexityParameter.textContent()) ?? "";
+    const countText = (await this.proposalCountBadge.textContent()) ?? "0";
+    const proposalCount = parseInt(countText.replace(/\D/g, ""), 10);
 
     return { tone, length, complexity, proposalCount };
   }

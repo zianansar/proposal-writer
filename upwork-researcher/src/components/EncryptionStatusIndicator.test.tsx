@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+
 import EncryptionStatusIndicator from "./EncryptionStatusIndicator";
 import type { EncryptionStatus } from "./EncryptionStatusIndicator";
 
@@ -20,10 +21,7 @@ describe("EncryptionStatusIndicator", () => {
   it("renders lock icon when encryption enabled", () => {
     const onOpenDetails = vi.fn();
     const { container } = render(
-      <EncryptionStatusIndicator
-        status={encryptedStatus}
-        onOpenDetails={onOpenDetails}
-      />
+      <EncryptionStatusIndicator status={encryptedStatus} onOpenDetails={onOpenDetails} />,
     );
 
     const button = screen.getByRole("button", {
@@ -39,12 +37,7 @@ describe("EncryptionStatusIndicator", () => {
   // Subtask 6.2: tooltip appears on hover with correct text
   it("shows tooltip on hover with correct text", () => {
     const onOpenDetails = vi.fn();
-    render(
-      <EncryptionStatusIndicator
-        status={encryptedStatus}
-        onOpenDetails={onOpenDetails}
-      />
-    );
+    render(<EncryptionStatusIndicator status={encryptedStatus} onOpenDetails={onOpenDetails} />);
 
     const button = screen.getByRole("button");
 
@@ -62,12 +55,7 @@ describe("EncryptionStatusIndicator", () => {
   // Subtask 6.3: clicking icon opens encryption details modal
   it("calls onOpenDetails when clicked", () => {
     const onOpenDetails = vi.fn();
-    render(
-      <EncryptionStatusIndicator
-        status={encryptedStatus}
-        onOpenDetails={onOpenDetails}
-      />
-    );
+    render(<EncryptionStatusIndicator status={encryptedStatus} onOpenDetails={onOpenDetails} />);
 
     const button = screen.getByRole("button");
     fireEvent.click(button);
@@ -78,37 +66,24 @@ describe("EncryptionStatusIndicator", () => {
   it("renders nothing when encryption not enabled", () => {
     const onOpenDetails = vi.fn();
     const { container } = render(
-      <EncryptionStatusIndicator
-        status={unencryptedStatus}
-        onOpenDetails={onOpenDetails}
-      />
+      <EncryptionStatusIndicator status={unencryptedStatus} onOpenDetails={onOpenDetails} />,
     );
 
     expect(container.innerHTML).toBe("");
   });
 
   it("has accessible aria-label", () => {
-    render(
-      <EncryptionStatusIndicator
-        status={encryptedStatus}
-        onOpenDetails={vi.fn()}
-      />
-    );
+    render(<EncryptionStatusIndicator status={encryptedStatus} onOpenDetails={vi.fn()} />);
 
     const button = screen.getByRole("button");
     expect(button).toHaveAttribute(
       "aria-label",
-      "Encryption status: enabled. Data encrypted with AES-256"
+      "Encryption status: enabled. Data encrypted with AES-256",
     );
   });
 
   it("shows tooltip on focus for keyboard users", () => {
-    render(
-      <EncryptionStatusIndicator
-        status={encryptedStatus}
-        onOpenDetails={vi.fn()}
-      />
-    );
+    render(<EncryptionStatusIndicator status={encryptedStatus} onOpenDetails={vi.fn()} />);
 
     const button = screen.getByRole("button");
     fireEvent.focus(button);
@@ -120,12 +95,7 @@ describe("EncryptionStatusIndicator", () => {
 
   // Review Fix M1: tooltip associated via aria-describedby
   it("associates tooltip with button via aria-describedby when visible", () => {
-    render(
-      <EncryptionStatusIndicator
-        status={encryptedStatus}
-        onOpenDetails={vi.fn()}
-      />
-    );
+    render(<EncryptionStatusIndicator status={encryptedStatus} onOpenDetails={vi.fn()} />);
 
     const button = screen.getByRole("button");
 
@@ -145,12 +115,7 @@ describe("EncryptionStatusIndicator", () => {
 
   it("opens details on Enter key", () => {
     const onOpenDetails = vi.fn();
-    render(
-      <EncryptionStatusIndicator
-        status={encryptedStatus}
-        onOpenDetails={onOpenDetails}
-      />
-    );
+    render(<EncryptionStatusIndicator status={encryptedStatus} onOpenDetails={onOpenDetails} />);
 
     const button = screen.getByRole("button");
     fireEvent.keyDown(button, { key: "Enter" });
@@ -159,12 +124,7 @@ describe("EncryptionStatusIndicator", () => {
 
   it("opens details on Space key", () => {
     const onOpenDetails = vi.fn();
-    render(
-      <EncryptionStatusIndicator
-        status={encryptedStatus}
-        onOpenDetails={onOpenDetails}
-      />
-    );
+    render(<EncryptionStatusIndicator status={encryptedStatus} onOpenDetails={onOpenDetails} />);
 
     const button = screen.getByRole("button");
     fireEvent.keyDown(button, { key: " " });

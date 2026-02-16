@@ -607,7 +607,11 @@ mod tests {
             .collect();
 
         // Should only count 3 overrides within ±10 points
-        assert_eq!(nearby.len(), 3, "Only overrides within ±10 points should be counted");
+        assert_eq!(
+            nearby.len(),
+            3,
+            "Only overrides within ±10 points should be counted"
+        );
 
         // Verify the nearby overrides are the correct ones
         let nearby_scores: Vec<f32> = nearby.iter().map(|o| o.ai_score).collect();

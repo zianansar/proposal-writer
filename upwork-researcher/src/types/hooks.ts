@@ -50,7 +50,7 @@ export function parseExamples(json: string): string[] {
  * Story 5.2: AC-1 requires displaying only the FIRST example in card UI.
  * This type provides convenient access to that first example.
  */
-export interface ParsedHookStrategy extends Omit<HookStrategy, 'examples_json'> {
+export interface ParsedHookStrategy extends Omit<HookStrategy, "examples_json"> {
   /** First example from examples_json array */
   firstExample: string;
   /** Full array of all examples (2-3 items) */

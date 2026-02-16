@@ -1,10 +1,11 @@
 // Baseline management for regression detection
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
-import { BENCHMARK_CONFIG } from './config';
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { resolve } from "path";
 
-const BASELINE_PATH = resolve(__dirname, 'baseline.json');
+import { BENCHMARK_CONFIG } from "./config";
+
+const BASELINE_PATH = resolve(__dirname, "baseline.json");
 
 export interface Baseline {
   version: string;
@@ -19,18 +20,18 @@ export interface Baseline {
 export function loadBaseline(): Baseline {
   if (!existsSync(BASELINE_PATH)) {
     return {
-      version: '1.0.0',
+      version: "1.0.0",
       updatedAt: new Date().toISOString(),
       results: {},
     };
   }
 
   try {
-    return JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'));
+    return JSON.parse(readFileSync(BASELINE_PATH, "utf-8"));
   } catch (error) {
-    console.warn('[PERF] Failed to load baseline, using empty baseline:', error);
+    console.warn("[PERF] Failed to load baseline, using empty baseline:", error);
     return {
-      version: '1.0.0',
+      version: "1.0.0",
       updatedAt: new Date().toISOString(),
       results: {},
     };
@@ -56,12 +57,12 @@ export function checkRegression(name: string, current: number): void {
   if (current > threshold) {
     throw new Error(
       `Regression detected: ${name} took ${current.toFixed(1)}ms ` +
-      `(was ${expected.toFixed(1)}ms, threshold ${threshold.toFixed(1)}ms with ${BENCHMARK_CONFIG.REGRESSION_TOLERANCE * 100}% tolerance)`
+        `(was ${expected.toFixed(1)}ms, threshold ${threshold.toFixed(1)}ms with ${BENCHMARK_CONFIG.REGRESSION_TOLERANCE * 100}% tolerance)`,
     );
   }
 
   console.log(
-    `[PERF] ${name}: ${current.toFixed(1)}ms vs baseline ${expected.toFixed(1)}ms (threshold ${threshold.toFixed(1)}ms) ✓`
+    `[PERF] ${name}: ${current.toFixed(1)}ms vs baseline ${expected.toFixed(1)}ms (threshold ${threshold.toFixed(1)}ms) ✓`,
   );
 }
 
@@ -71,12 +72,12 @@ export function checkRegression(name: string, current: number): void {
  */
 export function updateBaseline(results: Record<string, number>): void {
   const baseline: Baseline = {
-    version: process.env.npm_package_version ?? '0.0.0',
+    version: process.env.npm_package_version ?? "0.0.0",
     updatedAt: new Date().toISOString(),
     results,
   };
 
   writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, 2));
   console.log(`[PERF] Baseline updated at ${baseline.updatedAt}`);
-  console.log('[PERF] Updated values:', results);
+  console.log("[PERF] Updated values:", results);
 }

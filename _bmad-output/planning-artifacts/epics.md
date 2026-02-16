@@ -615,16 +615,31 @@ NFR-20: Accessibility — WCAG AA compliance, keyboard navigation, screen reader
 
 ### Epic 9: Platform Deployment & Distribution [POST-MVP - PRIORITY 2]
 
-**User Outcome:** User can install the app on Mac/Windows and receive automatic security updates
+**User Outcome:** Users can install the app on macOS/Windows via professional signed installers and receive automatic security updates without manual intervention.
 
-**NFRs covered:** NFR-13 (safe updates with rollback), NFR-14 (macOS 12+, Windows 10/11), NFR-16 (auto-update for critical fixes)
+**NFRs covered:** NFR-13 (safe updates with rollback), NFR-14 (macOS 12+, Windows 10/11), NFR-15 (EV code signing), NFR-16 (auto-update for critical fixes)
 **ARs covered:** AR-21 (pre-commit hooks: ESLint, Prettier, cargo fmt, clippy, specta binding check)
 
-**Implementation Notes:** Tauri bundling for macOS (DMG) and Windows (MSI). Atomic updates with rollback capability. Auto-updater for critical security fixes (mandatory). Pre-commit hooks prevent broken builds. Code signing (basic certs initially, EV cert post-MVP per NFR-15). Distribution via website download initially, App Store/Microsoft Store consideration for v2.0.
+**Stories (9):**
+- 9.1: ESLint, Prettier & Pre-commit Hooks (AR-21)
+- 9.2: CI/CD Release Build Pipeline (NFR-14)
+- 9.3: Semantic Versioning & Release Automation
+- 9.4: macOS Code Signing & Notarization (NFR-15)
+- 9.5: Windows Code Signing & SmartScreen Compliance (NFR-15)
+- 9.6: Auto-Updater Plugin Integration (NFR-16)
+- 9.7: Auto-Update Notification UI (NFR-16)
+- 9.8: Mandatory Safety Update Enforcement (NFR-16)
+- 9.9: Post-Update Health Check & Rollback (NFR-13)
+
+**Dependency flow:** 9.1 → 9.2 → 9.3 → 9.4/9.5 (parallel) → 9.6 → 9.7 → 9.8 → 9.9
+
+**Implementation Notes:** Tauri bundling for macOS (DMG) and Windows (MSI). Atomic updates with rollback capability. Auto-updater for critical security fixes (mandatory). Pre-commit hooks prevent broken builds. Code signing (EV cert for Windows SmartScreen per NFR-15, Apple notarization for macOS). Distribution via GitHub Releases download initially, App Store/Microsoft Store consideration for v2.0.
 
 **Why Priority 2:** Required for broad distribution beyond development team. Auto-update infrastructure critical for security patches.
 
-**Estimated Size:** 6-8 stories, 4-6 days
+**Key risks:** Windows EV cert procurement (1-2 week lead time), macOS notarization (Apple Developer account), SmartScreen reputation building
+
+**Size:** 9 stories
 
 ---
 

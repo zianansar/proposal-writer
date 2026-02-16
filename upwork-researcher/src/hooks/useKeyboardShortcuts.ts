@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useCallback } from "react";
+
 import { usePlatform } from "./usePlatform";
 
 export interface UseKeyboardShortcutsConfig {
@@ -71,7 +72,7 @@ export function useKeyboardShortcuts({
       // Let native Cmd/Ctrl+C and Cmd/Ctrl+V pass through
       // (no preventDefault for standard clipboard operations)
     },
-    [isMac, onGenerate, onCopy, canGenerate, canCopy]
+    [isMac, onGenerate, onCopy, canGenerate, canCopy],
   );
 
   useEffect(() => {

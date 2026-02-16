@@ -17,15 +17,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "default", size = "default", ...props }, ref) => {
     const variantClass = variantStyles[variant] || variantStyles.default;
     const combinedClassName = className ? `${variantClass} ${className}` : variantClass;
-    return (
-      <button
-        className={combinedClassName}
-        ref={ref}
-        data-variant={variant}
-        {...props}
-      />
-    );
-  }
+    return <button className={combinedClassName} ref={ref} data-variant={variant} {...props} />;
+  },
 );
 Button.displayName = "Button";
 

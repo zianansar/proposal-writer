@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useOnboardingStore } from "../../stores/useOnboardingStore";
-import { GoldenSetUpload } from "../../features/voice-learning";
 
-type CalibrationMode = 'selection' | 'golden-set' | 'questionnaire' | 'complete';
+import { GoldenSetUpload } from "../../features/voice-learning";
+import { useOnboardingStore } from "../../stores/useOnboardingStore";
+
+type CalibrationMode = "selection" | "golden-set" | "questionnaire" | "complete";
 
 function VoiceCalibrationStep() {
   const { setCurrentStep, setShowOnboarding } = useOnboardingStore();
-  const [mode, setMode] = useState<CalibrationMode>('selection');
+  const [mode, setMode] = useState<CalibrationMode>("selection");
   const navigate = useNavigate();
 
   const handleSkip = () => {
@@ -15,11 +16,11 @@ function VoiceCalibrationStep() {
   };
 
   const handleBack = () => {
-    if (mode === 'complete') {
+    if (mode === "complete") {
       // Can't go back from complete - already calibrated
-      setMode('selection');
-    } else if (mode !== 'selection') {
-      setMode('selection');
+      setMode("selection");
+    } else if (mode !== "selection") {
+      setMode("selection");
     } else {
       setCurrentStep(2);
     }
@@ -27,7 +28,7 @@ function VoiceCalibrationStep() {
 
   const handleGoldenSetComplete = () => {
     // Story 8.6 AC-3: Show condensed timeline before proceeding
-    setMode('complete');
+    setMode("complete");
   };
 
   const handleContinueAfterCalibration = () => {
@@ -37,30 +38,28 @@ function VoiceCalibrationStep() {
   // Story 8.6 AC-3: Navigate to Voice Learning settings
   const handleLearnMore = () => {
     setShowOnboarding(false);
-    navigate('/settings', { state: { section: 'voice-learning' } });
+    navigate("/settings", { state: { section: "voice-learning" } });
   };
 
   // Story 8.6 AC-3: Condensed timeline after calibration complete
-  if (mode === 'complete') {
+  if (mode === "complete") {
     return (
       <div className="onboarding-step">
         <h2 id="onboarding-title">Voice Profile Created!</h2>
         <div className="onboarding-step__success">
-          <span className="onboarding-step__success-icon" aria-hidden="true">✓</span>
+          <span className="onboarding-step__success-icon" aria-hidden="true">
+            ✓
+          </span>
           <p className="onboarding-step__message">
             Your writing style has been analyzed and saved.
           </p>
         </div>
         <div className="onboarding-step__timeline-callout">
-          <span className="timeline-callout__icon" aria-hidden="true">💡</span>
-          <span className="timeline-callout__text">
-            Takes 3-5 uses to learn your voice.
+          <span className="timeline-callout__icon" aria-hidden="true">
+            💡
           </span>
-          <button
-            type="button"
-            className="timeline-callout__link"
-            onClick={handleLearnMore}
-          >
+          <span className="timeline-callout__text">Takes 3-5 uses to learn your voice.</span>
+          <button type="button" className="timeline-callout__link" onClick={handleLearnMore}>
             Learn More →
           </button>
         </div>
@@ -78,16 +77,13 @@ function VoiceCalibrationStep() {
   }
 
   // Golden Set Upload mode (Story 5.3 integration)
-  if (mode === 'golden-set') {
+  if (mode === "golden-set") {
     return (
       <div className="onboarding-step">
         <h2 id="onboarding-title">Upload Your Best Proposals</h2>
         <GoldenSetUpload onComplete={handleGoldenSetComplete} />
         <div className="onboarding-step__actions">
-          <button
-            className="button button--secondary"
-            onClick={handleBack}
-          >
+          <button className="button button--secondary" onClick={handleBack}>
             Back
           </button>
         </div>
@@ -109,37 +105,23 @@ function VoiceCalibrationStep() {
           <p className="onboarding-step__option-hint">
             Upload 3-5 of your best proposals (text or PDF files)
           </p>
-          <button
-            className="button button--primary"
-            onClick={() => setMode('golden-set')}
-          >
+          <button className="button button--primary" onClick={() => setMode("golden-set")}>
             Upload Proposals
           </button>
         </div>
 
         <div className="onboarding-step__option">
           <strong>Option 2: Quick Questionnaire</strong>
-          <p className="onboarding-step__option-hint">
-            Answer 5 questions about your approach
-          </p>
-          <p className="onboarding-step__placeholder">
-            Coming soon
-          </p>
+          <p className="onboarding-step__option-hint">Answer 5 questions about your approach</p>
+          <p className="onboarding-step__placeholder">Coming soon</p>
         </div>
       </div>
 
       <div className="onboarding-step__actions">
-        <button
-          className="button button--secondary"
-          onClick={handleBack}
-        >
+        <button className="button button--secondary" onClick={handleBack}>
           Back
         </button>
-        <button
-          className="button button--primary"
-          onClick={handleSkip}
-          autoFocus
-        >
+        <button className="button button--primary" onClick={handleSkip} autoFocus>
           Skip for now
         </button>
       </div>

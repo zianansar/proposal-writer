@@ -15,6 +15,7 @@ This document describes strategies to ensure deterministic, flake-free E2E tests
 ### Automated 10x Test Run
 
 **Bash/Linux/macOS:**
+
 ```bash
 cd upwork-researcher
 
@@ -33,6 +34,7 @@ grep -c "failed" test-reliability.log
 ```
 
 **PowerShell/Windows:**
+
 ```powershell
 cd upwork-researcher
 
@@ -113,20 +115,22 @@ Run: `./scripts/test-reliability.sh`
 All Claude API calls are mocked with deterministic responses:
 
 ```typescript
-import { mockClaudeAPI } from '../helpers/apiMocks';
+import { mockClaudeAPI } from "../helpers/apiMocks";
 
 test.beforeAll(async () => {
-  await mockClaudeAPI(page, 'standard'); // Deterministic proposal text
+  await mockClaudeAPI(page, "standard"); // Deterministic proposal text
 });
 ```
 
 **Mock scenarios:**
+
 - `standard` - Normal proposal generation
 - `high-perplexity` - Triggers safety warning (>150)
 - `streaming` - Realistic streaming behavior
 - `error` - API error response
 
 **Benefits:**
+
 - ✅ Consistent test data across runs
 - ✅ No API costs during testing
 - ✅ Faster test execution (no network calls)
@@ -135,39 +139,45 @@ test.beforeAll(async () => {
 ### 2. Explicit Waits (No Arbitrary Sleeps)
 
 **❌ Bad (Flaky):**
+
 ```typescript
 await page.waitForTimeout(1000); // Arbitrary wait
 ```
 
 **✅ Good (Deterministic):**
+
 ```typescript
 await expect(element).toBeVisible({ timeout: 5000 }); // Explicit condition
-await page.waitForSelector('[data-testid="loaded"]', { state: 'visible' });
-await page.waitForLoadState('networkidle');
+await page.waitForSelector('[data-testid="loaded"]', { state: "visible" });
+await page.waitForLoadState("networkidle");
 ```
 
 **Replaced instances:**
+
 - `HistoryPage.getProposalCount()` - Now waits for visible list or empty state
 - `HistoryPage.searchProposals()` - Now waits for networkidle
 
 ### 3. Fixed Test Data
 
 **Database seeding:**
+
 ```typescript
-import { clearDatabase, seedDatabase } from '../helpers/dbUtils';
+import { clearDatabase, seedDatabase } from "../helpers/dbUtils";
 
 test.beforeEach(async () => {
   clearDatabase(); // Start from known state
-  seedDatabase('returning-user'); // Load fixture data
+  seedDatabase("returning-user"); // Load fixture data
 });
 ```
 
 **Fixture data locations:**
+
 - `tests/e2e/fixtures/sample-job-content.txt`
 - `tests/e2e/fixtures/sample-proposals/proposal-1.txt`
 - `tests/e2e/fixtures/high-ai-detection-job.txt`
 
 **No random elements:**
+
 - Tests use fixed timestamps (not `Date.now()` for data generation)
 - No UUID generation in test data
 - Proposal content is deterministic
@@ -175,17 +185,19 @@ test.beforeEach(async () => {
 ### 4. Idempotent Tests
 
 Each test:
+
 - Starts from clean database state
 - Doesn't depend on previous test outcomes
 - Can run in any order
 - Can run in isolation
 
 **Playwright config:**
+
 ```typescript
 // playwright.config.ts
 export default defineConfig({
   fullyParallel: false, // Sequential execution for Tauri
-  workers: 1,           // Single worker
+  workers: 1, // Single worker
   retries: process.env.CI ? 2 : 0, // Retries only in CI
 });
 ```
@@ -211,11 +223,13 @@ retries: process.env.CI ? 2 : 0, // CI: 2 retries
 ```
 
 **Retry triggers:**
+
 - Network timeouts (rare with mocked APIs)
 - Platform-specific WebView issues
 - Resource contention on CI runners
 
 **Not eligible for retry:**
+
 - Assertion failures (test logic errors)
 - Element not found (UI regression)
 - Incorrect test data
@@ -227,9 +241,9 @@ retries: process.env.CI ? 2 : 0, // CI: 2 retries
 If real network calls needed:
 
 ```typescript
-test('network-dependent test', async ({ page }) => {
+test("network-dependent test", async ({ page }) => {
   // Retry-specific network calls
-  await page.route('**/external-api/**', async (route) => {
+  await page.route("**/external-api/**", async (route) => {
     let attempts = 0;
     const maxAttempts = 3;
 
@@ -241,7 +255,7 @@ test('network-dependent test', async ({ page }) => {
       } catch (error) {
         attempts++;
         if (attempts === maxAttempts) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
   });
@@ -255,6 +269,7 @@ test('network-dependent test', async ({ page }) => {
 ### Step 1: Reproduce Locally
 
 Run test 10x:
+
 ```bash
 ./scripts/test-reliability.sh
 ```
@@ -262,6 +277,7 @@ Run test 10x:
 ### Step 2: Check for Timing Issues
 
 Enable trace on failure:
+
 ```typescript
 // playwright.config.ts
 use: {
@@ -272,6 +288,7 @@ use: {
 ```
 
 View trace:
+
 ```bash
 npx playwright show-trace trace.zip
 ```
@@ -279,6 +296,7 @@ npx playwright show-trace trace.zip
 ### Step 3: Review Logs
 
 Check for:
+
 - `waitForTimeout()` calls (should be explicit waits)
 - Race conditions (element appears/disappears quickly)
 - State leaks (previous test data affects current test)
@@ -286,11 +304,13 @@ Check for:
 ### Step 4: Isolate Test
 
 Run single test:
+
 ```bash
 npm run test:e2e -- --grep "test name"
 ```
 
 Run with debug:
+
 ```bash
 PWDEBUG=1 npm run test:e2e -- --grep "test name"
 ```
@@ -298,6 +318,7 @@ PWDEBUG=1 npm run test:e2e -- --grep "test name"
 ### Step 5: Fix Root Cause
 
 Common fixes:
+
 - Replace `waitForTimeout()` with explicit conditions
 - Add `test.beforeEach()` cleanup
 - Use `toBeVisible()` instead of `toExist()`
@@ -316,6 +337,7 @@ expect(duration).toBeLessThan(8000); // NFR-6: <8s
 ```
 
 **Why this is deterministic:**
+
 - Measures actual elapsed time (not random)
 - Assertions have reasonable thresholds
 - Slower CI runners still pass (thresholds are upper bounds)
@@ -333,12 +355,14 @@ expect(duration).toBeLessThan(8000); // NFR-6: <8s
 ## Success Criteria
 
 ✅ **Passing reliability test:**
+
 - 10 consecutive runs
 - All runs produce same result (all pass or all fail consistently)
 - No intermittent failures
 - Total runtime variance <10%
 
 ❌ **Failing reliability test:**
+
 - Any run produces different result than others
 - Timeout on one run but pass on another
 - Race condition detected
@@ -346,11 +370,13 @@ expect(duration).toBeLessThan(8000); // NFR-6: <8s
 ## Monitoring Test Reliability
 
 **Track metrics:**
+
 - Pass rate over last 100 CI runs
 - Flakiness percentage (inconsistent pass/fail)
 - Average test duration (should be stable)
 
 **Alert thresholds:**
+
 - Flakiness >2% → Investigate timing issues
 - Duration increase >20% → Check for performance regression
 - Failure rate >5% → Likely real bug, not flakiness

@@ -53,9 +53,7 @@ function PipelineIndicator() {
               </span>
               <span className="pipeline-stage-label">{label}</span>
               {duration !== undefined && (
-                <span className="pipeline-stage-duration">
-                  {(duration / 1000).toFixed(1)}s
-                </span>
+                <span className="pipeline-stage-duration">{(duration / 1000).toFixed(1)}s</span>
               )}
             </li>
           );

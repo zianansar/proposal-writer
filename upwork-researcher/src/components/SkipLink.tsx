@@ -1,4 +1,4 @@
-import './SkipLink.css';
+import "./SkipLink.css";
 
 interface SkipLinkProps {
   targetId?: string;
@@ -11,8 +11,8 @@ interface SkipLinkProps {
  * WCAG 2.1 SC 2.4.1 Bypass Blocks (Story 8.2).
  */
 export function SkipLink({
-  targetId = 'main-content',
-  children = 'Skip to main content',
+  targetId = "main-content",
+  children = "Skip to main content",
 }: SkipLinkProps) {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -21,18 +21,18 @@ export function SkipLink({
       target.tabIndex = -1;
       target.focus();
       // Remove tabindex after focus to prevent future tab stops
-      target.addEventListener('blur', () => {
-        target.removeAttribute('tabindex');
-      }, { once: true });
+      target.addEventListener(
+        "blur",
+        () => {
+          target.removeAttribute("tabindex");
+        },
+        { once: true },
+      );
     }
   };
 
   return (
-    <a
-      href={`#${targetId}`}
-      className="skip-link"
-      onClick={handleClick}
-    >
+    <a href={`#${targetId}`} className="skip-link" onClick={handleClick}>
       {children}
     </a>
   );

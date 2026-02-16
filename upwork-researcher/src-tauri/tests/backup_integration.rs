@@ -7,8 +7,8 @@
 //! - Cross-platform compatibility
 
 use std::time::Instant;
-use upwork_research_agent_lib::db::Database;
 use upwork_research_agent_lib::backup;
+use upwork_research_agent_lib::db::Database;
 
 /// Helper: Populate database with test data
 fn populate_database(conn: &rusqlite::Connection, proposal_count: usize) {
@@ -116,8 +116,8 @@ fn test_end_to_end_backup_workflow() {
     );
 
     // Verify file contents match database
-    let backup_content = std::fs::read_to_string(&metadata.file_path)
-        .expect("Failed to read backup file");
+    let backup_content =
+        std::fs::read_to_string(&metadata.file_path).expect("Failed to read backup file");
 
     let backup_data: serde_json::Value =
         serde_json::from_str(&backup_content).expect("Failed to parse backup JSON");
@@ -230,7 +230,10 @@ fn test_large_database_backup_performance() {
     let file_size = std::fs::metadata(&metadata.file_path)
         .expect("Failed to get file metadata")
         .len();
-    assert!(file_size > 1000, "Backup file should be >1KB for 150 proposals");
+    assert!(
+        file_size > 1000,
+        "Backup file should be >1KB for 150 proposals"
+    );
 }
 
 #[test]
@@ -264,12 +267,7 @@ fn test_cross_platform_windows() {
     );
 
     // Verify filename format (platform-independent timestamp)
-    let filename = metadata
-        .file_path
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap();
+    let filename = metadata.file_path.file_name().unwrap().to_str().unwrap();
     assert!(filename.starts_with("pre-encryption-backup-"));
     assert!(filename.ends_with(".json"));
 }

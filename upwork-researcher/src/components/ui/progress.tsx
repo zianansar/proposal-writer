@@ -3,7 +3,7 @@ import * as React from "react";
 
 export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
   value?: number; // 0-100
-  max?: number;   // Default 100
+  max?: number; // Default 100
 }
 
 const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
@@ -20,13 +20,10 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
         className={className}
         {...props}
       >
-        <div
-          className="progress-indicator"
-          style={{ width: `${percentage}%` }}
-        />
+        <div className="progress-indicator" style={{ width: `${percentage}%` }} />
       </div>
     );
-  }
+  },
 );
 Progress.displayName = "Progress";
 

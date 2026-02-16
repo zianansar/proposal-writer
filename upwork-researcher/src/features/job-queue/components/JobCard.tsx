@@ -4,11 +4,14 @@
  * [AI-Review Fix H3]: Now uses JobScoreBadge component instead of inline badge
  */
 
-import { useNavigate } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
-import JobScoreBadge from './JobScoreBadge';
-import type { JobQueueItem } from '../types';
-import './JobCard.css';
+import { formatDistanceToNow } from "date-fns";
+import { useNavigate } from "react-router-dom";
+
+import type { JobQueueItem } from "../types";
+
+import JobScoreBadge from "./JobScoreBadge";
+
+import "./JobCard.css";
 
 interface JobCardProps {
   job: JobQueueItem;
@@ -24,7 +27,7 @@ export default function JobCard({ job }: JobCardProps) {
 
   // AC-6.7: Keyboard accessibility
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       handleClick();
     }
@@ -33,7 +36,7 @@ export default function JobCard({ job }: JobCardProps) {
   // AC-6.6: Format date as relative time
   const relativeTime = job.createdAt
     ? formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })
-    : 'Unknown';
+    : "Unknown";
 
   // AC-6.2: Truncate job title to 50 chars
   const truncatedTitle =

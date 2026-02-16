@@ -66,9 +66,9 @@ pub fn list_settings(conn: &Connection) -> Result<Vec<Setting>, rusqlite::Error>
 /// Returns 0 if key doesn't exist (code-level default).
 pub fn get_proposals_edited_count(conn: &Connection) -> Result<i32, rusqlite::Error> {
     match get_setting(conn, "proposals_edited_count")? {
-        Some(value) => value
-            .parse::<i32>()
-            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))),
+        Some(value) => value.parse::<i32>().map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
+        }),
         None => Ok(0), // Default to 0 if key doesn't exist
     }
 }

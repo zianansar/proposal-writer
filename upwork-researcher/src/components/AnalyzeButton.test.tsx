@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi } from "vitest";
+
 import AnalyzeButton from "./AnalyzeButton";
 
 describe("AnalyzeButton", () => {
@@ -55,10 +56,7 @@ describe("AnalyzeButton", () => {
     const button = screen.getByRole("button");
 
     expect(button).toHaveAttribute("type", "button");
-    expect(button).toHaveAttribute(
-      "title",
-      "Extract job details (client name, skills, needs)"
-    );
+    expect(button).toHaveAttribute("title", "Extract job details (client name, skills, needs)");
   });
 
   it("applies analyze-button class", () => {

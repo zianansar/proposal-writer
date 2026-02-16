@@ -4,11 +4,13 @@
  * [AI-Review Fix L1]: Extracted magic numbers to named constants
  */
 
-import { useEffect, useState } from 'react';
-import { FixedSizeList } from 'react-window';
-import JobCard from './JobCard';
-import type { JobQueueItem } from '../types';
-import './VirtualizedJobList.css';
+import { useEffect, useState } from "react";
+import { FixedSizeList } from "react-window";
+
+import type { JobQueueItem } from "../types";
+
+import JobCard from "./JobCard";
+import "./VirtualizedJobList.css";
 
 interface VirtualizedJobListProps {
   jobs: JobQueueItem[];
@@ -27,8 +29,8 @@ const CARD_VERTICAL_MARGIN = 6; // Half of 12px total margin
 export default function VirtualizedJobList({ jobs }: VirtualizedJobListProps) {
   // Use window dimensions for sizing
   const [dimensions, setDimensions] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth - SIDEBAR_WIDTH : DEFAULT_WIDTH,
-    height: typeof window !== 'undefined' ? window.innerHeight - HEADER_HEIGHT : DEFAULT_HEIGHT,
+    width: typeof window !== "undefined" ? window.innerWidth - SIDEBAR_WIDTH : DEFAULT_WIDTH,
+    height: typeof window !== "undefined" ? window.innerHeight - HEADER_HEIGHT : DEFAULT_HEIGHT,
   });
 
   useEffect(() => {
@@ -39,10 +41,10 @@ export default function VirtualizedJobList({ jobs }: VirtualizedJobListProps) {
       });
     };
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleResize);
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", handleResize);
       handleResize(); // Set initial size
-      return () => window.removeEventListener('resize', handleResize);
+      return () => window.removeEventListener("resize", handleResize);
     }
   }, []);
 
@@ -54,9 +56,9 @@ export default function VirtualizedJobList({ jobs }: VirtualizedJobListProps) {
     const itemStyle = {
       ...style,
       top: (style.top as number) + CARD_VERTICAL_MARGIN,
-      height: (style.height as number) - (CARD_VERTICAL_MARGIN * 2),
-      paddingLeft: '2rem',
-      paddingRight: '2rem',
+      height: (style.height as number) - CARD_VERTICAL_MARGIN * 2,
+      paddingLeft: "2rem",
+      paddingRight: "2rem",
     };
 
     return (

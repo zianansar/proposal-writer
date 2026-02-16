@@ -9,7 +9,7 @@
  * - Generation controls
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class MainEditorPage {
   readonly page: Page;
@@ -54,39 +54,39 @@ export class MainEditorPage {
     this.page = page;
 
     // Job Input
-    this.jobInput = page.getByTestId('job-input');
-    this.analyzeButton = page.getByTestId('analyze-button');
-    this.clearButton = page.getByRole('button', { name: /clear/i });
+    this.jobInput = page.getByTestId("job-input");
+    this.analyzeButton = page.getByTestId("analyze-button");
+    this.clearButton = page.getByRole("button", { name: /clear/i });
 
     // Analysis Results
-    this.analysisPanel = page.getByTestId('job-analysis-panel');
-    this.clientName = page.getByTestId('client-name');
-    this.skillsList = page.getByTestId('skills-list');
-    this.hiddenNeeds = page.getByTestId('hidden-needs');
-    this.analysisLoading = page.getByTestId('analysis-loading');
+    this.analysisPanel = page.getByTestId("job-analysis-panel");
+    this.clientName = page.getByTestId("client-name");
+    this.skillsList = page.getByTestId("skills-list");
+    this.hiddenNeeds = page.getByTestId("hidden-needs");
+    this.analysisLoading = page.getByTestId("analysis-loading");
 
     // Job Scoring
-    this.jobScoreBadge = page.getByTestId('job-score-badge');
-    this.scoringBreakdown = page.getByTestId('scoring-breakdown');
+    this.jobScoreBadge = page.getByTestId("job-score-badge");
+    this.scoringBreakdown = page.getByTestId("scoring-breakdown");
 
     // Generation
-    this.generateButton = page.getByTestId('generate-button');
-    this.loadingIndicator = page.getByTestId('loading-indicator');
-    this.pipelineIndicator = page.getByTestId('pipeline-indicator');
+    this.generateButton = page.getByTestId("generate-button");
+    this.loadingIndicator = page.getByTestId("loading-indicator");
+    this.pipelineIndicator = page.getByTestId("pipeline-indicator");
 
     // Editor
-    this.proposalEditor = page.getByTestId('proposal-editor');
-    this.proseMirrorContent = page.locator('.ProseMirror');
-    this.editorToolbar = page.getByTestId('editor-toolbar');
+    this.proposalEditor = page.getByTestId("proposal-editor");
+    this.proseMirrorContent = page.locator(".ProseMirror");
+    this.editorToolbar = page.getByTestId("editor-toolbar");
 
     // Actions
-    this.copyButton = page.getByTestId('copy-button');
-    this.rehumanizeButton = page.getByRole('button', { name: /rehumanize/i });
+    this.copyButton = page.getByTestId("copy-button");
+    this.rehumanizeButton = page.getByRole("button", { name: /rehumanize/i });
     this.copyConfirmation = page.getByText(/copied/i);
 
     // Status
-    this.characterCount = page.getByTestId('character-count');
-    this.wordCount = page.getByTestId('word-count');
+    this.characterCount = page.getByTestId("character-count");
+    this.wordCount = page.getByTestId("word-count");
     this.truncationWarning = page.getByText(/truncated/i);
   }
 
@@ -154,7 +154,7 @@ export class MainEditorPage {
    * Get proposal text from editor
    */
   async getProposalText(): Promise<string> {
-    return (await this.proseMirrorContent.textContent()) ?? '';
+    return (await this.proseMirrorContent.textContent()) ?? "";
   }
 
   /**
@@ -174,13 +174,13 @@ export class MainEditorPage {
     skills: string[];
     hiddenNeeds: string;
   }> {
-    const clientName = (await this.clientName.textContent()) ?? '';
-    const skillsText = (await this.skillsList.textContent()) ?? '';
+    const clientName = (await this.clientName.textContent()) ?? "";
+    const skillsText = (await this.skillsList.textContent()) ?? "";
     const skills = skillsText
-      .split(',')
+      .split(",")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
-    const hiddenNeeds = (await this.hiddenNeeds.textContent()) ?? '';
+    const hiddenNeeds = (await this.hiddenNeeds.textContent()) ?? "";
 
     return { clientName, skills, hiddenNeeds };
   }
@@ -189,7 +189,7 @@ export class MainEditorPage {
    * Get job score from badge
    */
   async getJobScore(): Promise<string> {
-    return (await this.jobScoreBadge.textContent()) ?? '';
+    return (await this.jobScoreBadge.textContent()) ?? "";
   }
 
   /**
@@ -203,20 +203,20 @@ export class MainEditorPage {
    * Get character and word counts
    */
   async getCounts(): Promise<{ characters: number; words: number }> {
-    const charText = (await this.characterCount.textContent()) ?? '0';
-    const wordText = (await this.wordCount.textContent()) ?? '0';
+    const charText = (await this.characterCount.textContent()) ?? "0";
+    const wordText = (await this.wordCount.textContent()) ?? "0";
 
     return {
-      characters: parseInt(charText.replace(/\D/g, ''), 10),
-      words: parseInt(wordText.replace(/\D/g, ''), 10),
+      characters: parseInt(charText.replace(/\D/g, ""), 10),
+      words: parseInt(wordText.replace(/\D/g, ""), 10),
     };
   }
 
   /**
    * Use formatting toolbar (bold, italic, etc.)
    */
-  async applyFormatting(format: 'bold' | 'italic' | 'bulletList'): Promise<void> {
-    const button = this.editorToolbar.getByRole('button', { name: new RegExp(format, 'i') });
+  async applyFormatting(format: "bold" | "italic" | "bulletList"): Promise<void> {
+    const button = this.editorToolbar.getByRole("button", { name: new RegExp(format, "i") });
     await button.click();
   }
 

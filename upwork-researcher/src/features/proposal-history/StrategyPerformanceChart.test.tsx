@@ -1,42 +1,48 @@
 // Tests for StrategyPerformanceChart component (Story 7.5 CR R1 H-2)
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createElement } from 'react';
-import { StrategyPerformanceChart } from './StrategyPerformanceChart';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen } from "@testing-library/react";
+import { createElement } from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import { StrategyPerformanceChart } from "./StrategyPerformanceChart";
 
 const cellProps: any[] = [];
 let lastChartData: any[] = [];
 
-vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => createElement('div', { 'data-testid': 'responsive-container' }, children),
+vi.mock("recharts", () => ({
+  ResponsiveContainer: ({ children }: any) =>
+    createElement("div", { "data-testid": "responsive-container" }, children),
   BarChart: ({ children, data }: any) => {
     lastChartData = data || [];
-    return createElement('div', { 'data-testid': 'bar-chart', 'data-items': data?.length }, children);
+    return createElement(
+      "div",
+      { "data-testid": "bar-chart", "data-items": data?.length },
+      children,
+    );
   },
-  Bar: ({ children }: any) => createElement('div', { 'data-testid': 'bar' }, children),
+  Bar: ({ children }: any) => createElement("div", { "data-testid": "bar" }, children),
   XAxis: () => null,
   YAxis: () => null,
   Tooltip: () => null,
   Cell: (props: any) => {
     cellProps.push(props);
-    return createElement('div', { 'data-testid': 'cell', 'data-fill': props.fill });
+    return createElement("div", { "data-testid": "cell", "data-fill": props.fill });
   },
   LabelList: () => null,
 }));
 
 const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
+vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: any[]) => mockInvoke(...args),
 }));
 
 const mockStrategies = [
-  { strategy: 'social_proof', total: 10, positive: 6, responseRate: 60.0 },
-  { strategy: 'contrarian', total: 5, positive: 1, responseRate: 20.0 },
-  { strategy: 'none', total: 2, positive: 0, responseRate: 0.0 },
+  { strategy: "social_proof", total: 10, positive: 6, responseRate: 60.0 },
+  { strategy: "contrarian", total: 5, positive: 1, responseRate: 20.0 },
+  { strategy: "none", total: 2, positive: 0, responseRate: 0.0 },
 ];
 
-describe('StrategyPerformanceChart', () => {
+describe("StrategyPerformanceChart", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
@@ -55,35 +61,35 @@ describe('StrategyPerformanceChart', () => {
     return render(createElement(StrategyPerformanceChart), { wrapper });
   }
 
-  it('renders horizontal bar chart with data', async () => {
+  it("renders horizontal bar chart with data", async () => {
     mockInvoke.mockResolvedValue(mockStrategies);
 
     renderChart();
 
-    const chart = await screen.findByTestId('bar-chart');
+    const chart = await screen.findByTestId("bar-chart");
     expect(chart).toBeTruthy();
-    expect(chart.getAttribute('data-items')).toBe('3');
+    expect(chart.getAttribute("data-items")).toBe("3");
     // CR R2 L-3: Verify data transformations (formatLabel, responseRate rounding, label)
-    expect(lastChartData[0].name).toBe('Social Proof');
+    expect(lastChartData[0].name).toBe("Social Proof");
     expect(lastChartData[0].responseRate).toBe(60.0);
-    expect(lastChartData[0].label).toBe('6/10');
-    expect(lastChartData[2].name).toBe('No strategy');
-    expect(lastChartData[2].label).toBe('0/2');
+    expect(lastChartData[0].label).toBe("6/10");
+    expect(lastChartData[2].name).toBe("No strategy");
+    expect(lastChartData[2].label).toBe("0/2");
   });
 
-  it('renders loading state', () => {
+  it("renders loading state", () => {
     mockInvoke.mockImplementation(() => new Promise(() => {}));
     renderChart();
 
-    expect(screen.getByText('Loading...')).toBeTruthy();
+    expect(screen.getByText("Loading...")).toBeTruthy();
   });
 
-  it('renders error state', async () => {
-    mockInvoke.mockRejectedValue(new Error('DB error'));
+  it("renders error state", async () => {
+    mockInvoke.mockRejectedValue(new Error("DB error"));
 
     renderChart();
 
-    expect(await screen.findByText('Error loading data')).toBeTruthy();
+    expect(await screen.findByText("Error loading data")).toBeTruthy();
   });
 
   it('renders "No data" when empty', async () => {
@@ -91,53 +97,51 @@ describe('StrategyPerformanceChart', () => {
 
     renderChart();
 
-    expect(await screen.findByText('No data')).toBeTruthy();
+    expect(await screen.findByText("No data")).toBeTruthy();
   });
 
-  it('uses reduced opacity for low-sample strategies', async () => {
+  it("uses reduced opacity for low-sample strategies", async () => {
     const withLowSample = [
-      { strategy: 'social_proof', total: 10, positive: 6, responseRate: 60.0 },
-      { strategy: 'contrarian', total: 2, positive: 1, responseRate: 50.0 }, // <3 = low sample
+      { strategy: "social_proof", total: 10, positive: 6, responseRate: 60.0 },
+      { strategy: "contrarian", total: 2, positive: 1, responseRate: 50.0 }, // <3 = low sample
     ];
     mockInvoke.mockResolvedValue(withLowSample);
 
     renderChart();
 
-    await screen.findByTestId('bar-chart');
+    await screen.findByTestId("bar-chart");
 
     // social_proof (total=10) should get solid fill
-    const solidCell = cellProps.find((p) => p.fill === '#3b82f6');
+    const solidCell = cellProps.find((p) => p.fill === "#3b82f6");
     expect(solidCell).toBeTruthy();
 
     // contrarian (total=2) should get translucent fill
-    const lowSampleCell = cellProps.find((p) => p.fill === '#3b82f680');
+    const lowSampleCell = cellProps.find((p) => p.fill === "#3b82f680");
     expect(lowSampleCell).toBeTruthy();
   });
 
   it('displays "No strategy" for null strategy', async () => {
-    mockInvoke.mockResolvedValue([
-      { strategy: 'none', total: 5, positive: 2, responseRate: 40.0 },
-    ]);
+    mockInvoke.mockResolvedValue([{ strategy: "none", total: 5, positive: 2, responseRate: 40.0 }]);
 
     renderChart();
 
-    await screen.findByTestId('bar-chart');
+    await screen.findByTestId("bar-chart");
     // CR R2 L-2: Verify 'none' → 'No strategy' data transformation
-    expect(lastChartData[0].name).toBe('No strategy');
-    expect(mockInvoke).toHaveBeenCalledWith('get_response_rate_by_strategy');
+    expect(lastChartData[0].name).toBe("No strategy");
+    expect(mockInvoke).toHaveBeenCalledWith("get_response_rate_by_strategy");
   });
 
-  it('data is sorted by response rate descending (server-side)', async () => {
+  it("data is sorted by response rate descending (server-side)", async () => {
     // Server returns pre-sorted data
     const sorted = [
-      { strategy: 'social_proof', total: 10, positive: 8, responseRate: 80.0 },
-      { strategy: 'contrarian', total: 5, positive: 1, responseRate: 20.0 },
+      { strategy: "social_proof", total: 10, positive: 8, responseRate: 80.0 },
+      { strategy: "contrarian", total: 5, positive: 1, responseRate: 20.0 },
     ];
     mockInvoke.mockResolvedValue(sorted);
 
     renderChart();
 
-    const chart = await screen.findByTestId('bar-chart');
-    expect(chart.getAttribute('data-items')).toBe('2');
+    const chart = await screen.findByTestId("bar-chart");
+    expect(chart.getAttribute("data-items")).toBe("2");
   });
 });

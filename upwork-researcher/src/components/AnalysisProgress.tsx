@@ -41,22 +41,24 @@ function AnalysisProgress({ stage, errorMessage }: AnalysisProgressProps) {
       case "complete":
         return (
           <span className="analysis-progress__complete">
-            <span className="analysis-progress__checkmark" role="img" aria-label="success">✓</span>
+            <span className="analysis-progress__checkmark" role="img" aria-label="success">
+              ✓
+            </span>
             <span>Complete</span>
           </span>
         );
       case "saved":
         return (
           <span className="analysis-progress__saved">
-            <span className="analysis-progress__checkmark" role="img" aria-label="saved">✓</span>
+            <span className="analysis-progress__checkmark" role="img" aria-label="saved">
+              ✓
+            </span>
             <span>Saved</span>
           </span>
         );
       case "error":
         return (
-          <span className="analysis-progress__error">
-            {errorMessage || "Analysis failed"}
-          </span>
+          <span className="analysis-progress__error">{errorMessage || "Analysis failed"}</span>
         );
       default:
         return null;

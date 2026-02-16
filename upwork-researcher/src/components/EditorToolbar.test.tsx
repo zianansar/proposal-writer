@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import EditorToolbar from "./EditorToolbar";
 
 // Create mock editor with tracking
@@ -78,10 +79,7 @@ describe("EditorToolbar", () => {
     render(<EditorToolbar editor={editor} />);
 
     expect(screen.getByRole("toolbar")).toBeInTheDocument();
-    expect(screen.getByRole("toolbar")).toHaveAttribute(
-      "aria-label",
-      "Text formatting"
-    );
+    expect(screen.getByRole("toolbar")).toHaveAttribute("aria-label", "Text formatting");
   });
 
   it("calls toggleBold when Bold button clicked", async () => {
@@ -210,7 +208,7 @@ describe("EditorToolbar", () => {
         () => {
           expect(screen.getByRole("tooltip")).toHaveTextContent("Bold (⌘B)");
         },
-        { timeout: 500 }
+        { timeout: 500 },
       );
     });
 
@@ -229,11 +227,9 @@ describe("EditorToolbar", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByRole("tooltip")).toHaveTextContent(
-            "Bold (Ctrl+B)"
-          );
+          expect(screen.getByRole("tooltip")).toHaveTextContent("Bold (Ctrl+B)");
         },
-        { timeout: 500 }
+        { timeout: 500 },
       );
     });
 
@@ -254,7 +250,7 @@ describe("EditorToolbar", () => {
         () => {
           expect(screen.getByRole("tooltip")).toHaveTextContent("Italic (⌘I)");
         },
-        { timeout: 500 }
+        { timeout: 500 },
       );
     });
 
@@ -273,11 +269,9 @@ describe("EditorToolbar", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByRole("tooltip")).toHaveTextContent(
-            "Undo (Ctrl+Z)"
-          );
+          expect(screen.getByRole("tooltip")).toHaveTextContent("Undo (Ctrl+Z)");
         },
-        { timeout: 500 }
+        { timeout: 500 },
       );
     });
 
@@ -298,7 +292,7 @@ describe("EditorToolbar", () => {
         () => {
           expect(screen.getByRole("tooltip")).toHaveTextContent("Redo (⇧⌘Z)");
         },
-        { timeout: 500 }
+        { timeout: 500 },
       );
     });
 
@@ -317,11 +311,9 @@ describe("EditorToolbar", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByRole("tooltip")).toHaveTextContent(
-            "Redo (Ctrl+Shift+Z)"
-          );
+          expect(screen.getByRole("tooltip")).toHaveTextContent("Redo (Ctrl+Shift+Z)");
         },
-        { timeout: 500 }
+        { timeout: 500 },
       );
     });
 
@@ -344,7 +336,7 @@ describe("EditorToolbar", () => {
         () => {
           expect(screen.getByRole("tooltip")).toBeInTheDocument();
         },
-        { timeout: 500 }
+        { timeout: 500 },
       );
     });
   });

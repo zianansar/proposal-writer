@@ -13,27 +13,27 @@
   /* =====================
      Core Background Colors
      ===================== */
-  --color-bg-primary: #1a1a1a;      /* Main app background */
-  --color-bg-secondary: #2f2f2f;    /* Card/container background */
-  --color-bg-tertiary: #3a3a3a;     /* Elevated surfaces, hover states */
-  --color-bg-input: #1a1a1a;        /* Form input backgrounds */
-  --color-bg-hover: #404040;        /* Generic hover background */
-  --color-bg-active: #484848;       /* Active/pressed state */
+  --color-bg-primary: #1a1a1a; /* Main app background */
+  --color-bg-secondary: #2f2f2f; /* Card/container background */
+  --color-bg-tertiary: #3a3a3a; /* Elevated surfaces, hover states */
+  --color-bg-input: #1a1a1a; /* Form input backgrounds */
+  --color-bg-hover: #404040; /* Generic hover background */
+  --color-bg-active: #484848; /* Active/pressed state */
 
   /* =====================
      Text Colors
      ===================== */
-  --color-text-primary: #f6f6f6;    /* Main text - 15.5:1 on bg-primary */
-  --color-text-secondary: #aaa;     /* Secondary text - 6.5:1 on bg-secondary */
-  --color-text-muted: #888;         /* Disabled/placeholder - 4.8:1 on bg-primary */
-  --color-text-inverse: #1a1a1a;    /* Text on light backgrounds */
+  --color-text-primary: #f6f6f6; /* Main text - 15.5:1 on bg-primary */
+  --color-text-secondary: #aaa; /* Secondary text - 6.5:1 on bg-secondary */
+  --color-text-muted: #888; /* Disabled/placeholder - 4.8:1 on bg-primary */
+  --color-text-inverse: #1a1a1a; /* Text on light backgrounds */
 
   /* =====================
      Border Colors
      ===================== */
-  --color-border: #555;             /* Default borders */
-  --color-border-hover: #777;       /* Border on hover */
-  --color-border-focus: #24c8db;    /* Focus state border */
+  --color-border: #555; /* Default borders */
+  --color-border-hover: #777; /* Border on hover */
+  --color-border-focus: #24c8db; /* Focus state border */
 
   /* =====================
      Semantic Colors
@@ -128,25 +128,25 @@
   /* =====================
      Spacing Scale
      ===================== */
-  --spacing-xs: 0.25rem;   /* 4px */
-  --spacing-sm: 0.5rem;    /* 8px */
-  --spacing-md: 1rem;      /* 16px */
-  --spacing-lg: 1.5rem;    /* 24px */
-  --spacing-xl: 2rem;      /* 32px */
-  --spacing-2xl: 3rem;     /* 48px */
+  --spacing-xs: 0.25rem; /* 4px */
+  --spacing-sm: 0.5rem; /* 8px */
+  --spacing-md: 1rem; /* 16px */
+  --spacing-lg: 1.5rem; /* 24px */
+  --spacing-xl: 2rem; /* 32px */
+  --spacing-2xl: 3rem; /* 48px */
 
   /* =====================
      Typography Scale
      ===================== */
   --font-family-base: Inter, Avenir, Helvetica, Arial, sans-serif;
-  --font-family-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  --font-family-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 
-  --font-size-xs: 0.75rem;   /* 12px */
-  --font-size-sm: 0.875rem;  /* 14px */
-  --font-size-base: 1rem;    /* 16px */
-  --font-size-lg: 1.125rem;  /* 18px */
-  --font-size-xl: 1.25rem;   /* 20px */
-  --font-size-2xl: 1.5rem;   /* 24px */
+  --font-size-xs: 0.75rem; /* 12px */
+  --font-size-sm: 0.875rem; /* 14px */
+  --font-size-base: 1rem; /* 16px */
+  --font-size-lg: 1.125rem; /* 18px */
+  --font-size-xl: 1.25rem; /* 20px */
+  --font-size-2xl: 1.5rem; /* 24px */
 
   --line-height-tight: 1.25;
   --line-height-base: 1.5;

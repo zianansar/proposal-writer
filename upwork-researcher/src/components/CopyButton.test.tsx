@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { invoke } from "@tauri-apps/api/core";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import CopyButton from "./CopyButton";
 import { LiveAnnouncerProvider } from "./LiveAnnouncer";
 
@@ -127,10 +128,7 @@ describe("CopyButton", () => {
 
   it("has correct aria-label for accessibility", () => {
     renderWithLiveAnnouncer(<CopyButton text="Test proposal" />);
-    expect(screen.getByRole("button")).toHaveAttribute(
-      "aria-label",
-      "Copy to clipboard"
-    );
+    expect(screen.getByRole("button")).toHaveAttribute("aria-label", "Copy to clipboard");
   });
 
   it("updates aria-label after copy", async () => {
@@ -141,10 +139,7 @@ describe("CopyButton", () => {
       fireEvent.click(screen.getByRole("button"));
     });
 
-    expect(screen.getByRole("button")).toHaveAttribute(
-      "aria-label",
-      "Copied to clipboard"
-    );
+    expect(screen.getByRole("button")).toHaveAttribute("aria-label", "Copied to clipboard");
   });
 
   // ==========================================================================
@@ -180,13 +175,9 @@ describe("CopyButton", () => {
 
     // Modal should be visible
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(
-      screen.getByText(/AI Detection Risk Detected/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/AI Detection Risk Detected/i)).toBeInTheDocument();
     expect(screen.getByText(/195.5/)).toBeInTheDocument();
-    expect(
-      screen.getByText("I am delighted to delve.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("I am delighted to delve.")).toBeInTheDocument();
 
     // Should NOT have copied
     expect(mockWriteText).not.toHaveBeenCalled();
@@ -246,9 +237,7 @@ describe("CopyButton", () => {
 
     // Click "Edit Proposal"
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: /Edit Proposal/i })
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Edit Proposal/i }));
     });
 
     // Modal should be gone
@@ -294,9 +283,7 @@ describe("CopyButton", () => {
 
     // Click "Override (Risky)"
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: /Override \(Risky\)/i })
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Override \(Risky\)/i }));
     });
 
     // SafetyWarningModal should be replaced by OverrideConfirmDialog
@@ -458,19 +445,13 @@ describe("CopyButton", () => {
 
     // Click "Override (Risky)"
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: /Override \(Risky\)/i })
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Override \(Risky\)/i }));
     });
 
     // SafetyWarningModal should be gone, OverrideConfirmDialog should appear
-    expect(
-      screen.queryByText(/AI Detection Risk Detected/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/AI Detection Risk Detected/i)).not.toBeInTheDocument();
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-    expect(
-      screen.getByText(/This proposal may be detected as AI-generated/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/This proposal may be detected as AI-generated/i)).toBeInTheDocument();
 
     // Should NOT have copied yet
     expect(mockWriteText).not.toHaveBeenCalled();
@@ -507,9 +488,7 @@ describe("CopyButton", () => {
 
     // Click "Override (Risky)" to show confirmation dialog
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: /Override \(Risky\)/i })
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Override \(Risky\)/i }));
     });
 
     // Confirmation dialog visible
@@ -563,9 +542,7 @@ describe("CopyButton", () => {
 
     // Click "Override (Risky)" to show confirmation dialog
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: /Override \(Risky\)/i })
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Override \(Risky\)/i }));
     });
 
     // Click "Copy Anyway"
@@ -618,9 +595,7 @@ describe("CopyButton", () => {
 
     // Click "Override (Risky)" to show confirmation dialog
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: /Override \(Risky\)/i })
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Override \(Risky\)/i }));
     });
 
     // Click "Copy Anyway"
@@ -670,9 +645,7 @@ describe("CopyButton", () => {
 
     // Click Override, then Copy Anyway
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: /Override \(Risky\)/i })
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Override \(Risky\)/i }));
     });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Copy Anyway/i }));
@@ -761,4 +734,3 @@ describe("CopyButton", () => {
     });
   });
 });
-

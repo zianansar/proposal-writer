@@ -1,7 +1,8 @@
 // Story 5.3: Golden Set Upload UI Tests
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import { GoldenSetUpload } from "./GoldenSetUpload";
 
 // Mock Tauri invoke
@@ -32,7 +33,7 @@ describe("GoldenSetUpload", () => {
     });
 
     expect(
-      screen.getByText(/Upload 3-5 of your best proposals that got responses/i)
+      screen.getByText(/Upload 3-5 of your best proposals that got responses/i),
     ).toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: /Upload proposal file/i })).toBeInTheDocument();
@@ -204,7 +205,9 @@ describe("GoldenSetUpload", () => {
     render(<GoldenSetUpload onComplete={mockOnComplete} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/This is a test proposal with some content that/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/This is a test proposal with some content that/i),
+      ).toBeInTheDocument();
       expect(screen.getByText(/11 words/i)).toBeInTheDocument();
       expect(screen.getByText(/proposal\.txt/i)).toBeInTheDocument();
     });
@@ -215,7 +218,9 @@ describe("GoldenSetUpload", () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === "get_golden_proposals_command") {
         // First call returns 1 proposal, second call returns empty
-        if (mockInvoke.mock.calls.filter((c) => c[0] === "get_golden_proposals_command").length === 1) {
+        if (
+          mockInvoke.mock.calls.filter((c) => c[0] === "get_golden_proposals_command").length === 1
+        ) {
           return Promise.resolve([
             {
               id: 1,
@@ -251,9 +256,27 @@ describe("GoldenSetUpload", () => {
   // AC-5: Continue button enabled when 3+ proposals
   it("enables Continue button when 3+ proposals uploaded", async () => {
     mockInvoke.mockResolvedValue([
-      { id: 1, content: "word ".repeat(200), word_count: 200, source_filename: "1.txt", created_at: "2024-01-01" },
-      { id: 2, content: "word ".repeat(200), word_count: 200, source_filename: "2.txt", created_at: "2024-01-02" },
-      { id: 3, content: "word ".repeat(200), word_count: 200, source_filename: "3.txt", created_at: "2024-01-03" },
+      {
+        id: 1,
+        content: "word ".repeat(200),
+        word_count: 200,
+        source_filename: "1.txt",
+        created_at: "2024-01-01",
+      },
+      {
+        id: 2,
+        content: "word ".repeat(200),
+        word_count: 200,
+        source_filename: "2.txt",
+        created_at: "2024-01-02",
+      },
+      {
+        id: 3,
+        content: "word ".repeat(200),
+        word_count: 200,
+        source_filename: "3.txt",
+        created_at: "2024-01-03",
+      },
     ]);
 
     render(<GoldenSetUpload onComplete={mockOnComplete} />);
@@ -267,7 +290,13 @@ describe("GoldenSetUpload", () => {
   // AC-5: Continue button disabled when < 3 proposals
   it("disables Continue button when < 3 proposals", async () => {
     mockInvoke.mockResolvedValue([
-      { id: 1, content: "word ".repeat(200), word_count: 200, source_filename: "1.txt", created_at: "2024-01-01" },
+      {
+        id: 1,
+        content: "word ".repeat(200),
+        word_count: 200,
+        source_filename: "1.txt",
+        created_at: "2024-01-01",
+      },
     ]);
 
     render(<GoldenSetUpload onComplete={mockOnComplete} />);
@@ -281,9 +310,27 @@ describe("GoldenSetUpload", () => {
   // AC-5: Continue callback fires
   it("calls onComplete when Continue button is clicked", async () => {
     mockInvoke.mockResolvedValue([
-      { id: 1, content: "word ".repeat(200), word_count: 200, source_filename: "1.txt", created_at: "2024-01-01" },
-      { id: 2, content: "word ".repeat(200), word_count: 200, source_filename: "2.txt", created_at: "2024-01-02" },
-      { id: 3, content: "word ".repeat(200), word_count: 200, source_filename: "3.txt", created_at: "2024-01-03" },
+      {
+        id: 1,
+        content: "word ".repeat(200),
+        word_count: 200,
+        source_filename: "1.txt",
+        created_at: "2024-01-01",
+      },
+      {
+        id: 2,
+        content: "word ".repeat(200),
+        word_count: 200,
+        source_filename: "2.txt",
+        created_at: "2024-01-02",
+      },
+      {
+        id: 3,
+        content: "word ".repeat(200),
+        word_count: 200,
+        source_filename: "3.txt",
+        created_at: "2024-01-03",
+      },
     ]);
 
     render(<GoldenSetUpload onComplete={mockOnComplete} />);
@@ -304,9 +351,7 @@ describe("GoldenSetUpload", () => {
     render(<GoldenSetUpload onComplete={mockOnComplete} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Your proposals never leave your device/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Your proposals never leave your device/i)).toBeInTheDocument();
     });
   });
 });

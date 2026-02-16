@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+
 import { useOnboardingStore } from "./useOnboardingStore";
 
 describe("useOnboardingStore", () => {

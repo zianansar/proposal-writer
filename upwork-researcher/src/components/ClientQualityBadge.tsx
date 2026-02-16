@@ -8,7 +8,7 @@
  * NFR-14: Accessible with aria-label, tooltip, and warning badge
  */
 
-import './ClientQualityBadge.css';
+import "./ClientQualityBadge.css";
 
 interface ClientQualityBadgeProps {
   score: number | null;
@@ -16,16 +16,16 @@ interface ClientQualityBadgeProps {
 
 /** Get color class based on score threshold (AC-2) */
 function getColorClass(score: number): string {
-  if (score >= 80) return 'client-quality--green';
-  if (score >= 60) return 'client-quality--yellow';
-  return 'client-quality--red';
+  if (score >= 80) return "client-quality--green";
+  if (score >= 60) return "client-quality--yellow";
+  return "client-quality--red";
 }
 
 /** Get qualitative label for accessibility (NFR-14) */
 function getQualityLabel(score: number): string {
-  if (score >= 80) return 'high quality';
-  if (score >= 60) return 'medium quality';
-  return 'high risk';
+  if (score >= 80) return "high quality";
+  if (score >= 60) return "medium quality";
+  return "high risk";
 }
 
 export default function ClientQualityBadge({ score }: ClientQualityBadgeProps) {

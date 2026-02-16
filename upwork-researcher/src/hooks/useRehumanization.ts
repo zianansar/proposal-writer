@@ -9,8 +9,9 @@
  * re-sending the original settings-store value each time.
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useCallback, useEffect, useRef } from "react";
+
 import type { HumanizationIntensity } from "../stores/useSettingsStore";
 import type { PerplexityAnalysis } from "../types/perplexity";
 import { DEFAULT_PERPLEXITY_THRESHOLD } from "../types/perplexity";
@@ -34,7 +35,7 @@ export function useRehumanization(
   jobContent: string,
   currentIntensity: HumanizationIntensity,
   currentScore: number | undefined,
-  options: UseRehumanizationOptions = {}
+  options: UseRehumanizationOptions = {},
 ) {
   // M1 fix: Store options in a ref so callers don't need to stabilize the object.
   // This prevents handleRegenerate from being recreated on every render.
@@ -45,7 +46,8 @@ export function useRehumanization(
   const [previousScore, setPreviousScore] = useState<number | undefined>(undefined);
   const [isRegenerating, setIsRegenerating] = useState(false);
   // H1 fix: Track the effective intensity locally so escalation compounds across attempts
-  const [effectiveIntensity, setEffectiveIntensity] = useState<HumanizationIntensity>(currentIntensity);
+  const [effectiveIntensity, setEffectiveIntensity] =
+    useState<HumanizationIntensity>(currentIntensity);
 
   // Sync effectiveIntensity when the settings-store value changes (e.g. user adjusts setting)
   useEffect(() => {

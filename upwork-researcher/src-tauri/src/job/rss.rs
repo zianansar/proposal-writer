@@ -96,7 +96,10 @@ async fn try_import_with_fallback<R: tauri::Runtime>(
 
     match result {
         Ok(inner_result) => inner_result,
-        Err(_) => Err("Import timed out after 15 seconds. Please try again or paste jobs manually.".to_string()),
+        Err(_) => Err(
+            "Import timed out after 15 seconds. Please try again or paste jobs manually."
+                .to_string(),
+        ),
     }
 }
 
@@ -118,7 +121,10 @@ async fn try_import_with_fallback_inner<R: tauri::Runtime>(
             return Err("No jobs found in RSS feed".to_string());
         }
         Err(rss_error) => {
-            warn!("RSS import failed: {}. Falling back to web scraping...", rss_error);
+            warn!(
+                "RSS import failed: {}. Falling back to web scraping...",
+                rss_error
+            );
 
             // Emit fallback event
             let _ = app.emit(
@@ -216,7 +222,11 @@ pub async fn import_rss_feed<R: tauri::Runtime>(
     // 1. Try import with fallback chain (RSS → scraping)
     let (parsed_jobs, source) = try_import_with_fallback(&app, &feed_url).await?;
 
-    info!("Import succeeded via {} with {} jobs", source, parsed_jobs.len());
+    info!(
+        "Import succeeded via {} with {} jobs",
+        source,
+        parsed_jobs.len()
+    );
 
     // 2. Generate batch ID
     let batch_id = if source == "rss" {
@@ -251,14 +261,21 @@ pub async fn import_rss_feed<R: tauri::Runtime>(
     }
 
     // 6. Return immediately
-    let source_label = if source == "rss" { "RSS" } else { "web scraping" };
+    let source_label = if source == "rss" {
+        "RSS"
+    } else {
+        "web scraping"
+    };
     let message = if skipped_count > 0 {
         format!(
             "{} jobs imported via {} ({} duplicates skipped). Analysis in progress...",
             saved_count, source_label, skipped_count
         )
     } else {
-        format!("{} jobs imported via {}. Analysis in progress...", saved_count, source_label)
+        format!(
+            "{} jobs imported via {}. Analysis in progress...",
+            saved_count, source_label
+        )
     };
 
     Ok(RssImportResult {
@@ -294,7 +311,10 @@ async fn process_rss_analysis_queue<R: tauri::Runtime>(
         Ok(key) => key,
         Err(e) => {
             error!("Failed to retrieve API key: {}", e);
-            let _ = app.emit(events::RSS_IMPORT_ERROR, format!("Failed to get API key: {}", e));
+            let _ = app.emit(
+                events::RSS_IMPORT_ERROR,
+                format!("Failed to get API key: {}", e),
+            );
             return;
         }
     };
@@ -306,7 +326,10 @@ async fn process_rss_analysis_queue<R: tauri::Runtime>(
     let pending_jobs = match tokio::task::spawn_blocking(move || {
         let db = db::Database::new(db_path_clone, None)
             .map_err(|e| format!("Failed to open database: {}", e))?;
-        let conn = db.conn.lock().map_err(|e| format!("Failed to lock db: {}", e))?;
+        let conn = db
+            .conn
+            .lock()
+            .map_err(|e| format!("Failed to lock db: {}", e))?;
         job_posts::get_pending_jobs_by_batch(&conn, &batch_id_clone)
             .map_err(|e| format!("Failed to query pending jobs: {}", e))
     })
@@ -345,7 +368,10 @@ async fn process_rss_analysis_queue<R: tauri::Runtime>(
 
     for (idx, job) in pending_jobs.iter().enumerate() {
         let job_id = job.id;
-        let job_title = job.url.clone().unwrap_or_else(|| format!("Job #{}", job_id));
+        let job_title = job
+            .url
+            .clone()
+            .unwrap_or_else(|| format!("Job #{}", job_id));
 
         // Update status to 'analyzing'
         let db_path_clone = db_path.clone();
@@ -530,19 +556,15 @@ pub async fn fetch_rss_feed(url: &str) -> Result<String, String> {
     info!("Fetching RSS feed from: {}", url);
 
     // Perform GET request
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_timeout() {
-                "Feed request timed out after 10 seconds".to_string()
-            } else if e.is_connect() {
-                "Failed to connect to RSS feed server".to_string()
-            } else {
-                format!("Failed to fetch RSS feed: {}", e)
-            }
-        })?;
+    let response = client.get(url).send().await.map_err(|e| {
+        if e.is_timeout() {
+            "Feed request timed out after 10 seconds".to_string()
+        } else if e.is_connect() {
+            "Failed to connect to RSS feed server".to_string()
+        } else {
+            format!("Failed to fetch RSS feed: {}", e)
+        }
+    })?;
 
     // Check HTTP status
     let status = response.status();
@@ -577,7 +599,10 @@ pub async fn fetch_rss_feed(url: &str) -> Result<String, String> {
         .await
         .map_err(|e| format!("Failed to read RSS feed content: {}", e))?;
 
-    info!("Successfully fetched RSS feed ({} bytes)", xml_content.len());
+    info!(
+        "Successfully fetched RSS feed ({} bytes)",
+        xml_content.len()
+    );
     Ok(xml_content)
 }
 
@@ -641,7 +666,10 @@ pub fn parse_rss_feed(xml_content: &str) -> Result<Vec<ParsedJob>, String> {
                 decode_html_entities(&stripped)
             }
             None => {
-                warn!("RSS item {} has no description, using empty string", idx + 1);
+                warn!(
+                    "RSS item {} has no description, using empty string",
+                    idx + 1
+                );
                 String::new()
             }
         };
@@ -657,7 +685,10 @@ pub fn parse_rss_feed(xml_content: &str) -> Result<Vec<ParsedJob>, String> {
         });
     }
 
-    info!("Successfully parsed {} jobs from RSS feed", parsed_jobs.len());
+    info!(
+        "Successfully parsed {} jobs from RSS feed",
+        parsed_jobs.len()
+    );
     Ok(parsed_jobs)
 }
 
@@ -734,11 +765,13 @@ mod tests {
     #[test]
     fn test_cap_at_50_items() {
         // Generate feed with 100 items
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?>
+        let mut xml = String::from(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
     <title>Upwork: Jobs</title>
-    <link>https://www.upwork.com/</link>"#);
+    <link>https://www.upwork.com/</link>"#,
+        );
 
         for i in 1..=100 {
             xml.push_str(&format!(
@@ -1009,7 +1042,8 @@ mod tests {
                 batch_id TEXT
             )",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = save_parsed_jobs(&conn, &jobs, "test_batch");
         assert!(result.is_ok());
@@ -1050,7 +1084,8 @@ mod tests {
                 import_batch_id TEXT
             )",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = save_parsed_jobs(&conn, &jobs, "test_batch");
         assert!(result.is_ok(), "save_parsed_jobs should succeed");

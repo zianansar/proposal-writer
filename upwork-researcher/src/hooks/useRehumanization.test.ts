@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
+import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import { useRehumanization } from "./useRehumanization";
 
 const mockInvoke = vi.mocked(invoke);
@@ -13,9 +14,7 @@ describe("useRehumanization", () => {
   // -- Initial state --
 
   it("returns correct initial state", () => {
-    const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", undefined)
-    );
+    const { result } = renderHook(() => useRehumanization("job text", "medium", undefined));
 
     expect(result.current.attemptCount).toBe(0);
     expect(result.current.previousScore).toBeUndefined();
@@ -24,9 +23,7 @@ describe("useRehumanization", () => {
   });
 
   it("canRegenerate is false when starting at heavy intensity", () => {
-    const { result } = renderHook(() =>
-      useRehumanization("job text", "heavy", undefined)
-    );
+    const { result } = renderHook(() => useRehumanization("job text", "heavy", undefined));
 
     expect(result.current.canRegenerate).toBe(false);
   });
@@ -49,7 +46,7 @@ describe("useRehumanization", () => {
       });
 
     const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", 190, { onSuccess })
+      useRehumanization("job text", "medium", 190, { onSuccess }),
     );
 
     await act(async () => {
@@ -94,7 +91,7 @@ describe("useRehumanization", () => {
       });
 
     const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", 200, { onAnalysisComplete })
+      useRehumanization("job text", "medium", 200, { onAnalysisComplete }),
     );
 
     await act(async () => {
@@ -125,9 +122,7 @@ describe("useRehumanization", () => {
         flaggedSentences: [],
       });
 
-    const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", 200)
-    );
+    const { result } = renderHook(() => useRehumanization("job text", "medium", 200));
 
     expect(result.current.previousScore).toBeUndefined();
 
@@ -146,7 +141,7 @@ describe("useRehumanization", () => {
     mockInvoke.mockRejectedValueOnce(new Error("API error"));
 
     const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", 200, { onFailure })
+      useRehumanization("job text", "medium", 200, { onFailure }),
     );
 
     await act(async () => {
@@ -163,7 +158,7 @@ describe("useRehumanization", () => {
     mockInvoke.mockRejectedValueOnce("string error");
 
     const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", 200, { onFailure })
+      useRehumanization("job text", "medium", 200, { onFailure }),
     );
 
     await act(async () => {
@@ -192,20 +187,26 @@ describe("useRehumanization", () => {
       .mockResolvedValueOnce({ generated_text: "t3", new_intensity: "heavy", attempt_count: 3 })
       .mockResolvedValueOnce({ score: 182, threshold: 180, flaggedSentences: [] });
 
-    const { result } = renderHook(() =>
-      useRehumanization("job text", "light", 200, { onFailure })
-    );
+    const { result } = renderHook(() => useRehumanization("job text", "light", 200, { onFailure }));
 
     // Run 3 attempts
-    await act(async () => { await result.current.handleRegenerate(); });
-    await act(async () => { await result.current.handleRegenerate(); });
-    await act(async () => { await result.current.handleRegenerate(); });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
 
     expect(result.current.attemptCount).toBe(3);
     expect(result.current.canRegenerate).toBe(false);
 
     // 4th attempt should be blocked
-    await act(async () => { await result.current.handleRegenerate(); });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
 
     expect(onFailure).toHaveBeenCalledWith("Maximum regeneration attempts reached");
   });
@@ -221,10 +222,12 @@ describe("useRehumanization", () => {
       .mockResolvedValueOnce({ score: 190, threshold: 180, flaggedSentences: [] });
 
     const { result } = renderHook(() =>
-      useRehumanization("job text", "light", 200, { onAnalysisComplete })
+      useRehumanization("job text", "light", 200, { onAnalysisComplete }),
     );
 
-    await act(async () => { await result.current.handleRegenerate(); });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
 
     // Verify first call sent "light"
     expect(mockInvoke).toHaveBeenCalledWith("regenerate_with_humanization", {
@@ -238,7 +241,9 @@ describe("useRehumanization", () => {
       .mockResolvedValueOnce({ generated_text: "t2", new_intensity: "heavy", attempt_count: 2 })
       .mockResolvedValueOnce({ score: 185, threshold: 180, flaggedSentences: [] });
 
-    await act(async () => { await result.current.handleRegenerate(); });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
 
     expect(mockInvoke).toHaveBeenCalledWith("regenerate_with_humanization", {
       jobContent: "job text",
@@ -253,13 +258,13 @@ describe("useRehumanization", () => {
       .mockResolvedValueOnce({ generated_text: "t1", new_intensity: "heavy", attempt_count: 1 })
       .mockResolvedValueOnce({ score: 190, threshold: 180, flaggedSentences: [] });
 
-    const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", 200)
-    );
+    const { result } = renderHook(() => useRehumanization("job text", "medium", 200));
 
     expect(result.current.canRegenerate).toBe(true);
 
-    await act(async () => { await result.current.handleRegenerate(); });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
 
     expect(result.current.canRegenerate).toBe(false);
   });
@@ -271,16 +276,18 @@ describe("useRehumanization", () => {
       .mockResolvedValueOnce({ generated_text: "t1", new_intensity: "heavy", attempt_count: 1 })
       .mockResolvedValueOnce({ score: 190, threshold: 180, flaggedSentences: [] });
 
-    const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", 200)
-    );
+    const { result } = renderHook(() => useRehumanization("job text", "medium", 200));
 
-    await act(async () => { await result.current.handleRegenerate(); });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
 
     expect(result.current.attemptCount).toBe(1);
     expect(result.current.previousScore).toBe(200);
 
-    act(() => { result.current.resetAttempts(); });
+    act(() => {
+      result.current.resetAttempts();
+    });
 
     expect(result.current.attemptCount).toBe(0);
     expect(result.current.previousScore).toBeUndefined();
@@ -292,12 +299,13 @@ describe("useRehumanization", () => {
   it("sets isRegenerating during invoke call", async () => {
     let resolveInvoke: (value: unknown) => void;
     mockInvoke.mockImplementationOnce(
-      () => new Promise((resolve) => { resolveInvoke = resolve; })
+      () =>
+        new Promise((resolve) => {
+          resolveInvoke = resolve;
+        }),
     );
 
-    const { result } = renderHook(() =>
-      useRehumanization("job text", "medium", 200)
-    );
+    const { result } = renderHook(() => useRehumanization("job text", "medium", 200));
 
     expect(result.current.isRegenerating).toBe(false);
 
@@ -333,7 +341,7 @@ describe("useRehumanization", () => {
   it("syncs effectiveIntensity when currentIntensity prop changes and attemptCount is 0", () => {
     const { result, rerender } = renderHook(
       ({ intensity }) => useRehumanization("job text", intensity, undefined),
-      { initialProps: { intensity: "medium" as const } }
+      { initialProps: { intensity: "medium" as const } },
     );
 
     expect(result.current.canRegenerate).toBe(true);
@@ -353,11 +361,13 @@ describe("useRehumanization", () => {
 
     const { result, rerender } = renderHook(
       ({ intensity }) => useRehumanization("job text", intensity, 200),
-      { initialProps: { intensity: "medium" as const } }
+      { initialProps: { intensity: "medium" as const } },
     );
 
     // Run one regeneration attempt
-    await act(async () => { await result.current.handleRegenerate(); });
+    await act(async () => {
+      await result.current.handleRegenerate();
+    });
 
     expect(result.current.attemptCount).toBe(1);
     // After escalation, effectiveIntensity is "heavy"

@@ -6,29 +6,16 @@
  * Includes Epic 5/6 components (M3) and VoiceLearningTimeline.
  */
 
-import React from "react";
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "@testing-library/react";
+import React from "react";
 import { BrowserRouter, MemoryRouter } from "react-router-dom";
-import { runAxeAudit, assertNoViolations, generateAuditReport } from "../test/axe-utils";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Import components to audit
-import ProposalOutput from "../components/ProposalOutput";
-import JobInput from "../components/JobInput";
-import SettingsPanel from "../components/SettingsPanel";
-import JobAnalysisPanel from "../components/JobAnalysisPanel";
-import HistoryList from "../components/HistoryList";
-import HistoryItem from "../components/HistoryItem";
-import OnboardingWizard from "../components/OnboardingWizard";
-import SafetyWarningModal from "../components/SafetyWarningModal";
 import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
-import EncryptionDetailsModal from "../components/EncryptionDetailsModal";
 import DraftRecoveryModal from "../components/DraftRecoveryModal";
-import Navigation from "../components/Navigation";
-import SkipLink from "../components/SkipLink";
 
 // Epic 5/6 component imports
-import { VoiceLearningTimeline } from "../features/voice-learning/VoiceLearningTimeline";
 
 // Mock TipTap editor for ProposalEditor and EditorToolbar tests
 vi.mock("@tiptap/react", () => {
@@ -99,7 +86,14 @@ vi.mock("../features/job-queue/hooks/useInfiniteJobQueue", () => ({
       pages: [
         {
           jobs: [
-            { id: 1, title: "React Developer", clientName: "Test Client", score: 85, colorFlag: "green", createdAt: "2026-02-10" },
+            {
+              id: 1,
+              title: "React Developer",
+              clientName: "Test Client",
+              score: 85,
+              colorFlag: "green",
+              createdAt: "2026-02-10",
+            },
           ],
           totalCount: 1,
           colorCounts: { green: 1, yellow: 0, red: 0, gray: 0 },
@@ -124,8 +118,10 @@ vi.mock("../features/job-queue/hooks/useInfiniteScroll", () => ({
 vi.mock("../features/job-queue/components/VirtualizedJobList", () => ({
   default: ({ jobs }: { jobs: unknown[] }) => {
     const ReactImport = require("react");
-    return ReactImport.createElement("div", { "data-testid": "virtualized-job-list", role: "list" },
-      ReactImport.createElement("div", { role: "listitem" }, "Job item")
+    return ReactImport.createElement(
+      "div",
+      { "data-testid": "virtualized-job-list", role: "list" },
+      ReactImport.createElement("div", { role: "listitem" }, "Job item"),
     );
   },
 }));
@@ -139,10 +135,23 @@ vi.mock("../features/job-queue/components/JobQueueControls", () => ({
 }));
 
 // Import components after mocks are set up
-import ProposalEditor from "../components/ProposalEditor";
 import EditorToolbar from "../components/EditorToolbar";
+import EncryptionDetailsModal from "../components/EncryptionDetailsModal";
+import HistoryItem from "../components/HistoryItem";
+import HistoryList from "../components/HistoryList";
+import JobAnalysisPanel from "../components/JobAnalysisPanel";
+import JobInput from "../components/JobInput";
+import Navigation from "../components/Navigation";
+import OnboardingWizard from "../components/OnboardingWizard";
+import ProposalEditor from "../components/ProposalEditor";
+import ProposalOutput from "../components/ProposalOutput";
+import SafetyWarningModal from "../components/SafetyWarningModal";
 import ScoringBreakdownCard from "../components/ScoringBreakdown";
+import SettingsPanel from "../components/SettingsPanel";
+import SkipLink from "../components/SkipLink";
 import JobQueuePage from "../features/job-queue/components/JobQueuePage";
+import { VoiceLearningTimeline } from "../features/voice-learning/VoiceLearningTimeline";
+import { runAxeAudit, assertNoViolations, generateAuditReport } from "../test/axe-utils";
 
 describe("Component-Specific Accessibility Audits", () => {
   beforeEach(() => {
@@ -155,7 +164,7 @@ describe("Component-Specific Accessibility Audits", () => {
         <ProposalOutput
           text="This is a sample proposal text for accessibility testing."
           generating={false}
-        />
+        />,
       );
 
       const results = await runAxeAudit(container);
@@ -169,12 +178,7 @@ describe("Component-Specific Accessibility Audits", () => {
     });
 
     it("should pass accessibility audit for ProposalOutput while generating", async () => {
-      const { container } = render(
-        <ProposalOutput
-          text="Generating..."
-          generating={true}
-        />
-      );
+      const { container } = render(<ProposalOutput text="Generating..." generating={true} />);
 
       const results = await runAxeAudit(container);
       assertNoViolations(results);
@@ -185,11 +189,7 @@ describe("Component-Specific Accessibility Audits", () => {
       const mockOnKeyDown = vi.fn();
 
       const { container } = render(
-        <JobInput
-          value=""
-          onChange={mockOnChange}
-          onKeyDown={mockOnKeyDown}
-        />
+        <JobInput value="" onChange={mockOnChange} onKeyDown={mockOnKeyDown} />,
       );
 
       const results = await runAxeAudit(container);
@@ -207,9 +207,7 @@ describe("Component-Specific Accessibility Audits", () => {
     it("should pass accessibility audit for SettingsPanel", async () => {
       const mockClose = vi.fn();
 
-      const { container } = render(
-        <SettingsPanel onClose={mockClose} />
-      );
+      const { container } = render(<SettingsPanel onClose={mockClose} />);
 
       const results = await runAxeAudit(container);
 
@@ -237,9 +235,7 @@ describe("Component-Specific Accessibility Audits", () => {
         },
       };
 
-      const { container } = render(
-        <JobAnalysisPanel analysis={mockAnalysis} />
-      );
+      const { container } = render(<JobAnalysisPanel analysis={mockAnalysis} />);
 
       const results = await runAxeAudit(container);
 
@@ -252,9 +248,7 @@ describe("Component-Specific Accessibility Audits", () => {
     });
 
     it("should pass accessibility audit for JobAnalysisPanel without analysis", async () => {
-      const { container} = render(
-        <JobAnalysisPanel analysis={null} />
-      );
+      const { container } = render(<JobAnalysisPanel analysis={null} />);
 
       const results = await runAxeAudit(container);
       assertNoViolations(results);
@@ -279,11 +273,7 @@ describe("Component-Specific Accessibility Audits", () => {
       ];
 
       const { container } = render(
-        <HistoryList
-          proposals={mockProposals}
-          onSelect={vi.fn()}
-          onDelete={vi.fn()}
-        />
+        <HistoryList proposals={mockProposals} onSelect={vi.fn()} onDelete={vi.fn()} />,
       );
 
       const results = await runAxeAudit(container);
@@ -305,11 +295,7 @@ describe("Component-Specific Accessibility Audits", () => {
       };
 
       const { container } = render(
-        <HistoryItem
-          proposal={mockProposal}
-          onClick={vi.fn()}
-          onDelete={vi.fn()}
-        />
+        <HistoryItem proposal={mockProposal} onClick={vi.fn()} onDelete={vi.fn()} />,
       );
 
       const results = await runAxeAudit(container);
@@ -333,7 +319,7 @@ describe("Component-Specific Accessibility Audits", () => {
           flaggedSentences={["This sentence might be AI-generated"]}
           score={220}
           threshold={180}
-        />
+        />,
       );
 
       const results = await runAxeAudit(container);
@@ -353,7 +339,7 @@ describe("Component-Specific Accessibility Audits", () => {
           onConfirm={vi.fn()}
           onCancel={vi.fn()}
           itemName="Test Proposal"
-        />
+        />,
       );
 
       const results = await runAxeAudit(container);
@@ -374,10 +360,7 @@ describe("Component-Specific Accessibility Audits", () => {
       };
 
       const { container } = render(
-        <EncryptionDetailsModal
-          status={mockStatus}
-          onClose={vi.fn()}
-        />
+        <EncryptionDetailsModal status={mockStatus} onClose={vi.fn()} />,
       );
 
       const results = await runAxeAudit(container);
@@ -397,7 +380,7 @@ describe("Component-Specific Accessibility Audits", () => {
           draftContent="Recovered draft content"
           onRecover={vi.fn()}
           onDiscard={vi.fn()}
-        />
+        />,
       );
 
       const results = await runAxeAudit(container);
@@ -415,11 +398,8 @@ describe("Component-Specific Accessibility Audits", () => {
     it("should pass accessibility audit for OnboardingWizard", async () => {
       const { container } = render(
         <BrowserRouter>
-          <OnboardingWizard
-            isOpen={true}
-            onComplete={vi.fn()}
-          />
-        </BrowserRouter>
+          <OnboardingWizard isOpen={true} onComplete={vi.fn()} />
+        </BrowserRouter>,
       );
 
       const results = await runAxeAudit(container);
@@ -438,7 +418,7 @@ describe("Component-Specific Accessibility Audits", () => {
       const { container } = render(
         <BrowserRouter>
           <Navigation />
-        </BrowserRouter>
+        </BrowserRouter>,
       );
 
       const results = await runAxeAudit(container);
@@ -452,9 +432,7 @@ describe("Component-Specific Accessibility Audits", () => {
     });
 
     it("should pass accessibility audit for SkipLink", async () => {
-      const { container } = render(
-        <SkipLink targetId="main-content" />
-      );
+      const { container } = render(<SkipLink targetId="main-content" />);
 
       const results = await runAxeAudit(container);
 
@@ -470,7 +448,7 @@ describe("Component-Specific Accessibility Audits", () => {
   describe("Epic 5/6 Components - Proposal Editor", () => {
     it("should pass accessibility audit for ProposalEditor", async () => {
       const { container } = render(
-        <ProposalEditor content="<p>Test proposal content</p>" proposalId={1} />
+        <ProposalEditor content="<p>Test proposal content</p>" proposalId={1} />,
       );
 
       const results = await runAxeAudit(container);
@@ -515,7 +493,7 @@ describe("Component-Specific Accessibility Audits", () => {
       };
 
       const { container } = render(
-        <EditorToolbar editor={mockEditor as any} onViewHistory={vi.fn()} />
+        <EditorToolbar editor={mockEditor as any} onViewHistory={vi.fn()} />,
       );
 
       const results = await runAxeAudit(container);
@@ -548,11 +526,7 @@ describe("Component-Specific Accessibility Audits", () => {
       };
 
       const { container } = render(
-        <ScoringBreakdownCard
-          breakdown={mockBreakdown}
-          isExpanded={true}
-          jobPostId={1}
-        />
+        <ScoringBreakdownCard breakdown={mockBreakdown} isExpanded={true} jobPostId={1} />,
       );
 
       const results = await runAxeAudit(container);
@@ -569,7 +543,7 @@ describe("Component-Specific Accessibility Audits", () => {
       const { container } = render(
         <MemoryRouter initialEntries={["/?sort=score&filter=all"]}>
           <JobQueuePage />
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       const results = await runAxeAudit(container);
@@ -585,9 +559,7 @@ describe("Component-Specific Accessibility Audits", () => {
 
   describe("Voice Learning Components", () => {
     it("should pass accessibility audit for VoiceLearningTimeline", async () => {
-      const { container } = render(
-        <VoiceLearningTimeline />
-      );
+      const { container } = render(<VoiceLearningTimeline />);
 
       const results = await runAxeAudit(container);
 

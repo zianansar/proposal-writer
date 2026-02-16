@@ -54,7 +54,7 @@
 }
 
 .progress-marker::before {
-  content: '';
+  content: "";
   width: 2px;
   height: 8px;
   background-color: var(--color-border, #333);

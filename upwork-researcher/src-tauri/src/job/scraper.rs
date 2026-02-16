@@ -25,8 +25,7 @@ use tracing::{info, warn};
 /// ```
 pub fn rss_url_to_search_url(rss_url: &str) -> Result<String, String> {
     // Parse URL to extract query parameters
-    let url = url::Url::parse(rss_url)
-        .map_err(|e| format!("Failed to parse RSS URL: {}", e))?;
+    let url = url::Url::parse(rss_url).map_err(|e| format!("Failed to parse RSS URL: {}", e))?;
 
     // Extract query string from RSS URL
     let query_string = url.query().unwrap_or("");
@@ -111,20 +110,9 @@ pub async fn fetch_upwork_search_page(search_url: &str) -> Result<String, String
 ///
 /// Primary selectors with fallbacks for resilience
 const JOB_CARD_SELECTOR: &str = "article[data-test='JobTile']";
-const TITLE_SELECTORS: &[&str] = &[
-    "a.job-title-link h2",
-    ".job-title",
-    "h2",
-];
-const LINK_SELECTORS: &[&str] = &[
-    "a.job-title-link",
-    "a[href*='/jobs/~']",
-];
-const DESCRIPTION_SELECTORS: &[&str] = &[
-    ".job-description p",
-    ".job-description",
-    "p",
-];
+const TITLE_SELECTORS: &[&str] = &["a.job-title-link h2", ".job-title", "h2"];
+const LINK_SELECTORS: &[&str] = &["a.job-title-link", "a[href*='/jobs/~']"];
+const DESCRIPTION_SELECTORS: &[&str] = &[".job-description p", ".job-description", "p"];
 
 /// Scrape Upwork search page HTML and extract job posts
 ///
@@ -204,11 +192,10 @@ pub fn scrape_upwork_search(html: &str) -> Result<Vec<ParsedJob>, String> {
         seen_urls.insert(url.clone());
 
         // Extract description using fallback selectors
-        let description = try_selectors(card, DESCRIPTION_SELECTORS)
-            .unwrap_or_else(|| {
-                warn!("Job card {} has no description", idx + 1);
-                String::new()
-            });
+        let description = try_selectors(card, DESCRIPTION_SELECTORS).unwrap_or_else(|| {
+            warn!("Job card {} has no description", idx + 1);
+            String::new()
+        });
 
         parsed_jobs.push(ParsedJob {
             title,
@@ -372,10 +359,12 @@ mod tests {
     #[test]
     fn test_scrape_caps_at_50_items() {
         // Generate HTML with 100 job cards
-        let mut html = String::from(r#"<!DOCTYPE html>
+        let mut html = String::from(
+            r#"<!DOCTYPE html>
 <html>
 <body>
-  <section class="air3-card-section">"#);
+  <section class="air3-card-section">"#,
+        );
 
         for i in 1..=100 {
             html.push_str(&format!(
@@ -468,10 +457,12 @@ mod tests {
     #[test]
     fn test_scrape_fails_on_high_failure_rate() {
         // Create HTML with 10 cards, all malformed (missing both title and link)
-        let mut html = String::from(r#"<!DOCTYPE html>
+        let mut html = String::from(
+            r#"<!DOCTYPE html>
 <html>
 <body>
-  <section class="air3-card-section">"#);
+  <section class="air3-card-section">"#,
+        );
 
         for i in 1..=10 {
             html.push_str(&format!(
@@ -487,7 +478,9 @@ mod tests {
 
         let result = scrape_upwork_search(&html);
         assert!(result.is_err(), "Should error when >80% fail");
-        assert!(result.unwrap_err().contains("HTML structure likely changed"));
+        assert!(result
+            .unwrap_err()
+            .contains("HTML structure likely changed"));
     }
 
     #[test]
@@ -547,10 +540,7 @@ mod tests {
         let rss = "https://www.upwork.com/ab/feed/jobs/rss";
         let result = rss_url_to_search_url(rss);
         assert!(result.is_ok(), "Should handle RSS URL with no query params");
-        assert_eq!(
-            result.unwrap(),
-            "https://www.upwork.com/nx/search/jobs/?"
-        );
+        assert_eq!(result.unwrap(), "https://www.upwork.com/nx/search/jobs/?");
     }
 
     #[test]

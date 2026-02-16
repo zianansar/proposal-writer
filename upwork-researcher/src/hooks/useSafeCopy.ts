@@ -6,9 +6,10 @@
  * so both the button and keyboard shortcuts can use the same logic.
  */
 
-import { useState, useCallback } from "react";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { invoke } from "@tauri-apps/api/core";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { useState, useCallback } from "react";
+
 import type { PerplexityAnalysis } from "../types/perplexity";
 
 /** Pending override data when proposalId wasn't available at copy time */
@@ -60,8 +61,7 @@ export function useSafeCopy(): UseSafeCopyReturn {
   const [error, setError] = useState<string | null>(null);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showOverrideConfirm, setShowOverrideConfirm] = useState(false);
-  const [analysisResult, setAnalysisResult] =
-    useState<PerplexityAnalysis | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<PerplexityAnalysis | null>(null);
 
   // Store text for override flow
   const [pendingText, setPendingText] = useState<string>("");
@@ -83,10 +83,7 @@ export function useSafeCopy(): UseSafeCopyReturn {
       try {
         threshold = await invoke<number>("get_safety_threshold");
       } catch (thresholdErr) {
-        console.warn(
-          "Failed to get safety threshold, using default 180:",
-          thresholdErr
-        );
+        console.warn("Failed to get safety threshold, using default 180:", thresholdErr);
         threshold = 180;
       }
 
@@ -187,24 +184,27 @@ export function useSafeCopy(): UseSafeCopyReturn {
       setAnalysisResult(null);
       setPendingText("");
     },
-    [analysisResult]
+    [analysisResult],
   );
 
   // Story 3.7 H4: Flush pending override once proposalId is available
-  const flushPendingOverride = useCallback(async (proposalId: number) => {
-    if (!pendingOverride) return;
+  const flushPendingOverride = useCallback(
+    async (proposalId: number) => {
+      if (!pendingOverride) return;
 
-    try {
-      await invoke("record_safety_override", {
-        proposalId,
-        aiScore: pendingOverride.aiScore,
-        threshold: pendingOverride.threshold,
-      });
-      setPendingOverride(null);
-    } catch (err) {
-      console.warn("Pending override recording failed:", err);
-    }
-  }, [pendingOverride]);
+      try {
+        await invoke("record_safety_override", {
+          proposalId,
+          aiScore: pendingOverride.aiScore,
+          threshold: pendingOverride.threshold,
+        });
+        setPendingOverride(null);
+      } catch (err) {
+        console.warn("Pending override recording failed:", err);
+      }
+    },
+    [pendingOverride],
+  );
 
   const reset = useCallback(() => {
     setAnalyzing(false);

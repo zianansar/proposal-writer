@@ -1,6 +1,7 @@
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import App from "./App";
 import { useGenerationStore } from "./stores/useGenerationStore";
 import { useOnboardingStore } from "./stores/useOnboardingStore";
@@ -573,8 +574,8 @@ describe("App", () => {
 
     // Should not see "Can't perform a React state update on an unmounted component" warning
     // This verifies timer cleanup is working
-    const stateUpdateWarnings = consoleErrorSpy.mock.calls.filter(
-      (call) => call[0]?.includes?.("unmounted component")
+    const stateUpdateWarnings = consoleErrorSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.("unmounted component"),
     );
     expect(stateUpdateWarnings).toHaveLength(0);
 
@@ -608,7 +609,9 @@ describe("App", () => {
     await waitForAppReady();
 
     // Use the correct placeholder text from JobInput.tsx
-    const textarea = screen.getByPlaceholderText(/paste a job post url or the full job description/i);
+    const textarea = screen.getByPlaceholderText(
+      /paste a job post url or the full job description/i,
+    );
     await user.clear(textarea);
     await user.type(textarea, "Looking for React developer");
 
@@ -661,7 +664,7 @@ describe("App", () => {
 
     // Verify warning message content (AC-3)
     expect(
-      screen.getByText(/job post too long.*content was trimmed.*consider summarizing/i)
+      screen.getByText(/job post too long.*content was trimmed.*consider summarizing/i),
     ).toBeInTheDocument();
   });
 
@@ -789,7 +792,9 @@ describe("App", () => {
     });
 
     // Verify NO generation truncation warning appears (use specific text to differentiate from analysis warning)
-    expect(screen.queryByText(/content was trimmed to fit generation limits/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/content was trimmed to fit generation limits/i),
+    ).not.toBeInTheDocument();
   });
 
   // Story 4b.6 L2: jobPostId integration test

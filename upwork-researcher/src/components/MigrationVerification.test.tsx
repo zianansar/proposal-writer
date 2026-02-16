@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MigrationVerification } from "./MigrationVerification";
 import { invoke } from "@tauri-apps/api/core";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import { MigrationVerification } from "./MigrationVerification";
 
 // Mock Tauri invoke
 vi.mock("@tauri-apps/api/core", () => ({
@@ -29,10 +30,7 @@ describe("MigrationVerification", () => {
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(mockVerificationData);
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     // Wait for data to load
@@ -49,12 +47,8 @@ describe("MigrationVerification", () => {
     expect(screen.getByText("Job Posts")).toBeInTheDocument();
 
     // Check paths are displayed
-    expect(
-      screen.getByText(/pre-encryption-backup-2026-02-05.json/)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/upwork-researcher.db.old/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/pre-encryption-backup-2026-02-05.json/)).toBeInTheDocument();
+    expect(screen.getByText(/upwork-researcher.db.old/)).toBeInTheDocument();
   });
 
   // Subtask 10.2: Test delete button shows confirmation dialog
@@ -62,10 +56,7 @@ describe("MigrationVerification", () => {
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(mockVerificationData);
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     await waitFor(() => {
@@ -81,7 +72,7 @@ describe("MigrationVerification", () => {
     await waitFor(() => {
       expect(screen.getByText(/⚠️ Warning/i)).toBeInTheDocument();
       expect(
-        screen.getByText(/Deleting the unencrypted database is permanent/i)
+        screen.getByText(/Deleting the unencrypted database is permanent/i),
       ).toBeInTheDocument();
     });
   });
@@ -91,10 +82,7 @@ describe("MigrationVerification", () => {
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(mockVerificationData);
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     await waitFor(() => {
@@ -131,10 +119,7 @@ describe("MigrationVerification", () => {
       .mockResolvedValueOnce("Deleted successfully"); // Second call: delete_old_database
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     await waitFor(() => {
@@ -169,7 +154,7 @@ describe("MigrationVerification", () => {
       () => {
         expect(mockOnDeleteDatabase).toHaveBeenCalled();
       },
-      { timeout: 2000 }
+      { timeout: 2000 },
     );
   });
 
@@ -178,10 +163,7 @@ describe("MigrationVerification", () => {
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(mockVerificationData);
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     await waitFor(() => {
@@ -214,15 +196,11 @@ describe("MigrationVerification", () => {
     (invoke as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(mockVerificationData)
       .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => setTimeout(() => resolve("Deleted"), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve("Deleted"), 100)),
       );
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     await waitFor(() => {
@@ -246,9 +224,7 @@ describe("MigrationVerification", () => {
 
     // Check loading state appears
     await waitFor(() => {
-      expect(
-        screen.getByText(/Deleting unencrypted database.../i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Deleting unencrypted database.../i)).toBeInTheDocument();
     });
   });
 
@@ -259,10 +235,7 @@ describe("MigrationVerification", () => {
       .mockRejectedValueOnce(new Error("Permission denied"));
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     await waitFor(() => {
@@ -286,9 +259,7 @@ describe("MigrationVerification", () => {
 
     // Wait for error to be displayed
     await waitFor(() => {
-      expect(
-        screen.getByText(/Failed to Load Verification Data/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Failed to Load Verification Data/i)).toBeInTheDocument();
       expect(screen.getByText(/Permission denied/i)).toBeInTheDocument();
     });
 
@@ -298,38 +269,26 @@ describe("MigrationVerification", () => {
 
   it("handles loading state when verification data is being fetched", () => {
     (invoke as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise(() => {}) // Never resolves
+      () => new Promise(() => {}), // Never resolves
     );
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     expect(screen.getByText(/Loading verification data.../i)).toBeInTheDocument();
   });
 
   it("handles error when verification data fetch fails", async () => {
-    (invoke as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Database connection failed")
-    );
+    (invoke as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Database connection failed"));
 
     render(
-      <MigrationVerification
-        onDeleteDatabase={mockOnDeleteDatabase}
-        onKeepBoth={mockOnKeepBoth}
-      />
+      <MigrationVerification onDeleteDatabase={mockOnDeleteDatabase} onKeepBoth={mockOnKeepBoth} />,
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Failed to Load Verification Data/i)
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Database connection failed/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Failed to Load Verification Data/i)).toBeInTheDocument();
+      expect(screen.getByText(/Database connection failed/i)).toBeInTheDocument();
     });
   });
 });

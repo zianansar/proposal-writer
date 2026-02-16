@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+
 import {
   runAxeAudit,
   assertNoViolations,
@@ -19,7 +20,7 @@ describe("Axe Setup and Utilities", () => {
           <button></button>
           {/* Image without alt text - should fail */}
           <img src="test.jpg" />
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -35,7 +36,7 @@ describe("Axe Setup and Utilities", () => {
         <div>
           <button aria-label="Test button">Click me</button>
           <img src="test.jpg" alt="Test image" />
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -49,7 +50,7 @@ describe("Axe Setup and Utilities", () => {
           <button>Has text content</button>
           <label htmlFor="input">Name</label>
           <input id="input" type="text" />
-        </main>
+        </main>,
       );
 
       const results = await runAxeAudit(container);
@@ -64,7 +65,7 @@ describe("Axe Setup and Utilities", () => {
         <div>
           <button></button> {/* serious */}
           <img src="test.jpg" /> {/* critical/serious */}
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -79,14 +80,11 @@ describe("Axe Setup and Utilities", () => {
         <div>
           <button></button>
           <img src="test.jpg" />
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
-      const criticalAndSerious = filterViolationsByImpact(results, [
-        "critical",
-        "serious",
-      ]);
+      const criticalAndSerious = filterViolationsByImpact(results, ["critical", "serious"]);
 
       expect(criticalAndSerious.length).toBeGreaterThan(0);
     });
@@ -105,7 +103,7 @@ describe("Axe Setup and Utilities", () => {
       const { container } = render(
         <div>
           <button aria-label="Accessible">Click</button>
-        </div>
+        </div>,
       );
 
       const results = await runAxeAudit(container);
@@ -121,9 +119,7 @@ describe("Axe Setup and Utilities", () => {
 
       const results = await runAxeAudit(container);
 
-      expect(() => assertNoViolations(results)).toThrow(
-        /Accessibility violations found/
-      );
+      expect(() => assertNoViolations(results)).toThrow(/Accessibility violations found/);
     });
   });
 });

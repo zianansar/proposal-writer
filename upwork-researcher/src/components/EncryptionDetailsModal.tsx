@@ -1,5 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
+
 import { useFocusTrap } from "../hooks/useFocusTrap";
+
 import type { EncryptionStatus } from "./EncryptionStatusIndicator";
 import "./EncryptionDetailsModal.css";
 
@@ -10,11 +12,7 @@ interface EncryptionDetailsModalProps {
   triggerRef?: React.RefObject<HTMLElement>;
 }
 
-function EncryptionDetailsModal({
-  status,
-  onClose,
-  triggerRef,
-}: EncryptionDetailsModalProps) {
+function EncryptionDetailsModal({ status, onClose, triggerRef }: EncryptionDetailsModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -49,23 +47,17 @@ function EncryptionDetailsModal({
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   const dbStatus = status.databaseEncrypted
     ? `Encrypted with AES-256 (SQLCipher ${status.cipherVersion})`
     : "Not encrypted";
 
-  const keychainStatus = status.apiKeyInKeychain
-    ? "Stored in OS Keychain"
-    : "Not in keychain";
+  const keychainStatus = status.apiKeyInKeychain ? "Stored in OS Keychain" : "Not in keychain";
 
   return (
-    <div
-      ref={backdropRef}
-      className="encryption-modal__backdrop"
-      onClick={handleBackdropClick}
-    >
+    <div ref={backdropRef} className="encryption-modal__backdrop" onClick={handleBackdropClick}>
       <div
         ref={modalRef}
         className="encryption-modal"
@@ -89,9 +81,7 @@ function EncryptionDetailsModal({
           </div>
           <div className="encryption-modal__row">
             <span className="encryption-modal__label">Cipher Version:</span>
-            <span className="encryption-modal__value">
-              {status.cipherVersion}
-            </span>
+            <span className="encryption-modal__value">{status.cipherVersion}</span>
           </div>
         </div>
 

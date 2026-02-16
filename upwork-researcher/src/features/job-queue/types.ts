@@ -5,11 +5,11 @@
  * Manual TypeScript definitions until tauri-specta is configured in Epic 8
  */
 
-export type ScoreColor = 'green' | 'yellow' | 'red' | 'gray';
+export type ScoreColor = "green" | "yellow" | "red" | "gray";
 
-export type SortField = 'score' | 'date' | 'clientName';
+export type SortField = "score" | "date" | "clientName";
 
-export type ScoreFilter = 'all' | 'greenOnly' | 'yellowAndGreen';
+export type ScoreFilter = "all" | "greenOnly" | "yellowAndGreen";
 
 export interface JobQueueItem {
   id: number;

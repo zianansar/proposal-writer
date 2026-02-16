@@ -3,9 +3,10 @@
  * Tests screen reader support and WCAG AA compliance
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { axe } from "vitest-axe";
+
 import App from "../App";
 
 // Mock Tauri API with comprehensive responses
@@ -173,7 +174,7 @@ describe("App Accessibility (Story 8.3)", () => {
 
       const statusRegions = screen.getAllByRole("status");
       const politeRegion = statusRegions.find(
-        (region) => region.getAttribute("aria-live") === "polite"
+        (region) => region.getAttribute("aria-live") === "polite",
       );
 
       expect(politeRegion).toBeInTheDocument();

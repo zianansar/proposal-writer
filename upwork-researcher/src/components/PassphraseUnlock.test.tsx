@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import PassphraseUnlock from "./PassphraseUnlock";
 
 // Local invoke mock — overrides global setup.ts mock for precise control
@@ -30,9 +31,7 @@ describe("PassphraseUnlock", () => {
     render(<PassphraseUnlock onUnlocked={onUnlocked} />);
 
     expect(screen.getByText("Unlock Database")).toBeInTheDocument();
-    expect(
-      screen.getByText(/enter your passphrase to access your encrypted/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/enter your passphrase to access your encrypted/i)).toBeInTheDocument();
   });
 
   // ---- Subtask 6.2: Password input field ----
@@ -229,9 +228,7 @@ describe("PassphraseUnlock", () => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
     });
 
-    expect(
-      screen.queryByRole("button", { name: "Restore from Backup" })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Restore from Backup" })).not.toBeInTheDocument();
   });
 
   it("switches to recovery mode when clicking Restore from Backup", async () => {
@@ -248,19 +245,13 @@ describe("PassphraseUnlock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Restore from Backup" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Restore from Backup" })).toBeInTheDocument();
     });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Restore from Backup" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Restore from Backup" }));
 
     // Should now show recovery key dialog
-    expect(
-      screen.getByRole("dialog", { name: /recovery key entry/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /recovery key entry/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recovery Key" })).toBeInTheDocument();
     expect(screen.getByLabelText("Recovery Key")).toBeInTheDocument();
   });
@@ -277,9 +268,7 @@ describe("PassphraseUnlock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Unlocking..." })
-      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Unlocking..." })).toBeDisabled();
     });
 
     // Input should be disabled during loading
@@ -366,9 +355,7 @@ describe("PassphraseUnlock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "Database unlock failed: corrupted"
-      );
+      expect(screen.getByRole("alert")).toHaveTextContent("Database unlock failed: corrupted");
     });
   });
 
@@ -388,14 +375,10 @@ describe("PassphraseUnlock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Restore from Backup" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Restore from Backup" })).toBeInTheDocument();
     });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Restore from Backup" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Restore from Backup" }));
 
     // Recovery key input shows character count
     expect(screen.getByText("0/32 characters")).toBeInTheDocument();
@@ -419,14 +402,10 @@ describe("PassphraseUnlock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Restore from Backup" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Restore from Backup" })).toBeInTheDocument();
     });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Restore from Backup" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Restore from Backup" }));
 
     const recoveryInput = screen.getByLabelText("Recovery Key");
     // Type with special chars — only alphanumeric kept
@@ -454,14 +433,10 @@ describe("PassphraseUnlock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Restore from Backup" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Restore from Backup" })).toBeInTheDocument();
     });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Restore from Backup" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Restore from Backup" }));
 
     const recoveryInput = screen.getByLabelText("Recovery Key");
     await userEvent.type(recoveryInput, "abcdefghijklmnopqrstuvwxyz012345");
@@ -496,26 +471,18 @@ describe("PassphraseUnlock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Restore from Backup" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Restore from Backup" })).toBeInTheDocument();
     });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Restore from Backup" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Restore from Backup" }));
 
-    expect(
-      screen.getByRole("dialog", { name: /recovery key entry/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /recovery key entry/i })).toBeInTheDocument();
 
     // Click Back
     await userEvent.click(screen.getByRole("button", { name: "Back" }));
 
     // Should be back to passphrase mode
-    expect(
-      screen.getByRole("dialog", { name: /database unlock/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /database unlock/i })).toBeInTheDocument();
     expect(screen.getByLabelText("Passphrase")).toBeInTheDocument();
   });
 
@@ -535,25 +502,16 @@ describe("PassphraseUnlock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Restore from Backup" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Restore from Backup" })).toBeInTheDocument();
     });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Restore from Backup" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Restore from Backup" }));
 
-    await userEvent.type(
-      screen.getByLabelText("Recovery Key"),
-      "abcdefghijklmnopqrstuvwxyz012345"
-    );
+    await userEvent.type(screen.getByLabelText("Recovery Key"), "abcdefghijklmnopqrstuvwxyz012345");
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "Invalid recovery key"
-      );
+      expect(screen.getByRole("alert")).toHaveTextContent("Invalid recovery key");
     });
     expect(onUnlocked).not.toHaveBeenCalled();
   });

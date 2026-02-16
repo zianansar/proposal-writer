@@ -5,7 +5,7 @@
  * Supports Journey 1 (first-time user) testing
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class OnboardingPage {
   readonly page: Page;
@@ -37,27 +37,27 @@ export class OnboardingPage {
     this.page = page;
 
     // Navigation
-    this.wizardContainer = page.getByTestId('onboarding-wizard');
-    this.stepIndicator = page.getByTestId('onboarding-step-indicator');
+    this.wizardContainer = page.getByTestId("onboarding-wizard");
+    this.stepIndicator = page.getByTestId("onboarding-step-indicator");
 
     // Welcome Step
-    this.welcomeHeading = page.getByRole('heading', { name: /welcome/i });
-    this.getStartedButton = page.getByRole('button', { name: /get started/i });
+    this.welcomeHeading = page.getByRole("heading", { name: /welcome/i });
+    this.getStartedButton = page.getByRole("button", { name: /get started/i });
 
     // API Key Step
-    this.apiKeyInput = page.getByTestId('api-key-input');
-    this.apiKeySubmitButton = page.getByRole('button', { name: /save.*key/i });
+    this.apiKeyInput = page.getByTestId("api-key-input");
+    this.apiKeySubmitButton = page.getByRole("button", { name: /save.*key/i });
     this.apiKeySuccess = page.getByText(/api key.*saved/i);
-    this.apiKeyError = page.getByRole('alert');
+    this.apiKeyError = page.getByRole("alert");
 
     // Voice Calibration Step
-    this.calibrationHeading = page.getByRole('heading', { name: /voice.*calibration/i });
-    this.calibrationForm = page.getByTestId('voice-calibration-form');
+    this.calibrationHeading = page.getByRole("heading", { name: /voice.*calibration/i });
+    this.calibrationForm = page.getByTestId("voice-calibration-form");
 
     // Progress indicators
-    this.skipButton = page.getByRole('button', { name: /skip/i });
-    this.backButton = page.getByRole('button', { name: /back/i });
-    this.nextButton = page.getByRole('button', { name: /next|continue/i });
+    this.skipButton = page.getByRole("button", { name: /skip/i });
+    this.backButton = page.getByRole("button", { name: /back/i });
+    this.nextButton = page.getByRole("button", { name: /next|continue/i });
   }
 
   /**
@@ -121,6 +121,6 @@ export class OnboardingPage {
    * Get current step number from indicator
    */
   async getCurrentStep(): Promise<string> {
-    return this.stepIndicator.textContent() ?? '';
+    return this.stepIndicator.textContent() ?? "";
   }
 }

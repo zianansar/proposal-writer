@@ -5,6 +5,7 @@ Comprehensive end-to-end test suite for the Upwork Research Agent desktop applic
 ## Overview
 
 This test suite validates complete user journeys from app launch through proposal generation, covering:
+
 - First-time user onboarding
 - Returning user workflows
 - Voice calibration with golden set
@@ -101,23 +102,27 @@ tests/e2e/
 ### Journey Tests (16 test cases total)
 
 #### Journey 1: First-Time User (3 tests)
+
 - ✅ Complete onboarding → calibration → generation → copy flow
 - ✅ Error handling for invalid API key
 - ✅ Skip calibration alternative path
 
 #### Journey 2: Returning User (4 tests)
+
 - ✅ Passphrase unlock → history → generate → edit → copy
 - ✅ Incorrect passphrase error handling
 - ✅ History navigation and proposal viewing
 - ✅ Data persistence across app restarts
 
 #### Journey 3: Golden Set Calibration (4 tests)
+
 - ✅ Voice learning via file upload (3 proposals)
 - ✅ Local voice analysis and profile display
 - ✅ Voice-informed proposal generation
 - ✅ File validation and profile updates
 
 #### Journey 4: Safety Override (5 tests)
+
 - ✅ AI detection warning modal display
 - ✅ Override confirmation flow and logging
 - ✅ Cancel override pathway
@@ -127,6 +132,7 @@ tests/e2e/
 ### Accessibility Tests
 
 #### Keyboard Navigation (6 tests)
+
 - Full Journey 1 keyboard-only navigation
 - Tab order validation
 - Enter/Space button activation
@@ -135,6 +141,7 @@ tests/e2e/
 - Focus indicators visibility
 
 #### axe-core Audits (6 tests)
+
 - Onboarding screen audit
 - Main editor audit
 - Settings modal audit
@@ -145,6 +152,7 @@ tests/e2e/
 ### Performance Tests
 
 All journey tests include NFR assertions:
+
 - **NFR-1:** Cold start <2s
 - **NFR-4:** UI response <100ms (clipboard copy)
 - **NFR-5:** First token <1.5s
@@ -155,6 +163,7 @@ All journey tests include NFR assertions:
 ### 1. Deterministic Testing
 
 All tests are designed for zero flakiness:
+
 - ✅ No `page.waitForTimeout()` - only explicit conditions
 - ✅ Mocked API responses (deterministic data)
 - ✅ Fixed test fixtures (no random data)
@@ -165,12 +174,14 @@ See [DETERMINISM.md](DETERMINISM.md) for details.
 ### 2. API Mocking
 
 All Claude API calls are mocked for:
+
 - Consistent test results
 - Zero API costs
 - Faster execution
 - Offline testing capability
 
 Mock scenarios available:
+
 - `standard` - Normal proposal generation
 - `high-perplexity` - Triggers safety warning
 - `streaming` - Realistic streaming behavior
@@ -179,21 +190,23 @@ Mock scenarios available:
 ### 3. Performance Validation
 
 All NFRs are validated during test execution:
+
 ```typescript
-import { assertPerformanceThreshold, PERFORMANCE_THRESHOLDS } from '../helpers/performanceUtils';
+import { assertPerformanceThreshold, PERFORMANCE_THRESHOLDS } from "../helpers/performanceUtils";
 
 const startTime = Date.now();
 await editor.generateProposal();
 const duration = Date.now() - startTime;
 
-assertPerformanceThreshold(duration, PERFORMANCE_THRESHOLDS.FULL_GENERATION_MS, 'Full Generation');
+assertPerformanceThreshold(duration, PERFORMANCE_THRESHOLDS.FULL_GENERATION_MS, "Full Generation");
 ```
 
 ### 4. Page Object Model
 
 Maintainable test code via POM pattern:
+
 ```typescript
-import { MainEditorPage } from '../pages/MainEditorPage';
+import { MainEditorPage } from "../pages/MainEditorPage";
 
 const editor = new MainEditorPage(page);
 await editor.pasteJobContent(jobText);
@@ -206,15 +219,18 @@ await editor.waitForGenerationComplete();
 ### GitHub Actions Workflow
 
 Tests run automatically on:
+
 - Pull requests to `main` or `develop`
 - Pushes to `main`
 - Manual workflow dispatch
 
 **Platforms:**
+
 - macOS-latest (WebKit WebView)
 - windows-latest (Edge WebView2)
 
 **On failure:**
+
 - Screenshots uploaded
 - Videos uploaded
 - Test results uploaded
@@ -225,11 +241,13 @@ See [.github/workflows/e2e.yml](../../.github/workflows/e2e.yml)
 ### Environment Setup
 
 **Required secrets:**
+
 - `TEST_API_KEY` - Mock Claude API key for tests
 - `TAURI_PRIVATE_KEY` - App signing key (optional)
 - `TAURI_KEY_PASSWORD` - Key password (optional)
 
 **Environment variables:**
+
 - `CI=true` - Enables CI-specific config (retries)
 - `USE_BUILD=true` - Use built binary instead of dev server
 
@@ -240,16 +258,19 @@ See [.github/workflows/e2e.yml](../../.github/workflows/e2e.yml)
 To verify deterministic behavior, run tests 10 times consecutively:
 
 **Bash/Linux/macOS:**
+
 ```bash
 ./scripts/test-reliability.sh
 ```
 
 **PowerShell/Windows:**
+
 ```powershell
 .\scripts\test-reliability.ps1
 ```
 
 **Success criteria:**
+
 - All 10 runs produce identical results (all pass or all fail)
 - No intermittent failures
 - Runtime variance <10%
@@ -261,6 +282,7 @@ See [TEST_RELIABILITY.md](TEST_RELIABILITY.md) for details.
 ### Common Issues
 
 **1. Tauri app fails to launch**
+
 ```bash
 # Verify Tauri build exists
 npm run tauri build
@@ -271,21 +293,25 @@ npm run tauri build
 ```
 
 **2. Tests fail with "element not found"**
+
 - Check that app is fully launched (wait for app ready)
 - Verify test data is seeded correctly (check dbUtils)
 - Ensure selectors match actual UI (use Playwright Inspector)
 
 **3. Clipboard tests fail**
+
 - Clipboard access requires window focus
 - CI may need headless=false for clipboard tests
 - Consider using Tauri clipboard API directly
 
 **4. Performance tests fail on CI**
+
 - CI runners are slower than local machines
 - Thresholds are generous (2x local is normal)
 - Check if threshold needs adjustment for CI
 
 **5. Flaky tests detected**
+
 - Run `./scripts/test-reliability.sh` to identify pattern
 - Check for `waitForTimeout()` usage (replace with explicit waits)
 - Verify API responses are mocked
@@ -311,7 +337,7 @@ npm run test:e2e -- --headed
 
 ```typescript
 // tests/e2e/pages/MyNewPage.ts
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator } from "@playwright/test";
 
 export class MyNewPage {
   readonly page: Page;
@@ -319,7 +345,7 @@ export class MyNewPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.myButton = page.getByTestId('my-button');
+    this.myButton = page.getByTestId("my-button");
   }
 
   async clickMyButton(): Promise<void> {
@@ -332,25 +358,25 @@ export class MyNewPage {
 
 ```typescript
 // tests/e2e/journeys/my-new-journey.spec.ts
-import { test, expect } from '@playwright/test';
-import { MyNewPage } from '../pages/MyNewPage';
-import { launchTauriApp, closeTauriApp } from '../helpers/tauriDriver';
-import { clearDatabase } from '../helpers/dbUtils';
-import { mockClaudeAPI } from '../helpers/apiMocks';
+import { test, expect } from "@playwright/test";
+import { MyNewPage } from "../pages/MyNewPage";
+import { launchTauriApp, closeTauriApp } from "../helpers/tauriDriver";
+import { clearDatabase } from "../helpers/dbUtils";
+import { mockClaudeAPI } from "../helpers/apiMocks";
 
-test.describe('My New Journey', () => {
+test.describe("My New Journey", () => {
   test.beforeAll(async () => {
     await launchTauriApp({ useBuild: false });
-    await mockClaudeAPI(page, 'standard');
+    await mockClaudeAPI(page, "standard");
   });
 
   test.afterAll(async () => {
     await closeTauriApp();
   });
 
-  test('completes my journey', async ({ page }) => {
+  test("completes my journey", async ({ page }) => {
     clearDatabase();
-    await page.goto('tauri://localhost');
+    await page.goto("tauri://localhost");
 
     const myPage = new MyNewPage(page);
     await myPage.clickMyButton();
@@ -364,27 +390,29 @@ test.describe('My New Journey', () => {
 ### 3. Use Explicit Waits
 
 ❌ **Bad:**
+
 ```typescript
 await page.waitForTimeout(1000); // Flaky!
 ```
 
 ✅ **Good:**
+
 ```typescript
 await expect(element).toBeVisible({ timeout: 5000 });
-await page.waitForLoadState('networkidle');
-await page.waitForSelector('[data-testid="loaded"]', { state: 'visible' });
+await page.waitForLoadState("networkidle");
+await page.waitForSelector('[data-testid="loaded"]', { state: "visible" });
 ```
 
 ## Performance Benchmarks
 
 Expected performance on local development machine:
 
-| Metric | Threshold | Typical |
-|--------|-----------|---------|
-| Cold start | <2s | ~1.2s |
-| UI response | <100ms | ~20ms |
-| First token | <1.5s | ~800ms |
-| Full generation | <8s | ~4s |
+| Metric          | Threshold | Typical |
+| --------------- | --------- | ------- |
+| Cold start      | <2s       | ~1.2s   |
+| UI response     | <100ms    | ~20ms   |
+| First token     | <1.5s     | ~800ms  |
+| Full generation | <8s       | ~4s     |
 
 CI runners are typically 1.5-2x slower.
 

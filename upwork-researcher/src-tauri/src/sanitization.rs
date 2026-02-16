@@ -3,7 +3,6 @@
 ///
 /// Implements AR-13 (XML delimiter boundaries) and AR-6 (25K token limit)
 /// Defends against OWASP LLM01 (Prompt Injection) via XML escaping + delimiter wrapping
-
 use unicode_normalization::UnicodeNormalization;
 
 /// Maximum input characters (~25K tokens at 4 chars/token heuristic)
@@ -301,7 +300,8 @@ mod tests {
 
     #[test]
     fn test_normal_job_post_minimal_changes() {
-        let input = "Looking for a React developer. Must know TypeScript & Node.js. Budget: $50/hour.";
+        let input =
+            "Looking for a React developer. Must know TypeScript & Node.js. Budget: $50/hour.";
         let result = sanitize_job_content(input);
         // Only & should be escaped
         assert_eq!(
@@ -363,7 +363,10 @@ mod tests {
         // Test all 5 XML special chars in one string
         let input = r#"A & B < C > D "E" 'F'"#;
         let result = escape_xml_chars(input);
-        assert_eq!(result, "A &amp; B &lt; C &gt; D &quot;E&quot; &apos;F&apos;");
+        assert_eq!(
+            result,
+            "A &amp; B &lt; C &gt; D &quot;E&quot; &apos;F&apos;"
+        );
     }
 
     #[test]

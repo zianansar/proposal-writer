@@ -7,7 +7,7 @@
  * AC-5: Shows "No skills detected" when skills array is empty
  */
 
-import './SkillTags.css';
+import "./SkillTags.css";
 
 interface SkillTagsProps {
   skills: string[];
@@ -15,7 +15,11 @@ interface SkillTagsProps {
 
 export default function SkillTags({ skills }: SkillTagsProps) {
   if (skills.length === 0) {
-    return <p className="no-skills" data-testid="no-skills">No skills detected</p>;
+    return (
+      <p className="no-skills" data-testid="no-skills">
+        No skills detected
+      </p>
+    );
   }
 
   return (

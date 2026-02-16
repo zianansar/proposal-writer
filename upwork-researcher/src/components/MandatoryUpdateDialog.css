@@ -1,0 +1,187 @@
+/**
+ * Mandatory Update Dialog Styles (Story 9.8 Task 6)
+ * Non-dismissible full-screen overlay blocking all app functionality
+ */
+
+.mandatory-update-overlay {
+  /* Task 6.2: Full-screen backdrop overlay */
+  position: fixed;
+  inset: 0;
+  z-index: 9999; /* Task 6.2: Higher than all other modals */
+  background-color: var(--color-overlay); /* Design tokens */
+
+  /* Task 6.3: Centered modal */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4);
+}
+
+.mandatory-update-dialog {
+  /* Task 6.4: Modal card styling consistent with existing dialogs */
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.mandatory-update-header {
+  padding: var(--spacing-6) var(--spacing-6) var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mandatory-update-title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-error); /* Red for critical */
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.mandatory-update-body {
+  padding: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.mandatory-update-version {
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+}
+
+.mandatory-update-date {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.mandatory-update-notes {
+  padding: var(--spacing-4);
+  background-color: var(--color-background);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
+
+.mandatory-update-warning {
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-warning-text);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+/* Task 6.5: Progress bar styling reusing AnalysisProgress pattern */
+.mandatory-update-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.mandatory-update-progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--color-background);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.mandatory-update-progress-fill {
+  height: 100%;
+  background-color: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.mandatory-update-progress-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* Task 6.6: Error message styling with red accent color from design tokens */
+.mandatory-update-error {
+  padding: var(--spacing-4);
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  color: var(--color-error-text);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+}
+
+.mandatory-update-footer {
+  padding: var(--spacing-4) var(--spacing-6) var(--spacing-6);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mandatory-update-button {
+  padding: var(--spacing-3) var(--spacing-6);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mandatory-update-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mandatory-update-button-primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+.mandatory-update-button-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.mandatory-update-button-retry {
+  background-color: var(--color-error);
+  color: white;
+}
+
+.mandatory-update-button-retry:hover:not(:disabled) {
+  background-color: var(--color-error-hover, #c82333);
+}
+
+/* Task 6.7: Epic 8 focus-visible styles */
+.mandatory-update-button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .mandatory-update-overlay {
+    padding: var(--spacing-2);
+  }
+
+  .mandatory-update-dialog {
+    max-width: 100%;
+  }
+
+  .mandatory-update-header,
+  .mandatory-update-body,
+  .mandatory-update-footer {
+    padding-left: var(--spacing-4);
+    padding-right: var(--spacing-4);
+  }
+}

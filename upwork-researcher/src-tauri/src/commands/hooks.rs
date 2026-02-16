@@ -24,8 +24,7 @@ pub async fn get_hook_strategies(
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
-    get_all_hook_strategies(&conn)
-        .map_err(|e| format!("Failed to fetch hook strategies: {}", e))
+    get_all_hook_strategies(&conn).map_err(|e| format!("Failed to fetch hook strategies: {}", e))
 }
 
 #[cfg(test)]

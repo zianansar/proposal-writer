@@ -19,12 +19,7 @@ interface TooltipProps {
  * Accessible tooltip component (Story 6.5)
  * Shows on hover/focus with configurable delay and position
  */
-export function Tooltip({
-  content,
-  children,
-  delay = 300,
-  position = "top",
-}: TooltipProps) {
+export function Tooltip({ content, children, delay = 300, position = "top" }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const tooltipId = useRef(`tooltip-${++tooltipIdCounter}`);
@@ -45,11 +40,14 @@ export function Tooltip({
   };
 
   // Handle Escape key to hide tooltip (L1 fix)
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Escape" && isVisible) {
-      hideTooltip();
-    }
-  }, [isVisible]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape" && isVisible) {
+        hideTooltip();
+      }
+    },
+    [isVisible],
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -69,15 +67,9 @@ export function Tooltip({
       onBlur={hideTooltip}
       onKeyDown={handleKeyDown}
     >
-      <div aria-describedby={isVisible ? tooltipId.current : undefined}>
-        {children}
-      </div>
+      <div aria-describedby={isVisible ? tooltipId.current : undefined}>{children}</div>
       {isVisible && content && (
-        <div
-          id={tooltipId.current}
-          role="tooltip"
-          className={`tooltip tooltip--${position}`}
-        >
+        <div id={tooltipId.current} role="tooltip" className={`tooltip tooltip--${position}`}>
           {content}
         </div>
       )}

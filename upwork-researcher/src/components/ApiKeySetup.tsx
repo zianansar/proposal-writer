@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useCallback } from "react";
 
 interface ApiKeySetupProps {
   onComplete: () => void;
@@ -36,7 +36,7 @@ function ApiKeySetup({ onComplete, existingKey }: ApiKeySetupProps) {
       setError(null);
       validateFormat(value);
     },
-    [validateFormat]
+    [validateFormat],
   );
 
   const handleSubmit = useCallback(
@@ -66,7 +66,7 @@ function ApiKeySetup({ onComplete, existingKey }: ApiKeySetupProps) {
         setSaving(false);
       }
     },
-    [apiKey, validationError, onComplete]
+    [apiKey, validationError, onComplete],
   );
 
   const isValid = apiKey.trim().length > 0 && !validationError;
@@ -117,18 +117,18 @@ function ApiKeySetup({ onComplete, existingKey }: ApiKeySetupProps) {
           )}
         </div>
 
-        {error && <p className="api-key-setup__error" role="alert">{error}</p>}
+        {error && (
+          <p className="api-key-setup__error" role="alert">
+            {error}
+          </p>
+        )}
 
         <div id="api-key-hint" className="api-key-setup__warning">
-          <strong>Note:</strong> Your API key will be stored locally on your
-          computer. Encrypted storage will be added in a future update.
+          <strong>Note:</strong> Your API key will be stored locally on your computer. Encrypted
+          storage will be added in a future update.
         </div>
 
-        <button
-          type="submit"
-          className="api-key-setup__submit"
-          disabled={saving || !isValid}
-        >
+        <button type="submit" className="api-key-setup__submit" disabled={saving || !isValid}>
           {saving ? "Saving..." : existingKey ? "Update Key" : "Save & Continue"}
         </button>
       </form>

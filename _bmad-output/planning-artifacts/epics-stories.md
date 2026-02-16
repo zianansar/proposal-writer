@@ -2407,3 +2407,437 @@ So that my proposal writing activity remains private.
 6. **Performance Targets:** Story 1.4 (query optimization), Story 5.4 (calibration <2s), Story 4b.7 (background processing), Story 4b.9 (index)
 7. **Implementation Details:** Story 2.3 (ATTACH DATABASE method), Story 2.1 (stronger warning), Story 4a.9 (sentence boundaries + XML escape), Story 5.8 (parallel loading), Story 0.3 (token batching)
 8. **Parallel Strategy:** Epic 4/5/6 in parallel with 3-person team after Epic 3 beta test (saves 2-3 weeks)
+
+---
+
+## Epic 9: Platform Deployment & Distribution [POST-MVP - PRIORITY 2]
+
+**User Outcome:** Users can install the app on macOS/Windows via professional signed installers and receive automatic security updates without manual intervention.
+
+**NFRs covered:** NFR-13 (safe updates with rollback), NFR-14 (macOS 12+, Windows 10/11), NFR-15 (EV code signing), NFR-16 (auto-update for critical fixes)
+**ARs covered:** AR-21 (pre-commit hooks: ESLint, Prettier, cargo fmt, clippy, specta binding check)
+
+**Dependency flow:** 9.1 → 9.2 → 9.3 → 9.4/9.5 (parallel) → 9.6 → 9.7 → 9.8 → 9.9
+
+**What already exists:**
+- `tauri.conf.json` bundle config (`active: true`, `targets: "all"`, icons)
+- E2E CI workflow for macOS + Windows matrix (`.github/workflows/e2e.yml`)
+- Performance CI workflow (`.github/workflows/performance.yml`)
+- `TAURI_PRIVATE_KEY` / `TAURI_KEY_PASSWORD` secrets referenced in CI
+
+---
+
+### Story 9.1: ESLint, Prettier & Pre-commit Hooks
+
+As a developer,
+I want automated code quality checks enforced on every commit,
+So that broken formatting, lint errors, and stale type bindings never reach the repository.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given the project has no linter configured,
+When ESLint is installed with TypeScript + React plugin configuration,
+Then `npm run lint` passes on the existing codebase with zero errors
+And the ESLint config enforces: `no-console: "error"`, `strict: true`, `no-explicit-any`, `import/order` with group config, `react/forbid-component-props` for `style` (per architecture lint rules).
+
+**AC-2:** Given the project has no formatter configured,
+When Prettier is installed with a config file,
+Then `npm run format:check` passes on the existing codebase
+And Prettier config matches the project's existing code style (2-space indent, single quotes, trailing commas).
+
+**AC-3:** Given no git hooks exist,
+When husky and lint-staged are installed and configured,
+Then on `git commit`: `eslint --fix` and `prettier --write` run on staged `.ts/.tsx` files, `cargo fmt` runs on staged `.rs` files, and `cargo clippy -- -D warnings` runs on the Rust crate
+And on `git push`: `vitest run` and `cargo test --lib` execute.
+
+**AC-4:** Given the specta type bridge requires synchronization (per architecture),
+When a developer commits changes,
+Then a pre-commit script regenerates specta bindings and fails if `bindings.ts` has uncommitted changes after regeneration.
+
+**AC-5:** Given all hooks are configured,
+When a developer introduces a lint error or formatting issue and attempts to commit,
+Then the commit is blocked with a clear error message identifying the violation.
+
+**Technical Notes:**
+
+- AR-21 requires: ESLint, Prettier, cargo fmt, clippy, specta binding check
+- Architecture specifies `#![deny(clippy::unwrap_used)]` — verify Clippy config includes this
+- No ESLint, Prettier, husky, or lint-staged currently exist in `package.json`
+- Existing code may need minor formatting fixes to pass initial lint — acceptable as part of this story
+- Pre-push hooks should use `cargo test --lib` to skip integration test compilation issues (known pre-existing issue)
+
+---
+
+### Story 9.2: CI/CD Release Build Pipeline
+
+As a developer,
+I want automated release builds triggered by version tags,
+So that macOS and Windows installers are built consistently without manual local builds.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given a new GitHub Actions workflow `release.yml` is created,
+When a git tag matching `v*` (e.g., `v1.0.0`) is pushed,
+Then the workflow triggers and builds the Tauri app for macOS (DMG + app bundle) and Windows (MSI + NSIS installer).
+
+**AC-2:** Given the release build runs on macOS,
+When the build completes,
+Then a `.dmg` installer artifact is uploaded to the GitHub Release for the tag
+And the artifact is named with the version and platform (e.g., `Upwork-Research-Agent_1.0.0_aarch64.dmg`).
+
+**AC-3:** Given the release build runs on Windows,
+When the build completes,
+Then an `.msi` installer artifact is uploaded to the GitHub Release for the tag
+And the artifact is named with the version and platform (e.g., `Upwork-Research-Agent_1.0.0_x64-setup.msi`).
+
+**AC-4:** Given Rust and Node dependency caching is configured (matching existing E2E workflow patterns),
+When the release workflow runs a second time,
+Then cached dependencies reduce build time by at least 30% compared to a cold build.
+
+**AC-5:** Given the release workflow completes,
+When all platform builds succeed,
+Then the GitHub Release is created as a draft with all installer artifacts attached
+And the workflow outputs the release URL for manual review before publishing.
+
+**AC-6:** Given the workflow also runs `npm run lint` and `cargo clippy -- -D warnings` before building,
+When any lint or clippy check fails,
+Then the build is aborted and the failure is reported in the workflow summary.
+
+**Technical Notes:**
+
+- Existing E2E workflow (`e2e.yml`) already uses `macos-latest` + `windows-latest` matrix — reuse caching patterns
+- `TAURI_PRIVATE_KEY` and `TAURI_KEY_PASSWORD` secrets already configured — needed for update signing
+- Use `tauri-apps/tauri-action` GitHub Action for streamlined Tauri builds if available, otherwise manual `cargo tauri build`
+- Release as draft to allow manual review before publishing (code signing stories will enhance this later)
+- macOS may need both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets for universal binary
+
+---
+
+### Story 9.3: Semantic Versioning & Release Automation
+
+As a developer,
+I want a single command to bump the version across all config files and generate a changelog,
+So that releases have consistent versioning and users can see what changed.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given version is currently defined in three files (`tauri.conf.json`, `Cargo.toml`, `package.json`),
+When a version bump script `npm run version:bump -- <patch|minor|major>` is run,
+Then all three files are updated with the new semantic version
+And the versions are identical across all three files.
+
+**AC-2:** Given the project uses conventional commit messages,
+When `npm run changelog` is run,
+Then a `CHANGELOG.md` file is generated (or updated) from git history
+And entries are grouped by type (feat, fix, perf, etc.)
+And each entry includes the commit hash and short description.
+
+**AC-3:** Given a developer runs the version bump script,
+When the bump completes,
+Then a git commit is created with message `chore: release v{version}`
+And a git tag `v{version}` is created pointing to that commit.
+
+**AC-4:** Given the release workflow from Story 9.2 triggers on `v*` tags,
+When the version bump tag is pushed,
+Then the full release pipeline (build + artifact upload) runs automatically.
+
+**AC-5:** Given CHANGELOG.md is generated,
+When the GitHub Release is created,
+Then the release notes body includes the changelog entries for that version.
+
+**Technical Notes:**
+
+- Consider using `changesets` or a simple custom Node script for version sync (avoid heavy tooling)
+- `tauri.conf.json` has `version` at root level, `Cargo.toml` has `version` under `[package]`, `package.json` has `version` at root
+- Conventional commit format: `feat:`, `fix:`, `perf:`, `chore:`, `docs:`, `refactor:`, `test:`
+- The version bump script should validate that the working directory is clean before bumping
+- Don't enforce conventional commits retroactively — start from this point forward
+
+---
+
+### Story 9.4: macOS Code Signing & Notarization
+
+As a macOS user,
+I want the app to be properly signed and notarized,
+So that I can install it without Gatekeeper warnings or "unidentified developer" blocks.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given an Apple Developer certificate is configured in CI secrets,
+When the release workflow builds for macOS,
+Then the `.app` bundle is signed with the Developer ID Application certificate
+And `codesign --verify --deep --strict` passes on the built bundle.
+
+**AC-2:** Given the signed app bundle exists,
+When notarization is submitted via `notarytool`,
+Then Apple's notarization service accepts and staples the ticket
+And `spctl --assess --type exec` confirms the app passes Gatekeeper.
+
+**AC-3:** Given the DMG installer wraps the signed app,
+When the DMG itself is signed and notarized,
+Then a macOS user can download and open the DMG without any security prompts
+And the app can be dragged to Applications and launched immediately.
+
+**AC-4:** Given CI secrets store `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, and `APPLE_PASSWORD` (app-specific password),
+When these secrets are missing or invalid,
+Then the release workflow fails early with a clear error message before attempting to build.
+
+**AC-5:** Given the release workflow runs on non-tag pushes (e.g., PR builds),
+When code signing secrets are not available,
+Then the build still succeeds as an unsigned debug build (code signing is optional for CI testing).
+
+**Technical Notes:**
+
+- Apple Developer Program membership ($99/year) required — certificate procurement is a prerequisite
+- `notarytool` replaced `altool` in newer Xcode versions — use `notarytool` for forward compatibility
+- Consider `tauri-apps/tauri-action` which handles macOS signing and notarization natively
+- DMG customization (background image, icon layout) is nice-to-have — default Tauri DMG is acceptable for v1.0
+- Universal binary (arm64 + x86_64) or separate builds — separate builds are simpler initially
+
+---
+
+### Story 9.5: Windows Code Signing & SmartScreen Compliance
+
+As a Windows user,
+I want the app installer to be properly signed with an EV certificate,
+So that Windows SmartScreen doesn't flag the installer as potentially dangerous.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given an EV code signing certificate is configured in CI,
+When the release workflow builds for Windows,
+Then the `.msi` and `.exe` installers are signed with the EV certificate
+And `signtool verify /pa /v` confirms valid signatures on both files.
+
+**AC-2:** Given the signed MSI installer is downloaded by a new Windows user,
+When they run the installer,
+Then Windows SmartScreen does NOT display an "Unknown publisher" warning
+And the publisher name shows "Zian" (or the configured organization name) in the UAC prompt.
+
+**AC-3:** Given EV certificate configuration requires secure key storage,
+When CI secrets store `WINDOWS_CERTIFICATE` (PFX/P12), `WINDOWS_CERTIFICATE_PASSWORD`, and optionally `WINDOWS_SIGN_TOOL_PATH`,
+Then the signing step uses these secrets to sign during the release build
+And private key material is never written to disk in plaintext.
+
+**AC-4:** Given a timestamp server is used during signing,
+When the code signing certificate eventually expires,
+Then previously signed installers remain valid because the timestamp proves they were signed while the cert was valid.
+
+**AC-5:** Given CI secrets for Windows signing are missing,
+When the release workflow runs (e.g., on PR builds),
+Then the build succeeds as unsigned (signing is optional for CI testing).
+
+**Technical Notes:**
+
+- NFR-15 specifies **EV Code Signing Certificate** — this is a business procurement step with 1-2 week lead time
+- EV certificates require hardware security modules (HSBs/USB tokens) or cloud signing services (e.g., SSL.com eSigner, DigiCert KeyLocker) for CI/CD
+- Cloud signing services are strongly recommended for CI automation — USB token approach requires a dedicated signing machine
+- SmartScreen reputation builds over time — first signed release may still show a brief warning until Microsoft builds reputation
+- Timestamp server: `http://timestamp.digicert.com` or `http://timestamp.sectigo.com`
+- Consider NSIS installer in addition to MSI — NSIS offers more customization for Windows install experience
+
+---
+
+### Story 9.6: Auto-Updater Plugin Integration
+
+As a developer,
+I want the Tauri auto-updater configured with a GitHub Releases endpoint,
+So that the app can detect, download, and apply updates automatically.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given `tauri-plugin-updater` is not currently a dependency,
+When the plugin is added to `Cargo.toml` and `@tauri-apps/plugin-updater` to `package.json`,
+Then the app compiles successfully with the updater plugin registered in the Tauri plugin builder.
+
+**AC-2:** Given the updater is configured in `tauri.conf.json`,
+When the configuration specifies the GitHub Releases endpoint with the repo URL,
+Then the updater knows where to check for new versions
+And the endpoint format matches Tauri's expected `latest.json` manifest pattern.
+
+**AC-3:** Given an update signing key pair exists (referenced as `TAURI_PRIVATE_KEY` in existing CI),
+When a release build is created,
+Then the installer artifacts are signed with the private key
+And a `latest.json` manifest is generated containing: version, release notes, platform-specific download URLs, and signatures.
+
+**AC-4:** Given the release workflow from Story 9.2 is updated,
+When a release is published (not draft),
+Then the `latest.json` manifest is uploaded as a release asset
+And contains entries for all built platforms (macOS, Windows).
+
+**AC-5:** Given the app launches,
+When the updater plugin checks for updates (background, non-blocking),
+Then it fetches `latest.json` from the GitHub Releases endpoint
+And compares the remote version against the current app version
+And returns whether an update is available.
+
+**AC-6:** Given the updater detects an available update,
+When the user or system triggers the download,
+Then the update is downloaded to a temporary location
+And the signature is verified against the public key before installation
+And the download supports resume on network interruption.
+
+**Technical Notes:**
+
+- `TAURI_PRIVATE_KEY` and `TAURI_KEY_PASSWORD` are already in CI secrets — verify they contain a valid ed25519 key pair
+- Tauri's updater uses ed25519 signatures by default — the public key goes in `tauri.conf.json` under `plugins.updater.pubkey`
+- GitHub Releases is the simplest endpoint — no custom server needed
+- `tauri-apps/tauri-action` can auto-generate `latest.json` during release builds
+- Update check should happen on app launch and then every 4 hours while running (configurable in Story 9.7)
+- CSP in `tauri.conf.json` may need `connect-src` updated to allow GitHub API calls
+
+---
+
+### Story 9.7: Auto-Update Notification UI
+
+As a freelancer,
+I want to be notified when an update is available and control when to install it,
+So that updates don't interrupt my workflow during proposal writing.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given the updater detects an available non-critical update,
+When the check completes,
+Then a non-intrusive toast notification appears: "Update available: v{version}"
+And the toast includes "Update Now" and "Later" buttons
+And the toast auto-dismisses after 10 seconds if not interacted with.
+
+**AC-2:** Given the user clicks "Update Now",
+When the update download begins,
+Then a progress indicator shows download percentage
+And the user can continue using the app while the download proceeds
+And a "Cancel" option is available during download.
+
+**AC-3:** Given the update download completes,
+When the installer is ready,
+Then a dialog prompts: "Update downloaded. Restart to apply?"
+And the dialog has "Restart Now" and "Remind Me Later" options
+And selecting "Restart Now" closes the app and applies the update.
+
+**AC-4:** Given the user selects "Later" or dismisses the notification,
+When the user closes and reopens the app,
+Then the update notification appears again on next launch
+And includes a "Skip This Version" option for non-critical updates.
+
+**AC-5:** Given the Settings page exists,
+When the user navigates to Settings,
+Then there is an "Auto-Update" section with:
+- Toggle: "Check for updates automatically" (default: on)
+- Button: "Check Now" to manually trigger an update check
+- Display: "Current version: v{version}" and "Last checked: {timestamp}"
+And keyboard navigation works for all controls (NFR-14 accessibility).
+
+**AC-6:** Given auto-update is disabled in Settings,
+When the app launches,
+Then no automatic update check occurs
+And the user can still manually check via the "Check Now" button.
+
+**Technical Notes:**
+
+- Follow existing toast/notification patterns from the codebase (LiveAnnouncer for screen readers — Story 8.3)
+- Update check frequency: on launch + every 4 hours while running (when auto-update enabled)
+- Download progress uses Tauri's updater events (download progress, download finished, etc.)
+- "Skip This Version" should persist the skipped version in the settings table so it's not shown again
+- All dialogs must be keyboard-navigable with focus trap (per Epic 8 accessibility patterns)
+- ARIA live regions for screen reader announcements of update status changes
+
+---
+
+### Story 9.8: Mandatory Safety Update Enforcement
+
+As a freelancer,
+I want critical safety updates (AI detection evasion patches) to be installed promptly,
+So that my proposals don't get flagged as AI-generated due to outdated detection avoidance.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given the `latest.json` update manifest includes a `critical` boolean flag,
+When the updater detects an update with `critical: true`,
+Then the update notification is displayed as a non-dismissible modal dialog
+And the dialog title is "Critical Security Update Required"
+And there is no "Later", "Skip", or close button.
+
+**AC-2:** Given a mandatory update dialog is shown,
+When the user clicks "Update Now" (the only action),
+Then the update downloads with a progress indicator
+And the app automatically restarts to apply the update after download
+And no user confirmation is needed for the restart.
+
+**AC-3:** Given the app launches and the current version is behind a critical update,
+When the update check completes,
+Then the mandatory update dialog blocks all other app functionality
+And the user cannot navigate to other pages or generate proposals until the update is applied.
+
+**AC-4:** Given a mandatory update download fails (network error),
+When the download cannot complete,
+Then the dialog shows: "Update failed. Check your internet connection and try again."
+And a "Retry" button is available
+And the app remains blocked until the update succeeds or the user force-quits.
+
+**AC-5:** Given a release is created in the release workflow,
+When the release is marked as critical (via release notes tag or separate metadata field),
+Then the generated `latest.json` manifest includes `critical: true`
+And the release notes explain why the update is mandatory.
+
+**Technical Notes:**
+
+- NFR-16 specifies: "Updates set to 'Mandatory' for critical safety fixes (e.g., AI detection evasion patches)"
+- The `critical` flag in `latest.json` is custom metadata — Tauri's updater doesn't natively support mandatory updates, so the UI logic enforces it
+- Consider a `notes` field in `latest.json` that includes a severity level: `critical`, `recommended`, `optional`
+- Mandatory updates should only be used for genuine safety issues — overuse will frustrate users
+- The blocking modal should use the existing focus trap patterns from Epic 8
+- Force-quit via OS task manager is acceptable as an escape hatch — the dialog reappears on next launch
+
+---
+
+### Story 9.9: Post-Update Health Check & Rollback
+
+As a freelancer,
+I want the app to verify it works correctly after an update and roll back if something is broken,
+So that a bad update never bricks my workflow tool.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given the app has just been updated,
+When it launches for the first time after the update,
+Then a health check runs automatically before showing the main UI
+And the health check verifies: app window renders, database connection succeeds, database schema version matches expectations, and settings are loadable.
+
+**AC-2:** Given the health check passes,
+When all checks succeed,
+Then the app shows a brief toast: "Updated to v{version} successfully"
+And the previous version backup is retained for one additional update cycle
+And normal app functionality proceeds.
+
+**AC-3:** Given the health check fails (e.g., database corruption, schema mismatch, crash on startup),
+When a failure is detected,
+Then the app automatically rolls back to the previous version
+And a dialog informs the user: "Update to v{version} failed. Rolled back to v{previous_version}."
+And the rollback version is recorded in the log for diagnostics.
+
+**AC-4:** Given the pre-update version is stored before applying an update,
+When rollback is triggered,
+Then the previous version's executable/bundle is restored from the backup
+And the database is not modified during rollback (only the app binary changes)
+And the app restarts with the restored previous version.
+
+**AC-5:** Given a rollback occurs,
+When the user launches the app with the restored version,
+Then the app does NOT immediately re-download the failed update
+And the failed version is recorded in settings so it is skipped in future update checks
+And the user sees: "Update v{failed_version} was rolled back. This version has been skipped."
+
+**AC-6:** Given the app stores a pre-update backup,
+When two successful updates have occurred since the backup was created,
+Then the oldest backup is cleaned up to prevent disk space accumulation
+And at most one previous version backup is retained at any time.
+
+**Technical Notes:**
+
+- NFR-13: "Atomic updates with rollback capability to prevent bricking the user's workflow tool"
+- Architecture failure mode: "Auto-Updater | Corrupt installation | Atomic update with rollback, health check on launch"
+- Tauri's updater handles binary replacement — rollback requires storing the previous binary before update
+- Health check should complete within 5 seconds — if it takes longer, treat as failure
+- Database integrity check: verify `PRAGMA integrity_check` returns "ok" and migration version matches expected
+- The rollback mechanism should work even if the new version crashes immediately on startup (use a "pending update" flag that the old binary can read)
+- Consider storing the health check results in the log file for diagnostics

@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+
 import { Tooltip } from "./Tooltip";
 
 describe("Tooltip", () => {
@@ -7,7 +8,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Bold (⌘B)">
         <button>B</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const button = screen.getByText("B");
@@ -17,7 +18,7 @@ describe("Tooltip", () => {
       () => {
         expect(screen.getByRole("tooltip")).toHaveTextContent("Bold (⌘B)");
       },
-      { timeout: 500 }
+      { timeout: 500 },
     );
   });
 
@@ -25,7 +26,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Bold (⌘B)" delay={0}>
         <button>B</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("B").parentElement!;
@@ -35,16 +36,14 @@ describe("Tooltip", () => {
 
     fireEvent.mouseLeave(wrapper);
 
-    await waitFor(() =>
-      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
   });
 
   it("shows tooltip on focus for keyboard users", async () => {
     render(
       <Tooltip content="Bold (⌘B)" delay={0}>
         <button>B</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("B").parentElement!;
@@ -59,7 +58,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Bold (⌘B)" delay={0}>
         <button>B</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("B").parentElement!;
@@ -69,16 +68,14 @@ describe("Tooltip", () => {
 
     fireEvent.blur(wrapper);
 
-    await waitFor(() =>
-      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
   });
 
   it("has accessible role and id", async () => {
     render(
       <Tooltip content="Bold (⌘B)" delay={0}>
         <button>B</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("B").parentElement!;
@@ -95,7 +92,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Bold (⌘B)" delay={0}>
         <button>B</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const button = screen.getByText("B");
@@ -116,7 +113,7 @@ describe("Tooltip", () => {
     const { unmount } = render(
       <Tooltip content="Bold (⌘B)" delay={300}>
         <button>B</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("B").parentElement!;
@@ -137,7 +134,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Bottom tooltip" delay={0} position="bottom">
         <button>Test</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("Test").parentElement!;
@@ -153,7 +150,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Top tooltip" delay={0}>
         <button>Test</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("Test").parentElement!;
@@ -169,7 +166,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="" delay={0}>
         <button>Test</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("Test").parentElement!;
@@ -184,7 +181,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Test tooltip" delay={0}>
         <button>Test</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapper = screen.getByText("Test").parentElement!.parentElement!;
@@ -194,16 +191,14 @@ describe("Tooltip", () => {
 
     fireEvent.keyDown(wrapper, { key: "Escape" });
 
-    await waitFor(() =>
-      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
   });
 
   it("generates deterministic tooltip IDs", async () => {
     const { rerender } = render(
       <Tooltip content="First" delay={0}>
         <button>A</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const wrapperA = screen.getByText("A").parentElement!.parentElement!;

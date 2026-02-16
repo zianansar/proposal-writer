@@ -3,8 +3,8 @@
 //! Handles CRUD operations for voice_profiles table with UPSERT support.
 //! All operations use prepared statements for safety.
 
-use rusqlite::Result;
 use crate::voice::{CalibrationSource, StructurePreference, VoiceProfile};
+use rusqlite::Result;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
@@ -151,25 +151,19 @@ pub fn save_voice_profile(conn: &Connection, profile: &VoiceProfileRow) -> Resul
 /// # Performance
 /// - Uses idx_voice_profiles_user_id index for fast lookup
 /// - Completes in <100ms (AC-2)
-pub fn get_voice_profile(
-    conn: &Connection,
-    user_id: &str,
-) -> Result<Option<VoiceProfileRow>> {
-    let mut stmt = conn
-        .prepare(
-            "SELECT id, user_id, tone_score, avg_sentence_length, vocabulary_complexity,
+pub fn get_voice_profile(conn: &Connection, user_id: &str) -> Result<Option<VoiceProfileRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, user_id, tone_score, avg_sentence_length, vocabulary_complexity,
                     structure_paragraphs_pct, structure_bullets_pct, technical_depth,
                     length_preference, common_phrases, sample_count, calibration_source,
                     created_at, updated_at
              FROM voice_profiles
              WHERE user_id = ?1",
-        )
-?;
+    )?;
 
     let result = stmt.query_row(params![user_id], |row| {
         let phrases_json: String = row.get(9)?;
-        let common_phrases: Vec<String> =
-            serde_json::from_str(&phrases_json).unwrap_or_default();
+        let common_phrases: Vec<String> = serde_json::from_str(&phrases_json).unwrap_or_default();
 
         Ok(VoiceProfileRow {
             id: Some(row.get(0)?),
@@ -209,9 +203,10 @@ pub fn get_voice_profile(
 /// * `Ok(false)` - No profile existed for user
 /// * `Err(rusqlite::Error)` - Database error
 pub fn delete_voice_profile(conn: &Connection, user_id: &str) -> Result<bool> {
-    let rows_affected = conn
-        .execute("DELETE FROM voice_profiles WHERE user_id = ?1", params![user_id])
-?;
+    let rows_affected = conn.execute(
+        "DELETE FROM voice_profiles WHERE user_id = ?1",
+        params![user_id],
+    )?;
 
     Ok(rows_affected > 0)
 }
@@ -434,7 +429,10 @@ mod tests {
         assert_eq!(loaded.common_phrases.len(), 3);
         assert_eq!(loaded.common_phrases[0], "I'm experienced with");
         assert_eq!(loaded.common_phrases[1], "Let's work together");
-        assert_eq!(loaded.common_phrases[2], r#"Uses "quotes" and backslashes \"#);
+        assert_eq!(
+            loaded.common_phrases[2],
+            r#"Uses "quotes" and backslashes \"#
+        );
     }
 
     /// Subtask 5.8: Test empty common_phrases array works
@@ -473,12 +471,24 @@ mod tests {
 
         assert_eq!(row.user_id, "test_user");
         assert!((row.tone_score - 7.5).abs() < 0.01, "tone_score mismatch");
-        assert!((row.avg_sentence_length - 18.3).abs() < 0.01, "avg_sentence_length mismatch");
-        assert!((row.vocabulary_complexity - 11.2).abs() < 0.01, "vocabulary_complexity mismatch");
+        assert!(
+            (row.avg_sentence_length - 18.3).abs() < 0.01,
+            "avg_sentence_length mismatch"
+        );
+        assert!(
+            (row.vocabulary_complexity - 11.2).abs() < 0.01,
+            "vocabulary_complexity mismatch"
+        );
         assert_eq!(row.structure_paragraphs_pct, 80);
         assert_eq!(row.structure_bullets_pct, 20);
-        assert!((row.technical_depth - 8.0).abs() < 0.01, "technical_depth mismatch");
-        assert!((row.length_preference - 6.0).abs() < 0.01, "length_preference mismatch");
+        assert!(
+            (row.technical_depth - 8.0).abs() < 0.01,
+            "technical_depth mismatch"
+        );
+        assert!(
+            (row.length_preference - 6.0).abs() < 0.01,
+            "length_preference mismatch"
+        );
         assert_eq!(row.sample_count, 15);
         assert_eq!(row.calibration_source, "QuickCalibration");
     }

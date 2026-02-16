@@ -7,7 +7,7 @@
  * 2. Unlock: Enter existing passphrase to decrypt database
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class PassphraseDialog {
   readonly page: Page;
@@ -43,26 +43,26 @@ export class PassphraseDialog {
     this.page = page;
 
     // Dialog
-    this.dialog = page.getByTestId('passphrase-dialog');
-    this.dialogOverlay = page.locator('[data-modal-overlay]');
+    this.dialog = page.getByTestId("passphrase-dialog");
+    this.dialogOverlay = page.locator("[data-modal-overlay]");
 
     // Setup mode
-    this.setupHeading = page.getByRole('heading', { name: /create.*passphrase/i });
+    this.setupHeading = page.getByRole("heading", { name: /create.*passphrase/i });
     this.setupDescription = page.getByText(/secure.*database.*passphrase/i);
-    this.passphraseInput = page.getByTestId('passphrase-input');
-    this.confirmPassphraseInput = page.getByTestId('confirm-passphrase-input');
-    this.strengthIndicator = page.getByTestId('passphrase-strength');
-    this.createButton = page.getByRole('button', { name: /create|set.*passphrase/i });
+    this.passphraseInput = page.getByTestId("passphrase-input");
+    this.confirmPassphraseInput = page.getByTestId("confirm-passphrase-input");
+    this.strengthIndicator = page.getByTestId("passphrase-strength");
+    this.createButton = page.getByRole("button", { name: /create|set.*passphrase/i });
 
     // Unlock mode
-    this.unlockHeading = page.getByRole('heading', { name: /unlock|enter.*passphrase/i });
+    this.unlockHeading = page.getByRole("heading", { name: /unlock|enter.*passphrase/i });
     this.unlockDescription = page.getByText(/enter.*passphrase.*unlock/i);
-    this.unlockPassphraseInput = page.getByTestId('unlock-passphrase-input');
-    this.unlockButton = page.getByRole('button', { name: /unlock|submit/i });
-    this.forgotPassphraseLink = page.getByRole('link', { name: /forgot.*passphrase/i });
+    this.unlockPassphraseInput = page.getByTestId("unlock-passphrase-input");
+    this.unlockButton = page.getByRole("button", { name: /unlock|submit/i });
+    this.forgotPassphraseLink = page.getByRole("link", { name: /forgot.*passphrase/i });
 
     // Validation
-    this.errorMessage = page.getByRole('alert');
+    this.errorMessage = page.getByRole("alert");
     this.successMessage = page.getByText(/passphrase.*set|database.*unlocked/i);
 
     // Security info
@@ -147,7 +147,7 @@ export class PassphraseDialog {
    * Get passphrase strength indicator text
    */
   async getStrengthIndicator(): Promise<string> {
-    return (await this.strengthIndicator.textContent()) ?? '';
+    return (await this.strengthIndicator.textContent()) ?? "";
   }
 
   /**
@@ -161,7 +161,7 @@ export class PassphraseDialog {
    * Get error message text
    */
   async getErrorMessage(): Promise<string> {
-    return (await this.errorMessage.textContent()) ?? '';
+    return (await this.errorMessage.textContent()) ?? "";
   }
 
   /**
@@ -184,7 +184,7 @@ export class PassphraseDialog {
    * Close dialog (if dismissible)
    */
   async close(): Promise<void> {
-    await this.page.keyboard.press('Escape');
+    await this.page.keyboard.press("Escape");
     await expect(this.dialog).toBeHidden();
   }
 }

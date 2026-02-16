@@ -191,15 +191,15 @@ development_status:
   # NOTE: Start code signing certificate procurement ASAP
   # ═══════════════════════════════════════════════════════════
   epic-9: in-progress
-  9-1-eslint-prettier-pre-commit-hooks: in-progress  # Story file created 2026-02-15
-  9-2-ci-cd-release-build-pipeline: in-progress  # CR R1 2026-02-15: FAILED — 0% implemented. release.yml never created. All tasks reset. Re-implementation required.
-  9-3-semantic-versioning-release-automation: review  # Implementation complete 2026-02-15. Validation: 21/21 tests pass. Husky hook integration testing deferred to Story 9-1.
-  9-4-macos-code-signing-notarization: ready-for-dev  # Story file created 2026-02-15
-  9-5-windows-code-signing-smartscreen: in-progress
-  9-6-auto-updater-plugin-integration: ready-for-dev  # Story file created 2026-02-15
-  9-7-auto-update-notification-ui: backlog
-  9-8-mandatory-safety-update-enforcement: backlog
-  9-9-post-update-health-check-rollback: backlog
+  9-1-eslint-prettier-pre-commit-hooks: done  # CR R1 fixes 2026-02-16: All 7 items fixed. CWD paths, clippy deny→TODO, CRLF→LF, rules-of-hooks error, stale .husky removed, tseslint strict.
+  9-2-ci-cd-release-build-pipeline: done  # CR R2 2026-02-16: All 7 items fixed. signCommand removed, VCPKG_INSTALLATION_ROOT, --all-targets, concurrency, conditional URL, job-level perms, lint docs.
+  9-3-semantic-versioning-release-automation: done  # CR R1 fixes 2026-02-16: All 8 items fixed. Changelog extraction in release.yml, commit-msg $1 path, pre-flight minor/major, Cargo.lock postbump hook, v9 hook format.
+  9-4-macos-code-signing-notarization: done  # CR R1 fixes 2026-02-16: All 6 items resolved (3M 3L). M1: .p12 trap cleanup, M2: --deep removed for DMG, M3: keychain restore. L1: non-issue, L2: accepted, L3: --verbose=2 added.
+  9-5-windows-code-signing-smartscreen: done  # CR R1 fixes 2026-02-16: All 9 items resolved (3H 4M 2L). H1: PATH NOTE + --no-sign, H2: config fields removed, H3: attribution noted. M1-M4: all resolved. L1-L2: line refs + date fixed.
+  9-6-auto-updater-plugin-integration: done  # CR R3 2026-02-16: R1(6) + R2(3) + R3(3) all fixed. Consistent act() everywhere, waitFor cleaned, background check JSDoc. 17 frontend tests.
+  9-7-auto-update-notification-ui: in-progress  # CR R1 2026-02-16: 14 issues found (2C 4H 5M 3L). Tasks 1-5 implemented but story tracking broken (Tasks 4-6 marked incomplete, Dev Agent Record empty). 12 action items added. Key: redundant useUpdater, cancelDownload fake, screen reader spam, store bypass.
+  9-8-mandatory-safety-update-enforcement: in-progress  # 2026-02-16: Code review found 10 issues (4 CRITICAL, 3 HIGH, 3 MEDIUM). Tests failing (24/41), Story 9.9 scope creep, Dev Agent Record empty. Needs fixes before done.
+  9-9-post-update-health-check-rollback: in-progress  # CR R1 2026-02-16: 10 issues found (4C 4M 2L). Tasks 5.4/5.5/5.6 falsely marked complete — unmarked. Skip list null crash, no settings UI, no rollback toast, no skip list tests. 10 action items added as Task 9.
   epic-9-retrospective: optional
 
   # ═══════════════════════════════════════════════════════════

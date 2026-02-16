@@ -1,8 +1,9 @@
 // Story 5.3: Golden Set Upload UI
 // Upload 3-5 past successful proposals for voice calibration
 
-import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect, useCallback } from "react";
+
 import { PrivacyIndicator } from "../../../components/PrivacyIndicator";
 import "./GoldenSetUpload.css";
 
@@ -128,9 +129,7 @@ export function GoldenSetUpload({ onComplete }: GoldenSetUploadProps) {
   return (
     <div className="golden-set-upload">
       <h2>Upload Your Best Proposals</h2>
-      <p className="instructions">
-        Upload 3-5 of your best proposals that got responses
-      </p>
+      <p className="instructions">Upload 3-5 of your best proposals that got responses</p>
 
       {/* Story 5-6: Privacy indicator prominently at top */}
       <PrivacyIndicator variant="golden-set" />
@@ -196,15 +195,9 @@ export function GoldenSetUpload({ onComplete }: GoldenSetUploadProps) {
             {proposals.map((p) => (
               <li key={p.id} className="proposal-item">
                 <div className="proposal-preview">
-                  <span className="preview-text">
-                    {p.content.slice(0, 50)}...
-                  </span>
-                  <span className="word-count-badge">
-                    {p.word_count} words
-                  </span>
-                  {p.source_filename && (
-                    <span className="filename-badge">{p.source_filename}</span>
-                  )}
+                  <span className="preview-text">{p.content.slice(0, 50)}...</span>
+                  <span className="word-count-badge">{p.word_count} words</span>
+                  {p.source_filename && <span className="filename-badge">{p.source_filename}</span>}
                 </div>
                 <button
                   onClick={() => handleDelete(p.id)}
@@ -232,7 +225,8 @@ export function GoldenSetUpload({ onComplete }: GoldenSetUploadProps) {
         </button>
         {!canContinue && proposals.length > 0 && (
           <p className="continue-note">
-            Upload {3 - proposals.length} more proposal{3 - proposals.length !== 1 ? "s" : ""} to continue
+            Upload {3 - proposals.length} more proposal{3 - proposals.length !== 1 ? "s" : ""} to
+            continue
           </p>
         )}
       </div>

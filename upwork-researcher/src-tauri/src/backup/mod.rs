@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::db::Database;
 use crate::db::queries::{proposals, settings};
+use crate::db::Database;
 
 /// Errors that can occur during backup operations
 #[derive(Debug, thiserror::Error)]
@@ -150,12 +150,14 @@ fn export_database_to_backup(db: &Database) -> Result<BackupData, BackupError> {
         .map_err(|e| BackupError::DatabaseLockError(e.to_string()))?;
 
     // Query all proposals (Subtask 2.1)
-    let proposals = proposals::get_all_proposals(&conn)
-        .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to query proposals: {}", e)))?;
+    let proposals = proposals::get_all_proposals(&conn).map_err(|e| {
+        BackupError::DatabaseQueryFailed(format!("Failed to query proposals: {}", e))
+    })?;
 
     // Query all settings (Subtask 2.2)
-    let settings = settings::list_settings(&conn)
-        .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to query settings: {}", e)))?;
+    let settings = settings::list_settings(&conn).map_err(|e| {
+        BackupError::DatabaseQueryFailed(format!("Failed to query settings: {}", e))
+    })?;
 
     // Query all job_posts (Subtask 2.3)
     let job_posts = query_all_job_posts(&conn)?;
@@ -186,8 +188,12 @@ fn export_database_to_backup(db: &Database) -> Result<BackupData, BackupError> {
 /// Query all job posts from database
 fn query_all_job_posts(conn: &rusqlite::Connection) -> Result<Vec<JobPost>, BackupError> {
     let mut stmt = conn
-        .prepare("SELECT id, url, raw_content, client_name, created_at FROM job_posts ORDER BY id ASC")
-        .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to prepare job_posts query: {}", e)))?;
+        .prepare(
+            "SELECT id, url, raw_content, client_name, created_at FROM job_posts ORDER BY id ASC",
+        )
+        .map_err(|e| {
+            BackupError::DatabaseQueryFailed(format!("Failed to prepare job_posts query: {}", e))
+        })?;
 
     let job_posts = stmt
         .query_map([], |row| {
@@ -201,7 +207,9 @@ fn query_all_job_posts(conn: &rusqlite::Connection) -> Result<Vec<JobPost>, Back
         })
         .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to query job_posts: {}", e)))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to map job_posts rows: {}", e)))?;
+        .map_err(|e| {
+            BackupError::DatabaseQueryFailed(format!("Failed to map job_posts rows: {}", e))
+        })?;
 
     Ok(job_posts)
 }
@@ -213,15 +221,20 @@ fn get_database_version(conn: &rusqlite::Connection) -> Result<String, BackupErr
         .query_row(
             "SELECT version FROM refinery_schema_history ORDER BY version DESC LIMIT 1",
             [],
-            |row| row.get(0)
+            |row| row.get(0),
         )
-        .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to query migration version: {}", e)))?;
+        .map_err(|e| {
+            BackupError::DatabaseQueryFailed(format!("Failed to query migration version: {}", e))
+        })?;
 
     Ok(format!("V{}", version))
 }
 
 /// Write backup to file atomically and verify
-fn write_and_verify_backup(backup_path: &Path, backup_data: &BackupData) -> Result<(), BackupError> {
+fn write_and_verify_backup(
+    backup_path: &Path,
+    backup_data: &BackupData,
+) -> Result<(), BackupError> {
     // Serialize to JSON (Subtask 3.1)
     let json_content = serde_json::to_string_pretty(backup_data)
         .map_err(|e| BackupError::SerializationFailed(e.to_string()))?;
@@ -236,23 +249,29 @@ fn write_and_verify_backup(backup_path: &Path, backup_data: &BackupData) -> Resu
 
     // Verify file exists and is readable (Subtask 3.3)
     if !backup_path.exists() {
-        return Err(BackupError::VerificationFailed("Backup file does not exist after write".to_string()));
+        return Err(BackupError::VerificationFailed(
+            "Backup file does not exist after write".to_string(),
+        ));
     }
 
     // Verify file size > 0 bytes (Subtask 3.4)
-    let metadata = fs::metadata(backup_path)
-        .map_err(|e| BackupError::VerificationFailed(format!("Cannot read file metadata: {}", e)))?;
+    let metadata = fs::metadata(backup_path).map_err(|e| {
+        BackupError::VerificationFailed(format!("Cannot read file metadata: {}", e))
+    })?;
 
     if metadata.len() == 0 {
-        return Err(BackupError::VerificationFailed("Backup file is empty (0 bytes)".to_string()));
+        return Err(BackupError::VerificationFailed(
+            "Backup file is empty (0 bytes)".to_string(),
+        ));
     }
 
     // Parse JSON from file to validate structure (Subtask 3.5)
     let file_content = fs::read_to_string(backup_path)
         .map_err(|e| BackupError::VerificationFailed(format!("Cannot read backup file: {}", e)))?;
 
-    serde_json::from_str::<BackupData>(&file_content)
-        .map_err(|e| BackupError::VerificationFailed(format!("Backup file contains invalid JSON: {}", e)))?;
+    serde_json::from_str::<BackupData>(&file_content).map_err(|e| {
+        BackupError::VerificationFailed(format!("Backup file contains invalid JSON: {}", e))
+    })?;
 
     tracing::info!("Backup verified successfully: {}", backup_path.display());
 
@@ -323,10 +342,7 @@ pub fn export_unencrypted_backup(
     })
 }
 
-pub fn restore_from_backup(
-    backup_path: &Path,
-    db: &Database,
-) -> Result<usize, BackupError> {
+pub fn restore_from_backup(backup_path: &Path, db: &Database) -> Result<usize, BackupError> {
     tracing::info!("Starting restore from backup: {}", backup_path.display());
 
     // Subtask 3.1: Read backup JSON file
@@ -341,8 +357,9 @@ pub fn restore_from_backup(
         .map_err(|e| BackupError::FileWriteFailed(format!("Failed to read backup file: {}", e)))?;
 
     // Subtask 3.2: Parse JSON into BackupData structure
-    let backup_data: BackupData = serde_json::from_str(&file_content)
-        .map_err(|e| BackupError::SerializationFailed(format!("Failed to parse backup JSON: {}", e)))?;
+    let backup_data: BackupData = serde_json::from_str(&file_content).map_err(|e| {
+        BackupError::SerializationFailed(format!("Failed to parse backup JSON: {}", e))
+    })?;
 
     // Lock database connection for restoration
     let conn = db
@@ -352,21 +369,26 @@ pub fn restore_from_backup(
 
     // Begin transaction for atomic restore
     conn.execute("BEGIN EXCLUSIVE TRANSACTION", [])
-        .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to begin transaction: {}", e)))?;
+        .map_err(|e| {
+            BackupError::DatabaseQueryFailed(format!("Failed to begin transaction: {}", e))
+        })?;
 
     // Attempt to restore all data
     let restore_result = (|| -> Result<usize, BackupError> {
         let mut total_restored = 0;
 
         // Subtask 3.3: Clear existing data from tables
-        conn.execute("DELETE FROM proposals", [])
-            .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to clear proposals: {}", e)))?;
+        conn.execute("DELETE FROM proposals", []).map_err(|e| {
+            BackupError::DatabaseQueryFailed(format!("Failed to clear proposals: {}", e))
+        })?;
 
-        conn.execute("DELETE FROM settings", [])
-            .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to clear settings: {}", e)))?;
+        conn.execute("DELETE FROM settings", []).map_err(|e| {
+            BackupError::DatabaseQueryFailed(format!("Failed to clear settings: {}", e))
+        })?;
 
-        conn.execute("DELETE FROM job_posts", [])
-            .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to clear job_posts: {}", e)))?;
+        conn.execute("DELETE FROM job_posts", []).map_err(|e| {
+            BackupError::DatabaseQueryFailed(format!("Failed to clear job_posts: {}", e))
+        })?;
 
         // Subtask 3.4: Insert proposals from backup
         for proposal in &backup_data.proposals {
@@ -381,7 +403,9 @@ pub fn restore_from_backup(
                     proposal.created_at,
                 ],
             )
-            .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to insert proposal: {}", e)))?;
+            .map_err(|e| {
+                BackupError::DatabaseQueryFailed(format!("Failed to insert proposal: {}", e))
+            })?;
             total_restored += 1;
         }
 
@@ -391,7 +415,9 @@ pub fn restore_from_backup(
                 "INSERT INTO settings (key, value) VALUES (?1, ?2)",
                 rusqlite::params![setting.key, setting.value],
             )
-            .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to insert setting: {}", e)))?;
+            .map_err(|e| {
+                BackupError::DatabaseQueryFailed(format!("Failed to insert setting: {}", e))
+            })?;
             total_restored += 1;
         }
 
@@ -408,7 +434,9 @@ pub fn restore_from_backup(
                     job_post.created_at,
                 ],
             )
-            .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to insert job_post: {}", e)))?;
+            .map_err(|e| {
+                BackupError::DatabaseQueryFailed(format!("Failed to insert job_post: {}", e))
+            })?;
             total_restored += 1;
         }
 
@@ -418,8 +446,9 @@ pub fn restore_from_backup(
     // Subtask 3.7: Commit or rollback based on result
     match restore_result {
         Ok(count) => {
-            conn.execute("COMMIT", [])
-                .map_err(|e| BackupError::DatabaseQueryFailed(format!("Failed to commit restore: {}", e)))?;
+            conn.execute("COMMIT", []).map_err(|e| {
+                BackupError::DatabaseQueryFailed(format!("Failed to commit restore: {}", e))
+            })?;
 
             tracing::info!(
                 "Restore completed successfully: {} records restored from {}",
@@ -430,10 +459,9 @@ pub fn restore_from_backup(
             Ok(count)
         }
         Err(e) => {
-            conn.execute("ROLLBACK", [])
-                .map_err(|rollback_err| {
-                    BackupError::DatabaseQueryFailed(format!("Rollback failed: {}", rollback_err))
-                })?;
+            conn.execute("ROLLBACK", []).map_err(|rollback_err| {
+                BackupError::DatabaseQueryFailed(format!("Rollback failed: {}", rollback_err))
+            })?;
 
             tracing::error!("Restore failed: {}", e);
             Err(e)

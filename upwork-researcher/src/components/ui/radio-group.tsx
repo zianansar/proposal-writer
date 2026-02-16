@@ -12,7 +12,7 @@ const RadioGroupContext = React.createContext<{
   value?: string;
   onValueChange?: (value: string) => void;
   name: string;
-}>({ name: '' });
+}>({ name: "" });
 
 // Generate unique ID for radio group name if not provided
 let radioGroupCounter = 0;
@@ -28,17 +28,12 @@ const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
 
     return (
       <RadioGroupContext.Provider value={{ value, onValueChange, name: generatedName }}>
-        <div
-          ref={ref}
-          className={className}
-          role="radiogroup"
-          {...props}
-        >
+        <div ref={ref} className={className} role="radiogroup" {...props}>
           {children}
         </div>
       </RadioGroupContext.Provider>
     );
-  }
+  },
 );
 RadioGroup.displayName = "RadioGroup";
 
@@ -71,7 +66,7 @@ const RadioGroupItem = React.forwardRef<HTMLInputElement, RadioGroupItemProps>(
         {...props}
       />
     );
-  }
+  },
 );
 RadioGroupItem.displayName = "RadioGroupItem";
 

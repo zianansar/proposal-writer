@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { VoiceSettings } from "./VoiceSettings";
 import { invoke } from "@tauri-apps/api/core";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 import { DEFAULT_USER_ID, VOICE_SAVE_DEBOUNCE_MS } from "../types/voice";
+
+import { VoiceSettings } from "./VoiceSettings";
 
 // Mock Tauri invoke
 vi.mock("@tauri-apps/api/core", () => ({
@@ -89,7 +91,9 @@ describe("VoiceSettings", () => {
     const lengthSlider = screen.getByLabelText(/length.*brief to detailed/i) as HTMLInputElement;
     expect(lengthSlider.value).toBe("3");
 
-    const depthSlider = screen.getByLabelText(/technical depth.*simple to expert/i) as HTMLInputElement;
+    const depthSlider = screen.getByLabelText(
+      /technical depth.*simple to expert/i,
+    ) as HTMLInputElement;
     expect(depthSlider.value).toBe("9");
   });
 
@@ -110,7 +114,9 @@ describe("VoiceSettings", () => {
     const lengthSlider = screen.getByLabelText(/length.*brief to detailed/i) as HTMLInputElement;
     expect(lengthSlider.value).toBe("5");
 
-    const depthSlider = screen.getByLabelText(/technical depth.*simple to expert/i) as HTMLInputElement;
+    const depthSlider = screen.getByLabelText(
+      /technical depth.*simple to expert/i,
+    ) as HTMLInputElement;
     expect(depthSlider.value).toBe("5");
   });
 
@@ -177,12 +183,15 @@ describe("VoiceSettings", () => {
     expect(mockInvoke).not.toHaveBeenCalledWith("update_voice_parameters", expect.anything());
 
     // Wait for debounce (300ms) + execution
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", {
-        userId: "default",
-        params: { tone_score: 8 },
-      });
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", {
+          userId: "default",
+          params: { tone_score: 8 },
+        });
+      },
+      { timeout: 1000 },
+    );
   });
 
   // AC: Shows "Saving..." indicator during save
@@ -210,9 +219,12 @@ describe("VoiceSettings", () => {
     fireEvent.change(toneSlider, { target: { value: "8" } });
 
     // Should show "Saving..." after debounce
-    await waitFor(() => {
-      expect(screen.getByText(/saving/i)).toBeInTheDocument();
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/saving/i)).toBeInTheDocument();
+      },
+      { timeout: 1000 },
+    );
 
     // Resolve save
     saveResolver!();
@@ -236,9 +248,12 @@ describe("VoiceSettings", () => {
     fireEvent.change(toneSlider, { target: { value: "8" } });
 
     // Wait for save to complete
-    await waitFor(() => {
-      expect(screen.getByText(/✓ saved/i)).toBeInTheDocument();
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/✓ saved/i)).toBeInTheDocument();
+      },
+      { timeout: 1000 },
+    );
   });
 
   // AC: Handles save errors
@@ -258,9 +273,12 @@ describe("VoiceSettings", () => {
     const toneSlider = screen.getByLabelText(/tone.*formal to casual/i);
     fireEvent.change(toneSlider, { target: { value: "8" } });
 
-    await waitFor(() => {
-      expect(screen.getByText(/failed to save/i)).toBeInTheDocument();
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/failed to save/i)).toBeInTheDocument();
+      },
+      { timeout: 1000 },
+    );
   });
 
   // AC: Multiple rapid changes only trigger one save
@@ -277,19 +295,22 @@ describe("VoiceSettings", () => {
 
     // Make multiple rapid changes
     fireEvent.change(toneSlider, { target: { value: "7" } });
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
     fireEvent.change(toneSlider, { target: { value: "8" } });
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
     fireEvent.change(toneSlider, { target: { value: "9" } });
 
     // Should only save once with final value after debounce
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledTimes(2); // 1 for load, 1 for save
-      expect(mockInvoke).toHaveBeenLastCalledWith("update_voice_parameters", {
-        userId: "default",
-        params: { tone_score: 9 },
-      });
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(mockInvoke).toHaveBeenCalledTimes(2); // 1 for load, 1 for save
+        expect(mockInvoke).toHaveBeenLastCalledWith("update_voice_parameters", {
+          userId: "default",
+          params: { tone_score: 9 },
+        });
+      },
+      { timeout: 1000 },
+    );
   });
 
   // AC: Each slider updates independently
@@ -306,12 +327,15 @@ describe("VoiceSettings", () => {
     const toneSlider = screen.getByLabelText(/tone.*formal to casual/i);
     fireEvent.change(toneSlider, { target: { value: "7" } });
 
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", {
-        userId: "default",
-        params: { tone_score: 7 },
-      });
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", {
+          userId: "default",
+          params: { tone_score: 7 },
+        });
+      },
+      { timeout: 1000 },
+    );
 
     mockInvoke.mockClear();
 
@@ -319,12 +343,15 @@ describe("VoiceSettings", () => {
     const lengthSlider = screen.getByLabelText(/length.*brief to detailed/i);
     fireEvent.change(lengthSlider, { target: { value: "3" } });
 
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", {
-        userId: "default",
-        params: { length_preference: 3 },
-      });
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", {
+          userId: "default",
+          params: { length_preference: 3 },
+        });
+      },
+      { timeout: 1000 },
+    );
   });
 
   // AC: ARIA labels for accessibility
@@ -344,7 +371,9 @@ describe("VoiceSettings", () => {
     const lengthSlider = screen.getByLabelText(/length.*brief to detailed.*currently.*out of 10/i);
     expect(lengthSlider).toHaveAttribute("aria-valuetext");
 
-    const depthSlider = screen.getByLabelText(/technical depth.*simple to expert.*currently.*out of 10/i);
+    const depthSlider = screen.getByLabelText(
+      /technical depth.*simple to expert.*currently.*out of 10/i,
+    );
     expect(depthSlider).toHaveAttribute("aria-valuetext");
   });
 
@@ -362,9 +391,12 @@ describe("VoiceSettings", () => {
     fireEvent.change(toneSlider, { target: { value: "8" } });
 
     // Wait for status message
-    const statusElement = await waitFor(() => {
-      return screen.getByText(/✓ saved/i);
-    }, { timeout: 1000 });
+    const statusElement = await waitFor(
+      () => {
+        return screen.getByText(/✓ saved/i);
+      },
+      { timeout: 1000 },
+    );
 
     // Should have aria-live for screen reader announcements
     expect(statusElement.closest('[aria-live="polite"]')).toBeInTheDocument();
@@ -418,7 +450,9 @@ describe("VoiceSettings", () => {
     const lengthSlider = screen.getByLabelText(/length.*brief to detailed/i) as HTMLInputElement;
     expect(lengthSlider.value).toBe("3.5");
 
-    const depthSlider = screen.getByLabelText(/technical depth.*simple to expert/i) as HTMLInputElement;
+    const depthSlider = screen.getByLabelText(
+      /technical depth.*simple to expert/i,
+    ) as HTMLInputElement;
     expect(depthSlider.value).toBe("8.5");
 
     // Verify labels display correctly for half-point values
@@ -442,12 +476,15 @@ describe("VoiceSettings", () => {
     // Change to half-point value
     fireEvent.change(toneSlider, { target: { value: "6.5" } });
 
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", {
-        userId: DEFAULT_USER_ID,
-        params: { tone_score: 6.5 },
-      });
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", {
+          userId: DEFAULT_USER_ID,
+          params: { tone_score: 6.5 },
+        });
+      },
+      { timeout: 1000 },
+    );
   });
 
   // [AI-Review] Test that constants are used correctly
@@ -464,13 +501,16 @@ describe("VoiceSettings", () => {
     fireEvent.change(toneSlider, { target: { value: "8" } });
 
     // Should not save before debounce period
-    await new Promise(resolve => setTimeout(resolve, VOICE_SAVE_DEBOUNCE_MS - 50));
+    await new Promise((resolve) => setTimeout(resolve, VOICE_SAVE_DEBOUNCE_MS - 50));
     expect(mockInvoke).not.toHaveBeenCalledWith("update_voice_parameters", expect.anything());
 
     // Should save after debounce period
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", expect.anything());
-    }, { timeout: 500 });
+    await waitFor(
+      () => {
+        expect(mockInvoke).toHaveBeenCalledWith("update_voice_parameters", expect.anything());
+      },
+      { timeout: 500 },
+    );
   });
 
   // [AI-Review] Test dark mode CSS classes exist
@@ -494,9 +534,12 @@ describe("VoiceSettings", () => {
     const toneSlider = screen.getByLabelText(/tone.*formal to casual/i);
     fireEvent.change(toneSlider, { target: { value: "8" } });
 
-    await waitFor(() => {
-      const statusElement = container.querySelector(".voice-settings-status");
-      expect(statusElement).toBeInTheDocument();
-    }, { timeout: 1000 });
+    await waitFor(
+      () => {
+        const statusElement = container.querySelector(".voice-settings-status");
+        expect(statusElement).toBeInTheDocument();
+      },
+      { timeout: 1000 },
+    );
   });
 });

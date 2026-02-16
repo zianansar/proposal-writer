@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
 
 interface ExportResult {
   success: boolean;
@@ -37,11 +37,7 @@ function ExportButton({ className }: ExportButtonProps) {
 
   return (
     <div className={`export-button-container ${className || ""}`}>
-      <button
-        onClick={handleExport}
-        disabled={isExporting}
-        className="export-button"
-      >
+      <button onClick={handleExport} disabled={isExporting} className="export-button">
         {isExporting ? "Exporting..." : "Export to JSON"}
       </button>
 

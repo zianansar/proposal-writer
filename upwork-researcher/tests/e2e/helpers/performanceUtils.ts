@@ -84,7 +84,7 @@ export class PerformanceTimer {
  */
 export async function measureAsync<T>(
   operation: () => Promise<T>,
-  label: string
+  label: string,
 ): Promise<{ result: T; duration: number }> {
   const start = Date.now();
   const result = await operation();
@@ -101,11 +101,11 @@ export async function measureAsync<T>(
 export function assertPerformanceThreshold(
   actualMs: number,
   thresholdMs: number,
-  metricName: string
+  metricName: string,
 ): void {
   if (actualMs > thresholdMs) {
     throw new Error(
-      `Performance threshold exceeded for ${metricName}: ${actualMs}ms > ${thresholdMs}ms`
+      `Performance threshold exceeded for ${metricName}: ${actualMs}ms > ${thresholdMs}ms`,
     );
   }
 
@@ -116,7 +116,7 @@ export function assertPerformanceThreshold(
  * Log performance metrics summary
  */
 export function logPerformanceSummary(metrics: PerformanceMetrics): void {
-  console.log('\n=== Performance Summary ===');
+  console.log("\n=== Performance Summary ===");
 
   Object.entries(metrics).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -124,7 +124,7 @@ export function logPerformanceSummary(metrics: PerformanceMetrics): void {
     }
   });
 
-  console.log('==========================\n');
+  console.log("==========================\n");
 }
 
 /**
@@ -138,9 +138,7 @@ export function validatePerformanceMetrics(metrics: PerformanceMetrics): {
 
   // NFR-1: Cold start
   if (metrics.coldStart !== undefined && metrics.coldStart > PERFORMANCE_THRESHOLDS.COLD_START_MS) {
-    failures.push(
-      `Cold start: ${metrics.coldStart}ms > ${PERFORMANCE_THRESHOLDS.COLD_START_MS}ms`
-    );
+    failures.push(`Cold start: ${metrics.coldStart}ms > ${PERFORMANCE_THRESHOLDS.COLD_START_MS}ms`);
   }
 
   // NFR-5: First token
@@ -149,7 +147,7 @@ export function validatePerformanceMetrics(metrics: PerformanceMetrics): {
     metrics.firstToken > PERFORMANCE_THRESHOLDS.FIRST_TOKEN_MS
   ) {
     failures.push(
-      `First token: ${metrics.firstToken}ms > ${PERFORMANCE_THRESHOLDS.FIRST_TOKEN_MS}ms`
+      `First token: ${metrics.firstToken}ms > ${PERFORMANCE_THRESHOLDS.FIRST_TOKEN_MS}ms`,
     );
   }
 
@@ -159,7 +157,7 @@ export function validatePerformanceMetrics(metrics: PerformanceMetrics): {
     metrics.fullGeneration > PERFORMANCE_THRESHOLDS.FULL_GENERATION_MS
   ) {
     failures.push(
-      `Full generation: ${metrics.fullGeneration}ms > ${PERFORMANCE_THRESHOLDS.FULL_GENERATION_MS}ms`
+      `Full generation: ${metrics.fullGeneration}ms > ${PERFORMANCE_THRESHOLDS.FULL_GENERATION_MS}ms`,
     );
   }
 
@@ -169,7 +167,7 @@ export function validatePerformanceMetrics(metrics: PerformanceMetrics): {
     metrics.clipboardCopy > PERFORMANCE_THRESHOLDS.UI_RESPONSE_MS
   ) {
     failures.push(
-      `Clipboard copy: ${metrics.clipboardCopy}ms > ${PERFORMANCE_THRESHOLDS.UI_RESPONSE_MS}ms`
+      `Clipboard copy: ${metrics.clipboardCopy}ms > ${PERFORMANCE_THRESHOLDS.UI_RESPONSE_MS}ms`,
     );
   }
 
