@@ -107,6 +107,8 @@ function AppContent() {
   // Story 9.7: Auto-update settings
   const autoUpdateEnabled = useSettingsStore(getAutoUpdateEnabled);
   const skippedVersion = useSettingsStore(getSkippedVersion);
+  // CR R1 H-4 + M-4: Store setter for settings persistence (avoids direct invoke)
+  const storeSetting = useSettingsStore((state) => state.setSetting);
 
   // Perplexity analysis state (Stories 3.1 + 3.2 integration)
   const [perplexityAnalysis, setPerplexityAnalysis] = useState<PerplexityAnalysis | null>(null);
@@ -121,11 +123,21 @@ function AppContent() {
   // Story 8.13 Task 4.3: Network blocked notification
   const networkBlockedToast = useNetworkBlockedNotification();
 
+  // Story 9.9 Task 5.5: Rollback notification toast
+  const [rollbackToast, setRollbackToast] = useState<string | null>(null);
+
+  // CR R1 M-4: Persist lastUpdateCheck timestamp on background checks
+  const handleBackgroundCheckComplete = useCallback(() => {
+    storeSetting("last_update_check", new Date().toISOString()).catch(() => {});
+  }, [storeSetting]);
+
   // Story 9.8: Mandatory critical update enforcement
   // Story 9.7 & 9.8: Auto-updater with UI notification support
   const {
     pendingCriticalUpdate, // Story 9.8
     updateInfo,
+    checkForUpdate, // CR R1 H-1: Passed to SettingsPanel as prop
+    isChecking, // CR R1 H-1: Passed to SettingsPanel as prop
     downloadAndInstall,
     retryDownload, // Story 9.8
     relaunchApp,
@@ -139,6 +151,7 @@ function AppContent() {
   } = useUpdater({
     autoCheckEnabled: autoUpdateEnabled,
     skippedVersion,
+    onCheckComplete: handleBackgroundCheckComplete, // CR R1 M-4
   });
 
   // Story 9.7: Auto-update notification handlers
@@ -157,15 +170,13 @@ function AppContent() {
   const handleSkipVersion = useCallback(async () => {
     if (updateInfo) {
       try {
-        await invoke("set_setting", {
-          key: "skipped_version",
-          value: updateInfo.version,
-        });
+        // CR R1 H-4: Use store setter to keep state in sync
+        await storeSetting("skipped_version", updateInfo.version);
       } catch (err) {
         console.error("Failed to skip version:", err);
       }
     }
-  }, [updateInfo]);
+  }, [updateInfo, storeSetting]);
 
   const handleRestart = useCallback(async () => {
     try {
@@ -390,6 +401,21 @@ function AppContent() {
           // Non-blocking - learning is optional enhancement
         });
 
+      // Story 9.9 Task 5.5: Check if a rollback occurred on previous launch
+      const rollbackPromise = invoke<string | null>("check_and_clear_rollback_command")
+        .then((failedVersion) => {
+          if (failedVersion) {
+            setRollbackToast(failedVersion);
+            // Auto-dismiss after 8 seconds
+            setTimeout(() => setRollbackToast(null), 8000);
+          }
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.error("Failed to check rollback status:", err);
+          }
+        });
+
       // Story 3.7: Also check for downward adjustment on startup (AC8)
       const decreasePromise = invoke<ThresholdSuggestion | null>("check_threshold_decrease")
         .then((suggestion) => {
@@ -414,6 +440,7 @@ function AppContent() {
         cooldownPromise,
         learningPromise,
         decreasePromise,
+        rollbackPromise,
       ]);
       setCheckingApiKey(false);
 
@@ -1166,6 +1193,32 @@ function AppContent() {
         onRemindLater={handleRemindLater}
         onCancel={handleCancelDownload}
       />
+      {/* Story 9.9 Task 5.5: Rollback notification toast */}
+      {rollbackToast && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          style={{
+            position: "fixed",
+            top: "70px",
+            right: "20px",
+            backgroundColor: "#f59e0b",
+            color: "#1a1a1a",
+            padding: "16px 24px",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+            zIndex: 9998,
+            maxWidth: "400px",
+            fontSize: "14px",
+            lineHeight: "1.5",
+          }}
+        >
+          <strong>Update Rolled Back</strong>
+          <div style={{ marginTop: "8px" }}>
+            Update v{rollbackToast} was rolled back. This version has been skipped.
+          </div>
+        </div>
+      )}
       {/* Story 8.13 Task 4.3: Network blocked notification toast */}
       {networkBlockedToast && (
         <div
@@ -1370,7 +1423,7 @@ function AppContent() {
           >
             {activeView === "settings" && (
               <>
-                <SettingsPanel />
+                <SettingsPanel checkForUpdate={checkForUpdate} isChecking={isChecking} />
                 <ApiKeySetup onComplete={() => setActiveView("generate")} existingKey={null} />
                 <div className="settings-section">
                   <h3>Data Export</h3>

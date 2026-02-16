@@ -3,7 +3,7 @@
  * Wraps @tauri-apps/plugin-updater for update checking, downloading, and installation
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { check, Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
@@ -49,6 +49,7 @@ export interface UseUpdaterReturn {
 export interface UseUpdaterOptions {
   autoCheckEnabled?: boolean;
   skippedVersion?: string | null;
+  onCheckComplete?: () => void; // CR R1 M-4: Called after background check completes
 }
 
 /**
@@ -63,7 +64,10 @@ export interface UseUpdaterOptions {
  * update state during navigation.
  */
 export function useUpdater(options?: UseUpdaterOptions): UseUpdaterReturn {
-  const { autoCheckEnabled = true, skippedVersion = null } = options || {};
+  const { autoCheckEnabled = true, skippedVersion = null, onCheckComplete } = options || {};
+
+  // CR R1 H-2: Ref to track cancelled downloads and prevent stale state updates
+  const cancelledRef = useRef(false);
 
   const [isChecking, setIsChecking] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -86,6 +90,7 @@ export function useUpdater(options?: UseUpdaterOptions): UseUpdaterReturn {
    * Cancel in-progress download (Story 9.7 Task 1.4)
    */
   const cancelDownload = useCallback(() => {
+    cancelledRef.current = true; // CR R1 H-2: Signal download callbacks to stop updating state
     setIsDownloading(false);
     setDownloadProgress(0);
     setReceivedBytes(0);
@@ -159,6 +164,7 @@ export function useUpdater(options?: UseUpdaterOptions): UseUpdaterReturn {
       setReceivedBytes(0);
       setTotalBytes(0);
       setIsDownloaded(false);
+      cancelledRef.current = false; // CR R1 H-2: Reset cancelled flag on new download
 
       // Use local variables to avoid stale closure issues
       let contentLength = 0;
@@ -166,6 +172,9 @@ export function useUpdater(options?: UseUpdaterOptions): UseUpdaterReturn {
 
       try {
         await pendingUpdate.downloadAndInstall((event) => {
+          // CR R1 H-2: Skip state updates if download was cancelled
+          if (cancelledRef.current) return;
+
           // Track progress for UI (Story 9.7 Task 1.5)
           if (event.event === 'Started' && event.data?.contentLength) {
             contentLength = event.data.contentLength;
@@ -270,6 +279,10 @@ export function useUpdater(options?: UseUpdaterOptions): UseUpdaterReturn {
           setPendingUpdate(null);
           setPendingCriticalUpdate(false);
         }
+        // CR R1 M-4: Notify caller that background check completed (for timestamp persistence)
+        if (mounted) {
+          onCheckComplete?.();
+        }
       } catch (err) {
         // Swallow errors for background check - non-critical
         console.debug('Background update check failed:', err);
@@ -290,7 +303,7 @@ export function useUpdater(options?: UseUpdaterOptions): UseUpdaterReturn {
         clearInterval(intervalId);
       }
     };
-  }, [autoCheckEnabled, skippedVersion]);
+  }, [autoCheckEnabled, skippedVersion, onCheckComplete]);
 
   // Compute derived state (Task 1.1, 1.2, 1.9, Story 9.8)
   const updateAvailable = Boolean(pendingUpdate && pendingUpdate.version !== skippedVersion);

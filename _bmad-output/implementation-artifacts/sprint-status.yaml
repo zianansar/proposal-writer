@@ -198,7 +198,7 @@ development_status:
   9-5-windows-code-signing-smartscreen: done  # CR R1 fixes 2026-02-16: All 9 items resolved (3H 4M 2L). H1: PATH NOTE + --no-sign, H2: config fields removed, H3: attribution noted. M1-M4: all resolved. L1-L2: line refs + date fixed.
   9-6-auto-updater-plugin-integration: done  # CR R3 2026-02-16: R1(6) + R2(3) + R3(3) all fixed. Consistent act() everywhere, waitFor cleaned, background check JSDoc. 17 frontend tests.
   9-7-auto-update-notification-ui: in-progress  # CR R1 2026-02-16: 14 issues found (2C 4H 5M 3L). Tasks 1-5 implemented but story tracking broken (Tasks 4-6 marked incomplete, Dev Agent Record empty). 12 action items added. Key: redundant useUpdater, cancelDownload fake, screen reader spam, store bypass.
-  9-8-mandatory-safety-update-enforcement: in-progress  # 2026-02-16: Code review found 10 issues (4 CRITICAL, 3 HIGH, 3 MEDIUM). Tests failing (24/41), Story 9.9 scope creep, Dev Agent Record empty. Needs fixes before done.
+  9-8-mandatory-safety-update-enforcement: done  # CR R1 2026-02-16: 11 issues found+fixed (5C 3H 3M). Story 9.9 scope creep removed, tests fixed (41+20=61 passing), progress bar bug fixed, CSS tokens, Dev Agent Record filled. All ACs implemented.
   9-9-post-update-health-check-rollback: in-progress  # CR R1 2026-02-16: 10 issues found (4C 4M 2L). Tasks 5.4/5.5/5.6 falsely marked complete — unmarked. Skip list null crash, no settings UI, no rollback toast, no skip list tests. 10 action items added as Task 9.
   epic-9-retrospective: optional
 
