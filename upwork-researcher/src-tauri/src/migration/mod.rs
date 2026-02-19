@@ -433,7 +433,10 @@ fn verify_migration_counts(
         )));
     }
 
-    if new_settings != old_settings {
+    // New DB may have additional default settings from migrations (e.g., V2 inserts
+    // log_level, safety_threshold that may not exist in old DB), so new_settings >= old_settings
+    // is the correct invariant — same logic as refinery_history below.
+    if new_settings < old_settings {
         return Err(MigrationError::VerificationFailed(format!(
             "Settings count mismatch: old={}, new={}",
             old_settings, new_settings

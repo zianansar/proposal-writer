@@ -835,7 +835,7 @@ mod tests {
 
         // Query all tables to verify access
         assert_eq!(db.query_proposals_count().unwrap(), 0);
-        assert_eq!(db.query_settings_count().unwrap(), 2); // Default settings
+        assert_eq!(db.query_settings_count().unwrap(), 4); // V2 default settings
         assert_eq!(db.query_job_posts_count().unwrap(), 0);
 
         // Verify health check

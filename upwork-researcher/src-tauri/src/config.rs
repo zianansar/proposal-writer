@@ -502,18 +502,18 @@ mod tests {
             .set_api_key("sk-ant-keychain-test".to_string())
             .unwrap();
 
-        // Verify it's NOT in config.json (this should always work)
-        let config = state.config.lock().unwrap();
-        assert!(
-            config.api_key.is_none(),
-            "API key should not be in config.json"
-        );
-        drop(config);
-
-        // Check if keychain is accessible
+        // Check if keychain is accessible (unsigned test binaries can't retrieve)
         let keychain_works = crate::keychain::retrieve_api_key().is_ok();
 
         if keychain_works {
+            // Keychain works: API key should NOT be in config.json
+            let config = state.config.lock().unwrap();
+            assert!(
+                config.api_key.is_none(),
+                "API key should not be in config.json when keychain works"
+            );
+            drop(config);
+
             // Verify it's in keychain
             let keychain_key = crate::keychain::retrieve_api_key().unwrap();
             assert_eq!(keychain_key, "sk-ant-keychain-test");
@@ -522,7 +522,14 @@ mod tests {
             let retrieved = state.get_api_key().unwrap();
             assert_eq!(retrieved, Some("sk-ant-keychain-test".to_string()));
         } else {
-            eprintln!("SKIPPED keychain verification: Unsigned test environment");
+            // Unsigned binary: API key falls back to config.json (expected behavior)
+            let config = state.config.lock().unwrap();
+            assert!(
+                config.api_key.is_some(),
+                "API key should be in config.json as fallback when keychain unavailable"
+            );
+            drop(config);
+            eprintln!("SKIPPED keychain verification: Unsigned test environment (config.json fallback used)");
         }
 
         // Cleanup

@@ -141,7 +141,7 @@ fn test_successful_migration() {
 
     let metadata = result.unwrap();
     assert_eq!(metadata.proposals_count, 5);
-    assert_eq!(metadata.settings_count, 12); // 2 defaults + 10 test
+    assert_eq!(metadata.settings_count, 14); // 4 V2 defaults + 10 test
     assert_eq!(metadata.job_posts_count, 3);
     assert!(
         metadata.refinery_history_count >= 12,
@@ -272,7 +272,7 @@ fn test_encrypted_database_opens_after_migration() {
 
     // Verify migration completed successfully with correct counts
     assert_eq!(metadata.proposals_count, 5);
-    assert_eq!(metadata.settings_count, 12);
+    assert_eq!(metadata.settings_count, 14); // 4 V2 defaults + 10 test
     assert_eq!(metadata.job_posts_count, 3);
 
     // Verify encrypted database file exists
@@ -413,7 +413,7 @@ fn test_migration_with_empty_database() {
 
     let metadata = result.unwrap();
     assert_eq!(metadata.proposals_count, 0);
-    assert_eq!(metadata.settings_count, 2); // Default settings from migrations
+    assert_eq!(metadata.settings_count, 4); // V2 default settings (theme, api_provider, log_level, safety_threshold)
     assert_eq!(metadata.job_posts_count, 0);
     assert!(
         metadata.refinery_history_count >= 12,

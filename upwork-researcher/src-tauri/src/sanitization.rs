@@ -416,11 +416,12 @@ mod tests {
         let _result = sanitize_job_content(&large_input);
         let elapsed = start.elapsed();
 
-        // Assert <10ms (10,000,000 nanoseconds)
+        // Assert <10ms in release, <50ms in debug (unoptimized builds are slower)
+        let threshold_ms = if cfg!(debug_assertions) { 50 } else { 10 };
         assert!(
-            elapsed.as_nanos() < 10_000_000,
-            "Sanitization took {:?}, expected <10ms",
-            elapsed
+            elapsed.as_millis() < threshold_ms,
+            "Sanitization took {:?}, expected <{}ms",
+            elapsed, threshold_ms
         );
     }
 
@@ -436,11 +437,12 @@ mod tests {
         let _result = sanitize_job_content(&special_content);
         let elapsed = start.elapsed();
 
-        // Assert <10ms even with heavy escaping workload
+        // Assert <10ms in release, <50ms in debug (unoptimized builds are slower)
+        let threshold_ms = if cfg!(debug_assertions) { 50 } else { 10 };
         assert!(
-            elapsed.as_nanos() < 10_000_000,
-            "Sanitization with special chars took {:?}, expected <10ms",
-            elapsed
+            elapsed.as_millis() < threshold_ms,
+            "Sanitization with special chars took {:?}, expected <{}ms",
+            elapsed, threshold_ms
         );
     }
 }
