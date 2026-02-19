@@ -138,3 +138,48 @@ export const getSkippedVersion = (state: SettingsState): string => {
 export const getLastUpdateCheck = (state: SettingsState): string => {
   return state.settings.last_update_check || "";
 };
+
+// Story 10.5: Remote config settings selectors
+
+/** Last config checked timestamp (Story 10.5 Task 4.1). Defaults to empty string. */
+export const getLastConfigChecked = (state: SettingsState): string => {
+  return state.settings.last_config_checked || "";
+};
+
+/** Last config version fetched (Story 10.5 Task 4.1). Defaults to empty string. */
+export const getLastConfigVersion = (state: SettingsState): string => {
+  return state.settings.last_config_version || "";
+};
+
+/** Config source status (Story 10.5 Task 4.1). Defaults to 'defaults'. */
+export type ConfigSource = "remote" | "cached" | "defaults";
+
+export const getConfigSource = (state: SettingsState): ConfigSource => {
+  const value = state.settings.config_source;
+  if (value === "remote" || value === "cached" || value === "defaults") {
+    return value;
+  }
+  return "defaults";
+};
+
+/** New strategies first-seen JSON map (Story 10.5 Task 4.1). Defaults to empty object. */
+export const getNewStrategiesFirstSeen = (state: SettingsState): Record<string, string> => {
+  const raw = state.settings.new_strategies_first_seen;
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as Record<string, string>;
+  } catch {
+    return {};
+  }
+};
+
+/** New strategies dismissed JSON map (Story 10.5 Task 4.1). Defaults to empty object. */
+export const getNewStrategiesDismissed = (state: SettingsState): Record<string, boolean> => {
+  const raw = state.settings.new_strategies_dismissed;
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+};

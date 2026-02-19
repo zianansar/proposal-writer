@@ -25,6 +25,8 @@ export interface AutoUpdateNotificationProps {
   onRestart: () => void;
   onRemindLater: () => void;
   onCancel: () => void;
+  /** CR R2 H-1: Notify parent when toast becomes hidden (auto-dismiss, Escape, or button) */
+  onToastHidden?: () => void;
 }
 
 type NotificationState = 'hidden' | 'toast' | 'downloading' | 'ready' | 'dismissed';
@@ -41,10 +43,14 @@ export function AutoUpdateNotification({
   onRestart,
   onRemindLater,
   onCancel,
+  onToastHidden,
 }: AutoUpdateNotificationProps) {
   const [state, setState] = useState<NotificationState>('hidden');
-  const [dismissed, setDismissed] = useState(false);
+  // CR R1 M-2: Track dismissed version so new versions still show notification
+  const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
   const announce = useAnnounce();
+  // CR R1 H-3: Track last announced milestone to avoid screen reader flooding
+  const lastAnnouncedRef = useRef<number>(-1);
 
   // Focus trap for restart dialog
   const dialogRef = useRef<HTMLElement>(null);
@@ -52,7 +58,13 @@ export function AutoUpdateNotification({
 
   // Determine current state based on props
   useEffect(() => {
-    if (dismissed) {
+    // CR R1 H-3: Reset announce milestone tracker when not downloading
+    if (!isDownloading) {
+      lastAnnouncedRef.current = -1;
+    }
+
+    // CR R1 M-2: Only hide if this specific version was dismissed (not downloading/downloaded)
+    if (dismissedVersion && updateInfo?.version === dismissedVersion && !isDownloading && !isDownloaded) {
       setState('hidden');
       return;
     }
@@ -62,63 +74,78 @@ export function AutoUpdateNotification({
       announce('Update downloaded. Ready to restart.');
     } else if (isDownloading) {
       setState('downloading');
-      announce(`Downloading update: ${downloadProgress}%`);
+      // CR R1 H-3: Only announce at 25% milestones to avoid flooding screen readers
+      const milestone = Math.floor(downloadProgress / 25) * 25;
+      if (milestone !== lastAnnouncedRef.current) {
+        lastAnnouncedRef.current = milestone;
+        announce(`Downloading update: ${downloadProgress}%`);
+      }
     } else if (updateAvailable && updateInfo) {
       setState('toast');
       announce(`Update available: version ${updateInfo.version}`);
     } else {
       setState('hidden');
     }
-  }, [updateAvailable, updateInfo, isDownloading, isDownloaded, downloadProgress, dismissed, announce]);
+  }, [updateAvailable, updateInfo, isDownloading, isDownloaded, downloadProgress, dismissedVersion, announce]);
+
+  // CR R2 H-1: Notify parent when toast transitions FROM visible TO hidden
+  // (not on initial render, which starts in 'hidden')
+  const prevStateRef = useRef<NotificationState>('hidden');
+  useEffect(() => {
+    if (state === 'hidden' && prevStateRef.current !== 'hidden') {
+      onToastHidden?.();
+    }
+    prevStateRef.current = state;
+  }, [state, onToastHidden]);
 
   // Auto-dismiss toast after 10 seconds (AC-1)
   useEffect(() => {
     if (state === 'toast') {
       const timer = setTimeout(() => {
-        setDismissed(true);
+        setDismissedVersion(updateInfo?.version ?? null);
       }, 10000);
 
       return () => clearTimeout(timer);
     }
-  }, [state]);
+  }, [state, updateInfo]);
 
   // Escape key handler for toast (Task 3.8)
   useEffect(() => {
     if (state === 'toast') {
       const handleEscape = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
-          setDismissed(true);
+          setDismissedVersion(updateInfo?.version ?? null);
         }
       };
 
       window.addEventListener('keydown', handleEscape);
       return () => window.removeEventListener('keydown', handleEscape);
     }
-  }, [state]);
+  }, [state, updateInfo]);
 
   const handleUpdateNow = useCallback(() => {
-    setDismissed(false);
+    setDismissedVersion(null);
     onUpdateNow();
   }, [onUpdateNow]);
 
   const handleLater = useCallback(() => {
-    setDismissed(true);
+    setDismissedVersion(updateInfo?.version ?? null);
     onLater();
-  }, [onLater]);
+  }, [onLater, updateInfo]);
 
   const handleSkip = useCallback(() => {
-    setDismissed(true);
+    setDismissedVersion(updateInfo?.version ?? null);
     onSkip();
-  }, [onSkip]);
+  }, [onSkip, updateInfo]);
 
   const handleRestart = useCallback(() => {
     onRestart();
   }, [onRestart]);
 
   const handleRemindLater = useCallback(() => {
-    setDismissed(true);
+    setDismissedVersion(updateInfo?.version ?? null);
     onRemindLater();
-  }, [onRemindLater]);
+  }, [onRemindLater, updateInfo]);
 
   const handleCancel = useCallback(() => {
     onCancel();

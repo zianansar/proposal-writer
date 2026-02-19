@@ -1,17 +1,13 @@
 /**
- * Rollback Dialog Component (Story 9.9 Task 7.3)
+ * Rollback Dialog Component (Story 9.9 Task 7.3, TD2.3 Task 3)
  *
  * Dialog shown when health check fails and rollback is triggered.
  * Displays version info and reason for rollback.
- *
- * NOTE: This is a stub implementation. Full implementation requires:
- * - Integration with rollback execution flow
- * - Restart button wired to actual app restart
- * - Error handling for rollback failures
- * - Accessibility testing
+ * Wired to App.tsx health check orchestration (TD2.3).
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import './RollbackDialog.css';
 
 export interface RollbackDialogProps {
@@ -29,6 +25,11 @@ export const RollbackDialog: React.FC<RollbackDialogProps> = ({
   reason,
   onRestart,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Task 3.4: Focus trap — keeps keyboard focus within dialog (AC-6)
+  // autoFocus=false because the restart button already has the autoFocus attribute
+  useFocusTrap(dialogRef as React.RefObject<HTMLElement>, { autoFocus: false });
+
   if (!isOpen) return null;
 
   return (
@@ -38,6 +39,7 @@ export const RollbackDialog: React.FC<RollbackDialogProps> = ({
       aria-modal="true"
       aria-labelledby="rollback-title"
       aria-describedby="rollback-description"
+      ref={dialogRef}
     >
       <div className="rollback-dialog">
         <div className="rollback-icon" aria-hidden="true">

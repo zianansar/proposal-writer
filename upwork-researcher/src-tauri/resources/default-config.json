@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0.0",
+  "min_app_version": "0.1.0",
+  "updated_at": "2026-02-17T00:00:00Z",
+  "strategies": [
+    {
+      "id": "social-proof",
+      "name": "Social Proof",
+      "description": "Build credibility through past work and client outcomes. Demonstrates relevant experience and proven track record to establish trust with potential clients.",
+      "examples": [
+        "I recently completed a similar project for [client], delivering [specific outcome]...",
+        "In my last 5 projects in this domain, I achieved an average [metric] of [value]...",
+        "My portfolio includes work for [recognizable brands/companies] where I...",
+        "[Client testimonial quote] - [Client Name, Title]"
+      ],
+      "best_for": "Projects where you have highly relevant past experience and can reference specific outcomes or recognizable clients",
+      "status": "active",
+      "ab_weight": 0.2
+    },
+    {
+      "id": "contrarian",
+      "name": "Contrarian Approach",
+      "description": "Challenge conventional approaches and offer a differentiated perspective. Positions you as a critical thinker who goes beyond surface-level solutions.",
+      "examples": [
+        "Most freelancers would approach this by [common method], but I'd take a different angle: [your approach]...",
+        "The typical solution here is [X], but based on my experience, that often leads to [problem]. Here's what I'd do instead...",
+        "I noticed your job post mentions [approach]. Have you considered that this might actually [potential issue]? Here's an alternative...",
+        "Rather than following the standard playbook, I'd recommend [unconventional strategy] because..."
+      ],
+      "best_for": "Clients who have tried multiple approaches unsuccessfully, or projects where conventional solutions have clear limitations",
+      "status": "active",
+      "ab_weight": 0.2
+    },
+    {
+      "id": "immediate-value",
+      "name": "Immediate Value",
+      "description": "Lead with actionable insights or specific observations about their project. Demonstrates expertise by providing value upfront before being hired.",
+      "examples": [
+        "I noticed three specific improvements that could boost your [metric]: [1], [2], [3]...",
+        "Looking at your [asset/codebase/existing work], I spotted [specific issue] which is likely causing [problem]. Here's how to fix it...",
+        "Quick win: You could increase [outcome] by 20% just by [specific tactical suggestion]...",
+        "I analyzed your [deliverable] and created a brief audit. The top priority should be..."
+      ],
+      "best_for": "Projects where you can quickly identify issues or opportunities from publicly available information",
+      "status": "active",
+      "ab_weight": 0.2
+    },
+    {
+      "id": "problem-aware",
+      "name": "Problem-Aware",
+      "description": "Demonstrate deep understanding of the underlying challenges and pain points. Shows empathy and domain expertise by articulating problems the client may not have fully expressed.",
+      "examples": [
+        "The challenge you're describing usually stems from [root cause]. Here's why that happens and how to address it...",
+        "I've seen this issue before - it typically means [diagnosis]. The real problem is [deeper issue], not just [surface symptom]...",
+        "Based on your job post, you're likely also dealing with [related challenge]. Here's the pattern I've observed...",
+        "The reason [their approach] isn't working is probably because [insight about their context]..."
+      ],
+      "best_for": "Complex projects where demonstrating deep domain understanding is critical, or when the job post suggests underlying frustrations",
+      "status": "active",
+      "ab_weight": 0.2
+    },
+    {
+      "id": "question-based",
+      "name": "Question-Based",
+      "description": "Open with thoughtful questions that reveal expertise and start a consultative conversation. Shows you understand the nuances and won't jump to premature solutions.",
+      "examples": [
+        "Before diving in, I'd love to understand: what does success look like for this project in 6 months?",
+        "Have you already tried [common approach]? If so, what specific results did you see?",
+        "To propose the right solution, I need to clarify: is your primary goal [A] or [B]? They require very different approaches...",
+        "Quick question: are you looking to [approach 1] or [approach 2]? The answer will shape my entire recommendation..."
+      ],
+      "best_for": "Projects with ambiguous requirements, or when building a consultative relationship is more important than quick answers",
+      "status": "active",
+      "ab_weight": 0.2
+    }
+  ]
+}

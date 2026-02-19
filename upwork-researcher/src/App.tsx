@@ -9,6 +9,7 @@ import AnalyzeButton from "./components/AnalyzeButton";
 // import HistoryList from "./components/HistoryList";
 import ApiKeySetup from "./components/ApiKeySetup";
 import { AutoUpdateNotification } from "./components/AutoUpdateNotification"; // Story 9.7
+import { ConfigUpdateNotification } from "./components/ConfigUpdateNotification"; // Story 10.5
 import { DatabaseMigration } from "./components/DatabaseMigration";
 import DraftRecoveryModal from "./components/DraftRecoveryModal";
 import EncryptionDetailsModal from "./components/EncryptionDetailsModal";
@@ -16,6 +17,8 @@ import EncryptionStatusIndicator from "./components/EncryptionStatusIndicator";
 import type { EncryptionStatus } from "./components/EncryptionStatusIndicator";
 import ExportButton from "./components/ExportButton";
 import GenerateButton from "./components/GenerateButton";
+import { HealthCheckModal } from "./components/HealthCheckModal"; // Story TD2.3
+import type { HealthCheckProgress } from "./components/HealthCheckModal"; // Story TD2.3
 import HookStrategySelector from "./components/HookStrategySelector"; // Story 5.2
 import JobAnalysisPanel from "./components/JobAnalysisPanel"; // Story 4a.7
 import JobInput from "./components/JobInput";
@@ -30,6 +33,7 @@ import PassphraseUnlock from "./components/PassphraseUnlock"; // Story 2-7b
 import { PreMigrationBackup } from "./components/PreMigrationBackup";
 import ProposalOutput from "./components/ProposalOutput";
 import RecoveryOptions from "./components/RecoveryOptions";
+import { RollbackDialog } from "./components/RollbackDialog"; // Story TD2.3
 import SafetyWarningModal from "./components/SafetyWarningModal";
 import SettingsPanel from "./components/SettingsPanel";
 import SkipLink from "./components/SkipLink"; // Story 8.2
@@ -44,7 +48,11 @@ import {
 import { useGenerationStream } from "./hooks/useGenerationStream";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useNetworkBlockedNotification } from "./hooks/useNetworkBlockedNotification"; // Story 8.13 Task 4.3
+import { useNotificationQueue } from "./hooks/useNotificationQueue"; // Story 10.5
+import type { ConfigUpdatePayload } from "./hooks/useNotificationQueue"; // CR R2 L-2
 import { useRehumanization } from "./hooks/useRehumanization";
+import { useRemoteConfig } from "./hooks/useRemoteConfig"; // Story 10.5
+import type { StrategiesUpdatedPayload } from "./hooks/useRemoteConfig"; // Story 10.5
 import { useSafeCopy } from "./hooks/useSafeCopy";
 import { useUpdater } from "./hooks/useUpdater"; // Story 9.8
 import { useGenerationStore, getStreamedText } from "./stores/useGenerationStore";
@@ -59,6 +67,20 @@ import type { PerplexityAnalysis } from "./types/perplexity";
 import { DEFAULT_PERPLEXITY_THRESHOLD } from "./types/perplexity";
 import "./styles/tokens.css";
 import "./App.css";
+
+// Story TD2.3: Health check types (AC-2, AC-3)
+interface HealthCheckFailure {
+  check: string;
+  error: string;
+  critical: boolean;
+}
+
+interface HealthCheckReport {
+  passed: boolean;
+  checks_run: number;
+  failures: HealthCheckFailure[];
+  duration_ms: number;
+}
 
 type View = "generate" | "history" | "settings" | "proposal-detail" | "analytics";
 type MigrationPhase =
@@ -126,6 +148,23 @@ function AppContent() {
   // Story 9.9 Task 5.5: Rollback notification toast
   const [rollbackToast, setRollbackToast] = useState<string | null>(null);
 
+  // Story TD2.3: Health check orchestration state (AC-1, AC-2, AC-3)
+  const [healthCheckOpen, setHealthCheckOpen] = useState(false);
+  const [healthCheckProgress, setHealthCheckProgress] = useState<HealthCheckProgress>({
+    currentCheck: 0,
+    totalChecks: 4,
+    checkName: "",
+  });
+  const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
+  const [rollbackFailedVersion, setRollbackFailedVersion] = useState("");
+  const [rollbackPreviousVersion, setRollbackPreviousVersion] = useState("");
+  const [rollbackReason, setRollbackReason] = useState("");
+  const [updateSuccessToast, setUpdateSuccessToast] = useState<string | null>(null);
+
+  // CR R2 H-1: Track whether the auto-update toast is actually visible
+  // (updateAvailable stays true after auto-dismiss, so we need separate tracking)
+  const [autoUpdateToastHidden, setAutoUpdateToastHidden] = useState(false);
+
   // CR R1 M-4: Persist lastUpdateCheck timestamp on background checks
   const handleBackgroundCheckComplete = useCallback(() => {
     storeSetting("last_update_check", new Date().toISOString()).catch(() => {});
@@ -186,6 +225,11 @@ function AppContent() {
     }
   }, [relaunchApp]);
 
+  // Story TD2.3: Restart app after health-check rollback (AC-3, AC-6)
+  const handleRollbackRestart = useCallback(async () => {
+    await relaunchApp().catch(() => {});
+  }, [relaunchApp]);
+
   const handleRemindLater = useCallback(() => {
     // User dismissed restart dialog - will be prompted again later
   }, []);
@@ -194,6 +238,66 @@ function AppContent() {
     cancelDownload();
     clearError();
   }, [cancelDownload, clearError]);
+
+  // CR R2 H-1: Reset toast hidden tracking when a new update becomes available
+  useEffect(() => {
+    if (updateAvailable) {
+      setAutoUpdateToastHidden(false);
+    }
+  }, [updateAvailable]);
+
+  // CR R2 H-1: Handler for when AutoUpdateNotification toast becomes hidden
+  const handleAutoUpdateToastHidden = useCallback(() => {
+    setAutoUpdateToastHidden(true);
+  }, []);
+
+  // CR R1 M-1: Keyboard-dismissable success toast (AC-4)
+  useEffect(() => {
+    if (!updateSuccessToast) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setUpdateSuccessToast(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [updateSuccessToast]);
+
+  // Story 10.5 C-1: Notification queue for config updates (AC-6)
+  const { currentNotification, enqueueNotification, dismissCurrent } = useNotificationQueue();
+
+  // Story 10.5 C-2: Handle strategies:updated event from remote config sync
+  const handleStrategiesUpdated = useCallback(
+    (payload: StrategiesUpdatedPayload) => {
+      // Enqueue config-update notification (normal priority, below app-update)
+      enqueueNotification(
+        "config-update",
+        {
+          newCount: payload.newCount,
+          updatedCount: payload.updatedCount,
+        },
+        "normal",
+      );
+
+      // C-2b: Record new strategy IDs for "New" badge display (Task 6.4)
+      if (payload.newStrategies.length > 0) {
+        const now = new Date().toISOString();
+        const raw = useSettingsStore.getState().settings["new_strategies_first_seen"];
+        const current: Record<string, string> = raw ? JSON.parse(raw) : {};
+        for (const remoteId of payload.newStrategies) {
+          if (!current[remoteId]) {
+            current[remoteId] = now;
+          }
+        }
+        useSettingsStore
+          .getState()
+          .setSetting("new_strategies_first_seen", JSON.stringify(current))
+          .catch(() => {});
+      }
+    },
+    [enqueueNotification],
+  );
+
+  // Story 10.5 C-2: Listen for strategies:updated Tauri event
+  useRemoteConfig({ onStrategiesUpdated: handleStrategiesUpdated });
 
   // Streaming state from Zustand store
   const {
@@ -247,10 +351,14 @@ function AppContent() {
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // M2 Code Review Fix: Separate ref for auto-dismiss timer to prevent overwrite
   const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // CR R1 M-3: Health check progress animation timer refs for cleanup
+  const healthCheckTimerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Story 4a.6: Cleanup timers on unmount
   // M2 Code Review Fix: Include autoDismissTimerRef in cleanup
+  // CR R1 M-3: Include healthCheckTimerIds in cleanup
   useEffect(() => {
+    const hcTimers = healthCheckTimerIds.current;
     return () => {
       if (extractingTimerRef.current) {
         clearTimeout(extractingTimerRef.current);
@@ -261,6 +369,7 @@ function AppContent() {
       if (autoDismissTimerRef.current) {
         clearTimeout(autoDismissTimerRef.current);
       }
+      hcTimers.forEach(clearTimeout);
     };
   }, []);
 
@@ -443,6 +552,101 @@ function AppContent() {
         rollbackPromise,
       ]);
       setCheckingApiKey(false);
+
+      // Story TD2.3: Post-update health check orchestration (AC-1, AC-2, AC-3)
+      // Runs after loading screen clears so the HealthCheckModal gate can block the main UI.
+      try {
+        const updateDetected = await invoke<boolean>("detect_update_command");
+        if (updateDetected) {
+          const prevVersion = await invoke<string | null>("get_installed_version_command");
+          setHealthCheckOpen(true);
+          // Animate progress through the 4 known health checks (Task 2.4)
+          const checkNames = [
+            "Database connection",
+            "Database integrity",
+            "Schema version",
+            "Settings accessible",
+          ];
+          // CR R1 M-3: Store timer IDs for cleanup
+          healthCheckTimerIds.current = checkNames.map((name, i) =>
+            setTimeout(
+              () => setHealthCheckProgress({ currentCheck: i + 1, totalChecks: 4, checkName: name }),
+              i * 600
+            )
+          );
+          const report = await invoke<HealthCheckReport>("run_health_checks_command");
+          // CR R1 M-3: Clear orphaned animation timers before closing modal
+          healthCheckTimerIds.current.forEach(clearTimeout);
+          healthCheckTimerIds.current = [];
+          setHealthCheckOpen(false);
+          if (report.passed) {
+            await invoke("set_installed_version_command");
+            // Show success toast with the current binary version
+            const { getVersion } = await import("@tauri-apps/api/app");
+            const newVersion = await getVersion();
+            setUpdateSuccessToast(newVersion);
+            setTimeout(() => setUpdateSuccessToast(null), 5000);
+          } else {
+            // CR R1 H-1: Rollback file ops first, THEN show dialog.
+            // rollback_to_previous_version_command no longer auto-restarts —
+            // the user confirms restart via the RollbackDialog button.
+            await invoke("rollback_to_previous_version_command").catch(() => {});
+            const { getVersion } = await import("@tauri-apps/api/app");
+            const newVersion = await getVersion();
+            const reason = report.failures.map((f: HealthCheckFailure) => f.error).join("; ");
+            setRollbackFailedVersion(newVersion);
+            setRollbackPreviousVersion(prevVersion ?? "unknown");
+            setRollbackReason(reason);
+            setRollbackDialogOpen(true);
+          }
+        }
+      } catch {
+        // CR R1 M-3: Clear orphaned animation timers on error path too
+        healthCheckTimerIds.current.forEach(clearTimeout);
+        healthCheckTimerIds.current = [];
+        setHealthCheckOpen(false); // Never block main UI on health check error
+      }
+
+      // Story 10.5 C-5: Cleanup expired new_strategies_first_seen entries (Task 6.6)
+      try {
+        const store = useSettingsStore.getState();
+        const rawFirstSeen = store.settings["new_strategies_first_seen"];
+        if (rawFirstSeen) {
+          const firstSeen: Record<string, string> = JSON.parse(rawFirstSeen);
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          const now = Date.now();
+          let changed = false;
+          const cleaned: Record<string, string> = {};
+          for (const [id, timestamp] of Object.entries(firstSeen)) {
+            if (now - new Date(timestamp).getTime() <= sevenDaysMs) {
+              cleaned[id] = timestamp;
+            } else {
+              changed = true;
+            }
+          }
+          if (changed) {
+            store
+              .setSetting("new_strategies_first_seen", JSON.stringify(cleaned))
+              .catch(() => {});
+            // Also clean up dismissed entries for expired strategies
+            const rawDismissed = store.settings["new_strategies_dismissed"];
+            if (rawDismissed) {
+              const dismissed: Record<string, boolean> = JSON.parse(rawDismissed);
+              const cleanedDismissed: Record<string, boolean> = {};
+              for (const [id, val] of Object.entries(dismissed)) {
+                if (cleaned[id]) {
+                  cleanedDismissed[id] = val;
+                }
+              }
+              store
+                .setSetting("new_strategies_dismissed", JSON.stringify(cleanedDismissed))
+                .catch(() => {});
+            }
+          }
+        }
+      } catch {
+        // Non-blocking — cleanup is best-effort
+      }
 
       // Check for first launch ONLY if API key is configured (Review Fix: #1, #2, #8)
       // Must check result directly from apiKeyPromise, not hasApiKey state
@@ -1063,6 +1267,11 @@ function AppContent() {
     );
   }
 
+  // Story TD2.3: Block main UI during post-update health checks (AC-1)
+  if (healthCheckOpen) {
+    return <HealthCheckModal isOpen={true} progress={healthCheckProgress} />;
+  }
+
   // Story 9.8 AC-3: Block all app functionality for critical updates
   // This must be checked FIRST, before any other UI renders
   if (pendingCriticalUpdate && updateInfo) {
@@ -1192,6 +1401,22 @@ function AppContent() {
         onRestart={handleRestart}
         onRemindLater={handleRemindLater}
         onCancel={handleCancelDownload}
+        onToastHidden={handleAutoUpdateToastHidden}
+      />
+      {/* Story 10.5 C-1: Config update notification (AC-1, AC-6) */}
+      {/* CR R2 H-1: Use autoUpdateToastHidden to allow config notification after auto-update dismisses */}
+      <ConfigUpdateNotification
+        visible={
+          currentNotification?.type === "config-update" &&
+          !(updateAvailable && !pendingCriticalUpdate && !autoUpdateToastHidden)
+        }
+        changes={
+          (currentNotification?.payload as ConfigUpdatePayload) ?? {
+            newCount: 0,
+            updatedCount: 0,
+          }
+        }
+        onDismiss={dismissCurrent}
       />
       {/* Story 9.9 Task 5.5: Rollback notification toast */}
       {rollbackToast && (
@@ -1216,6 +1441,41 @@ function AppContent() {
           <strong>Update Rolled Back</strong>
           <div style={{ marginTop: "8px" }}>
             Update v{rollbackToast} was rolled back. This version has been skipped.
+          </div>
+        </div>
+      )}
+      {/* Story TD2.3: Health check failure — real-time rollback dialog (AC-3, AC-6) */}
+      <RollbackDialog
+        isOpen={rollbackDialogOpen}
+        failedVersion={rollbackFailedVersion}
+        previousVersion={rollbackPreviousVersion}
+        reason={rollbackReason}
+        onRestart={handleRollbackRestart}
+      />
+      {/* Story TD2.3: Update success toast (AC-2, AC-4) */}
+      {updateSuccessToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            top: "70px",
+            right: "20px",
+            backgroundColor: "var(--color-success-bg)",
+            color: "var(--color-success-text)",
+            border: "1px solid var(--color-success-border)",
+            padding: "16px 24px",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+            zIndex: 9998,
+            maxWidth: "400px",
+            fontSize: "14px",
+            lineHeight: "1.5",
+          }}
+        >
+          <strong>Update Successful</strong>
+          <div style={{ marginTop: "8px" }}>
+            Updated to v{updateSuccessToast} successfully.
           </div>
         </div>
       )}

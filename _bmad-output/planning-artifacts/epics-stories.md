@@ -2841,3 +2841,289 @@ And at most one previous version backup is retained at any time.
 - Database integrity check: verify `PRAGMA integrity_check` returns "ok" and migration version matches expected
 - The rollback mechanism should work even if the new version crashes immediately on startup (use a "pending update" flag that the old binary can read)
 - Consider storing the health check results in the log file for diagnostics
+
+---
+
+## Epic 10: Advanced Configuration & Extensibility [POST-MVP - PRIORITY 3]
+
+**User Outcome:** User benefits from remotely-updated hook strategies without manual app updates, enabling continuous improvement of proposal quality through data-driven hook refinement.
+
+**FRs covered:** FR-18 (dynamic hook configuration)
+**ARs covered:** AR-14 (network allowlist extension for config endpoint)
+
+**Dependency flow:** 10.1 → 10.2 → 10.3 → 10.4 (10.5 can parallel with 10.4)
+
+**What already exists:**
+- `hook_strategies` table with 5 seeded strategies (`db/queries/hook_strategies.rs`)
+- Frontend `HookStrategy` / `ParsedHookStrategy` types (`src/types/hooks.ts`)
+- Hook strategy selection UI (Story 5.2)
+- Network allowlist enforcement: dual-layer CSP + Rust `validate_url()` (`network.rs`)
+- `ALLOWED_DOMAINS: &[&str] = &["api.anthropic.com"]` — needs config endpoint added
+- `config.rs` with minimal `Config` struct (api_key, log_level)
+- Auto-updater pipeline (Epic 9) for app-level updates; this epic handles **config-level** updates
+- Proposal outcome tracking (Epic 7) for measuring hook strategy effectiveness
+- Settings persistence infrastructure (`app_settings` table, `useSettings` hook)
+
+---
+
+### Story 10.1: Remote Config Schema & Fetch Infrastructure
+
+As an administrator,
+I want a well-defined remote config schema with secure fetching and signature verification,
+So that config updates can be delivered reliably and safely to all app instances.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given no remote config infrastructure exists,
+When a JSON schema for remote hook config is defined,
+Then it includes: `schema_version` (semver string), `min_app_version` (semver string), `strategies` array (each with: `id`, `name`, `description`, `examples` array, `best_for`, `status` enum [active/deprecated/retired], `ab_weight` float 0.0-1.0), and `updated_at` ISO timestamp
+And the schema is documented in a `remote-config-schema.json` file in `src-tauri/src/`.
+
+**AC-2:** Given the config endpoint domain must be allowlisted (AR-14),
+When the config endpoint is added to the network allowlist,
+Then `ALLOWED_DOMAINS` in `network.rs` includes the config host (e.g., `raw.githubusercontent.com` for GitHub-hosted config)
+And `tauri.conf.json` CSP `connect-src` includes the same domain
+And `validate_url()` passes for the config endpoint URL.
+
+**AC-3:** Given a Rust `fetch_remote_config()` function is implemented,
+When it fetches from the config endpoint,
+Then it uses HTTPS with a 10-second timeout
+And it validates the response against the JSON schema (schema_version, required fields, type checks)
+And it returns a typed `RemoteConfig` struct on success or a descriptive error on failure.
+
+**AC-4:** Given the remote config response includes an HMAC signature header,
+When the config is fetched,
+Then the signature is verified against a bundled public key before the config is accepted
+And any config with an invalid or missing signature is rejected with a warning log
+And the rejection is recorded in `BlockedRequestsState`.
+
+**AC-5:** Given the remote config endpoint is unreachable or returns an error,
+When the fetch fails,
+Then the app falls back to the bundled default config (the 5 existing seeded strategies)
+And a warning is logged: "Remote config fetch failed: {reason}. Using bundled defaults."
+And the app functions normally with bundled defaults.
+
+**AC-6:** Given a bundled default config JSON file ships with the app,
+When the app is first installed or the remote config has never been fetched,
+Then the bundled config is loaded automatically
+And it contains the same 5 strategies currently in the seed data migration.
+
+**Technical Notes:**
+
+- Config endpoint options: GitHub Pages (free, simple), raw GitHub (simplest for dev), S3 (scalable). Start with raw GitHub for simplicity.
+- Architecture specifies: "Remote config fetch with schema validation, fallback to bundled defaults" and "Network allowlisting ensures only trusted config sources (Anthropic CDN or self-hosted)"
+- HMAC signature prevents tampering — the signing key is held by the admin, the verification key is bundled in the app
+- The `RemoteConfig` Rust struct should use `serde` for deserialization with `#[serde(deny_unknown_fields)]` for strict parsing
+- Keep the fetch function in a new `remote_config.rs` module under `src-tauri/src/`
+- The bundled default config should be embedded via `include_str!()` or loaded from the Tauri resource directory
+
+---
+
+### Story 10.2: Config Storage & Version Management
+
+As a freelancer,
+I want remote config to be cached locally and only updated when a newer version is available,
+So that the app starts quickly and doesn't re-download config on every launch.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given a new `remote_config` table is needed for persistence,
+When a database migration creates the table,
+Then it has columns: `id` (INTEGER PRIMARY KEY), `schema_version` (TEXT NOT NULL), `config_json` (TEXT NOT NULL), `fetched_at` (TEXT NOT NULL), `signature` (TEXT NOT NULL), `source` (TEXT NOT NULL DEFAULT 'remote')
+And the migration follows the existing pattern in `db/migrations/`.
+
+**AC-2:** Given a remote config is successfully fetched and verified,
+When it is stored locally,
+Then the full config JSON, schema version, fetch timestamp, and signature are persisted to the `remote_config` table
+And only one row exists (upsert pattern — replace the single cached config).
+
+**AC-3:** Given a cached config exists in the database,
+When the app starts,
+Then the cached config is loaded immediately (no network delay)
+And a background fetch is triggered to check for a newer version
+And the app does not block startup waiting for the remote fetch.
+
+**AC-4:** Given the remote config has a `schema_version` field,
+When a fetched config's `schema_version` is compared to the cached version,
+Then the config is only applied if the fetched version is newer (semver comparison)
+And if the fetched version is older or equal, it is discarded silently
+And the comparison uses proper semantic versioning (1.2.0 > 1.1.9, 2.0.0 > 1.99.99).
+
+**AC-5:** Given the remote config has a `min_app_version` field,
+When the current app version is below `min_app_version`,
+Then the fetched config is stored but NOT applied
+And a warning is logged: "Remote config requires app v{min_app_version}, current is v{current}. Config deferred."
+And the bundled defaults continue to be used until the app is updated.
+
+**AC-6:** Given the config has a TTL (time-to-live) of 4 hours,
+When the cached config was fetched less than 4 hours ago,
+Then no remote fetch is attempted on app startup
+And the periodic check runs every 4 hours while the app is running (matching the update check interval from Story 9.7).
+
+**Technical Notes:**
+
+- Reuse the semver comparison logic from `health_check.rs` (Story 9.9 implemented `compare_versions()`)
+- The 4-hour TTL matches the auto-update check interval — keep them synchronized
+- Background fetch should use `tauri::async_runtime::spawn` to avoid blocking the main thread
+- The `source` column distinguishes 'remote' vs 'bundled' for debugging
+- Consider emitting a Tauri event (`config:updated`) when new config is applied, so the frontend can react
+
+---
+
+### Story 10.3: Dynamic Hook Strategy Updates
+
+As a freelancer,
+I want my hook strategies to be updated automatically from remote config,
+So that I always have the latest and most effective opening strategies available.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given a remote config is fetched and verified with updated strategies,
+When the config is applied,
+Then the `hook_strategies` table is updated: new strategies are inserted, existing strategies are updated (name, description, examples, best_for), and strategies with status "retired" are soft-deleted (marked inactive, not removed).
+
+**AC-2:** Given a strategy in the remote config has an `id` matching an existing strategy,
+When the strategy's content has changed (name, description, examples, or best_for),
+Then the existing row is updated in-place
+And the `created_at` timestamp is preserved (only content changes, not metadata).
+
+**AC-3:** Given a strategy in the remote config is new (no matching `id` in the database),
+When it is applied,
+Then a new row is inserted into `hook_strategies`
+And it immediately appears in the hook strategy selection UI (Story 5.2).
+
+**AC-4:** Given a strategy has status "deprecated" in the remote config,
+When it is applied,
+Then the strategy remains visible in the selection UI but shows a "(Deprecated)" suffix
+And a tooltip explains: "This strategy is being phased out. Consider trying newer alternatives."
+And proposals already using this strategy are not affected.
+
+**AC-5:** Given a strategy has status "retired" in the remote config,
+When it is applied,
+Then the strategy is hidden from the selection UI for new proposals
+And proposals previously generated with this strategy retain the strategy name in their history
+And the strategy row is NOT deleted from the database (soft delete via status column).
+
+**AC-6:** Given the hook strategy update process runs,
+When the database is modified,
+Then all changes happen within a single transaction (atomic — all succeed or all roll back)
+And a Tauri event `strategies:updated` is emitted with the count of added/updated/retired strategies
+And the frontend hook strategy list refreshes automatically via the event.
+
+**Technical Notes:**
+
+- Add a `status` column to `hook_strategies` table (migration): TEXT NOT NULL DEFAULT 'active', enum values: 'active', 'deprecated', 'retired'
+- Add a `remote_id` column to match remote config IDs to local rows (the current `id` is auto-increment)
+- The existing `get_all_hook_strategies()` query should be updated to filter `WHERE status != 'retired'` by default, with a separate `get_all_hook_strategies_including_retired()` for history display
+- Use `INSERT OR REPLACE` or explicit `UPDATE`/`INSERT` logic based on `remote_id` match
+- The strategy update function lives in `remote_config.rs` and calls into `db/queries/hook_strategies.rs`
+
+---
+
+### Story 10.4: A/B Testing Framework for Hook Strategies
+
+As an administrator,
+I want hook strategies to be A/B tested with weighted random assignment,
+So that I can measure which strategies lead to better proposal outcomes.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given each strategy in the remote config has an `ab_weight` field (float 0.0-1.0),
+When the user generates a proposal and the system selects a hook strategy,
+Then the strategy is chosen via weighted random selection based on `ab_weight` values
+And strategies with weight 0.0 are never selected
+And weights are normalized so they sum to 1.0 (e.g., weights [0.5, 0.3, 0.2] → 50%, 30%, 20% selection probability).
+
+**AC-2:** Given the user has manually selected a specific hook strategy (Story 5.2),
+When a proposal is generated with a user-selected strategy,
+Then the A/B assignment is bypassed — the user's explicit choice takes precedence
+And the proposal records `ab_assigned: false` to distinguish manual selection from A/B assignment.
+
+**AC-3:** Given a proposal is generated with an A/B-assigned strategy,
+When the proposal is saved to the database,
+Then the proposal record includes: `hook_strategy_id`, `ab_assigned: true`, and `ab_weight` at time of assignment
+And this data is available in the proposal detail view (Story 7.4).
+
+**AC-4:** Given the proposal analytics dashboard exists (Story 7.5),
+When the admin views analytics,
+Then a new "Strategy Effectiveness" section shows: each strategy's assignment count, response rate (won/total), and average outcome score
+And strategies are ranked by effectiveness (response rate)
+And the data distinguishes A/B-assigned vs manually-selected proposals.
+
+**AC-5:** Given A/B weights are updated via a new remote config,
+When the new weights are applied,
+Then future proposals use the new weights immediately
+And past proposal assignments are not retroactively changed
+And a log entry records: "A/B weights updated: {strategy_name}: {old_weight} → {new_weight}".
+
+**AC-6:** Given all strategies have `ab_weight: 0.0` or no strategies are active,
+When a proposal is generated,
+Then the system falls back to letting the user manually select a strategy
+And a toast notification explains: "No strategies are currently in A/B testing. Please select a strategy manually."
+
+**Technical Notes:**
+
+- The `ab_weight` field comes from remote config (Story 10.1 schema)
+- Add columns to `proposals` table (migration): `ab_assigned` (BOOLEAN DEFAULT FALSE), `ab_weight_at_assignment` (REAL)
+- The existing `hook_strategy_id` column on proposals already tracks which strategy was used
+- Weighted random selection: generate random float [0, 1), iterate through normalized weights cumulatively
+- The analytics integration extends Story 7.5's `ProposalAnalyticsDashboard` — add a new `StrategyEffectiveness` component
+- This story should NOT modify the existing hook strategy selection UI flow — A/B only applies when the user hasn't made a manual choice (i.e., "Auto-select" mode or default behavior)
+
+---
+
+### Story 10.5: Config Update UI & Notifications
+
+As a freelancer,
+I want to know when my hook strategies have been updated and see the current config status,
+So that I'm aware of new strategies and can trust the config is fresh.
+
+**Acceptance Criteria:**
+
+**AC-1:** Given a remote config update results in strategy changes (new, updated, or retired),
+When the `strategies:updated` event is emitted,
+Then a non-intrusive toast notification appears: "Hook strategies updated: {n} new, {m} updated"
+And the toast auto-dismisses after 8 seconds
+And the toast is announced to screen readers via LiveAnnouncer (per Story 8.3 pattern).
+
+**AC-2:** Given the Settings page has an existing layout,
+When the user navigates to Settings,
+Then a new "Remote Configuration" section appears (below the existing Auto-Update section) with:
+- Status indicator: "Connected" (green) / "Using cached" (yellow) / "Using defaults" (gray)
+- Last fetched: "{timestamp}" or "Never"
+- Config version: "v{schema_version}"
+- Button: "Check for Config Updates" (manual refresh trigger)
+And keyboard navigation works for all controls.
+
+**AC-3:** Given the user clicks "Check for Config Updates",
+When the fetch is triggered,
+Then a loading spinner appears on the button
+And on success: toast shows "Config is up to date" or "Config updated to v{version}"
+And on failure: toast shows "Config check failed: {reason}. Using cached config."
+And the Settings section updates the status indicator and timestamp.
+
+**AC-4:** Given the remote config fetch fails on startup,
+When the app is using bundled defaults (no cached config exists),
+Then the Settings section shows status: "Using defaults" with an informational note: "Remote config is unavailable. Using bundled strategies."
+And no error toast is shown on startup (only on manual check failure).
+
+**AC-5:** Given a strategy is newly added via remote config,
+When the user opens the hook strategy selection UI (Story 5.2),
+Then the new strategy has a "New" badge displayed for 7 days after it was first seen
+And the badge is visually distinct (e.g., small accent-colored pill)
+And the badge disappears after 7 days or after the user selects that strategy once.
+
+**AC-6:** Given the config update notification and the app update notification (Story 9.7) can appear simultaneously,
+When both notifications are triggered,
+Then the app update notification takes priority (displayed first/on top)
+And the config update notification queues and appears after the app update notification is dismissed
+And both use the same toast container and animation patterns for visual consistency.
+
+**Technical Notes:**
+
+- Follow the existing `AutoUpdateNotification` patterns from Story 9.7 for toast/notification behavior
+- The "Remote Configuration" settings section follows the same card layout as "Auto-Update" settings
+- Use the existing `useSettings` hook to persist "last_config_checked" and "last_config_version" in `app_settings`
+- The "New" badge state should be tracked per-strategy in `app_settings` as a JSON object: `{strategy_id: first_seen_date}`
+- Toast priority/queuing can use a simple array-based queue in the notification context — app updates always prepend, config updates append
+- The `strategies:updated` Tauri event (from Story 10.3) triggers the toast via an event listener in the React app

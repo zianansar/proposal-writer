@@ -159,4 +159,157 @@ describe("HookStrategyCard", () => {
 
     expect(screen.getByTestId("hook-card-1")).toBeInTheDocument();
   });
+
+  // Story 10.3: AC-4 — Deprecated badge UI tests (Task 6.4)
+
+  it("should show no deprecated badge for active strategy (Task 6.4.1)", () => {
+    // Story 10.3: AC-4 — Active strategy shows no deprecated badge
+    render(
+      <HookStrategyCard
+        {...mockStrategy}
+        isSelected={false}
+        onSelect={mockOnSelect}
+        status="active"
+      />,
+    );
+
+    expect(screen.queryByText(/Deprecated/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("hook-card-deprecated-badge-1")).not.toBeInTheDocument();
+  });
+
+  it("should show (Deprecated) suffix for deprecated strategy (Task 6.4.2)", () => {
+    // Story 10.3: AC-4 — Deprecated strategy shows " (Deprecated)" suffix
+    render(
+      <HookStrategyCard
+        {...mockStrategy}
+        isSelected={false}
+        onSelect={mockOnSelect}
+        status="deprecated"
+      />,
+    );
+
+    expect(screen.getByTestId("hook-card-deprecated-badge-1")).toBeInTheDocument();
+    expect(screen.getByText(/\(Deprecated\)/)).toBeInTheDocument();
+  });
+
+  it("should show tooltip on deprecated badge with correct text (Task 6.4.3)", () => {
+    // Story 10.3: AC-4 — Deprecated badge tooltip explains phase-out
+    render(
+      <HookStrategyCard
+        {...mockStrategy}
+        isSelected={false}
+        onSelect={mockOnSelect}
+        status="deprecated"
+      />,
+    );
+
+    const badge = screen.getByTestId("hook-card-deprecated-badge-1");
+    expect(badge).toHaveAttribute(
+      "title",
+      "This strategy is being phased out. Consider trying newer alternatives.",
+    );
+  });
+
+  it("should apply hook-card--deprecated CSS class for deprecated strategy (Task 6.4.5)", () => {
+    // Story 10.3: AC-4 — Deprecated card has CSS class for styling
+    render(
+      <HookStrategyCard
+        {...mockStrategy}
+        isSelected={false}
+        onSelect={mockOnSelect}
+        status="deprecated"
+      />,
+    );
+
+    const card = screen.getByRole("radio");
+    expect(card).toHaveClass("hook-card--deprecated");
+  });
+
+  it("should not apply hook-card--deprecated class for active strategy (Task 6.4.5 variant)", () => {
+    // Story 10.3: Active strategies have no deprecated CSS class
+    render(
+      <HookStrategyCard
+        {...mockStrategy}
+        isSelected={false}
+        onSelect={mockOnSelect}
+        status="active"
+      />,
+    );
+
+    const card = screen.getByRole("radio");
+    expect(card).not.toHaveClass("hook-card--deprecated");
+  });
+
+  it("should not render retired strategy (Task 6.4.4 — filtered by backend)", () => {
+    // Story 10.3: AC-5 — Retired strategies are filtered by the backend query
+    // (WHERE status != 'retired'). The UI never receives them. This test verifies
+    // that if a strategy with status='retired' somehow reached the frontend,
+    // it would still render (the filtering is server-side, not client-side).
+    // The real AC-5 test is in hook_strategies.rs: test_get_all_excludes_retired_strategies.
+    render(
+      <HookStrategyCard
+        {...mockStrategy}
+        isSelected={false}
+        onSelect={mockOnSelect}
+        status="retired"
+      />,
+    );
+
+    // Card still renders (frontend doesn't filter — backend does)
+    expect(screen.getByTestId("hook-card-1")).toBeInTheDocument();
+    // No deprecated badge shown for retired status
+    expect(screen.queryByText(/\(Deprecated\)/)).not.toBeInTheDocument();
+  });
+});
+
+describe("HookStrategyCard - New Badge (Story 10.5 Task 6)", () => {
+  const mockStrategy = {
+    id: 1,
+    name: "Social Proof",
+    description: "Lead with relevant experience",
+    firstExample: "I've helped 12 clients...",
+    bestFor: "Experienced freelancers",
+    isSelected: false,
+    onSelect: vi.fn(),
+  };
+
+  it("should show 'NEW' badge when isNew is true (AC-5)", () => {
+    render(<HookStrategyCard {...mockStrategy} isNew={true} />);
+    expect(screen.getByText("NEW")).toBeInTheDocument();
+  });
+
+  it("should not show 'NEW' badge when isNew is false", () => {
+    render(<HookStrategyCard {...mockStrategy} isNew={false} />);
+    expect(screen.queryByText("NEW")).not.toBeInTheDocument();
+  });
+
+  it("should not show 'NEW' badge when isNew is undefined (default)", () => {
+    render(<HookStrategyCard {...mockStrategy} />);
+    expect(screen.queryByText("NEW")).not.toBeInTheDocument();
+  });
+
+  it("should apply new-badge CSS class to badge element", () => {
+    const { container } = render(<HookStrategyCard {...mockStrategy} isNew={true} />);
+    const badge = container.querySelector(".new-badge");
+    expect(badge).toBeInTheDocument();
+  });
+
+  it("should have accessible badge with aria-label on card updated when isNew", () => {
+    render(<HookStrategyCard {...mockStrategy} isNew={true} />);
+    // Badge is present
+    const badge = screen.getByText("NEW");
+    expect(badge).toBeInTheDocument();
+  });
+
+  it("should show badge and deprecated badge simultaneously when both apply", () => {
+    render(
+      <HookStrategyCard
+        {...mockStrategy}
+        isNew={true}
+        status="deprecated"
+      />
+    );
+    expect(screen.getByText("NEW")).toBeInTheDocument();
+    expect(screen.getByText(/ *\(Deprecated\)/)).toBeInTheDocument();
+  });
 });

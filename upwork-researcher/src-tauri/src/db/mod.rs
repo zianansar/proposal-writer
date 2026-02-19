@@ -1697,4 +1697,98 @@ mod tests {
             }
         }
     }
+
+    // ====================
+    // Story 10.2 Tests: Remote Config Storage (V3 migration)
+    // ====================
+
+    #[test]
+    fn test_remote_config_table_created() {
+        // Task 1.4: Verify V3 migration creates remote_config table
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Check that remote_config table exists
+        let table_exists: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='remote_config'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(table_exists, 1, "remote_config table should exist");
+    }
+
+    #[test]
+    fn test_remote_config_table_has_correct_columns() {
+        // Task 1.4 / AC-1: Verify remote_config table has all required columns
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Get column info
+        let mut stmt = conn.prepare("PRAGMA table_info(remote_config)").unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        // AC-1: Verify all required columns exist
+        assert!(columns.contains(&"id".to_string()), "id column should exist");
+        assert!(
+            columns.contains(&"schema_version".to_string()),
+            "schema_version column should exist"
+        );
+        assert!(
+            columns.contains(&"config_json".to_string()),
+            "config_json column should exist"
+        );
+        assert!(
+            columns.contains(&"fetched_at".to_string()),
+            "fetched_at column should exist"
+        );
+        assert!(
+            columns.contains(&"signature".to_string()),
+            "signature column should exist"
+        );
+        assert!(
+            columns.contains(&"source".to_string()),
+            "source column should exist"
+        );
+    }
+
+    #[test]
+    fn test_remote_config_table_default_source() {
+        // AC-1: Verify source column has DEFAULT 'remote'
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+
+        let db = Database::new(db_path, None).unwrap();
+        let conn = db.conn.lock().unwrap();
+
+        // Insert row without specifying source
+        conn.execute(
+            "INSERT INTO remote_config (id, schema_version, config_json, fetched_at, signature) VALUES (?, ?, ?, ?, ?)",
+            rusqlite::params![1, "1.0.0", "{}", "2026-02-17T00:00:00Z", "test_sig"],
+        )
+        .unwrap();
+
+        // Query source value
+        let source: String = conn
+            .query_row(
+                "SELECT source FROM remote_config WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(source, "remote", "Default source should be 'remote'");
+    }
 }

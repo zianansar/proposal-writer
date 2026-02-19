@@ -15,6 +15,17 @@ fn main() {
                  See .cargo/config.toml for setup instructions."
             );
         }
+
+        // Embed comctl32 v6 manifest in test binaries to fix STATUS_ENTRYPOINT_NOT_FOUND.
+        // Tauri links against TaskDialogIndirect (comctl32 v6 only). Without the manifest,
+        // Windows loads comctl32 v5 which lacks this function, crashing test binaries on load.
+        // The main app binary gets a manifest from tauri_build, but test binaries do not.
+        let manifest_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test.manifest");
+        println!("cargo:rustc-link-arg-tests=/MANIFEST:EMBED");
+        println!(
+            "cargo:rustc-link-arg-tests=/MANIFESTINPUT:{}",
+            manifest_path.display()
+        );
     }
 
     tauri_build::build()

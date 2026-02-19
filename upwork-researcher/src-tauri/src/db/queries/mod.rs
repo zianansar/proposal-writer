@@ -7,6 +7,7 @@ pub mod golden_set;
 pub mod hook_strategies;
 pub mod job_posts;
 pub mod proposals;
+pub mod remote_config;
 pub mod revisions;
 pub mod rss_imports;
 pub mod safety_overrides;

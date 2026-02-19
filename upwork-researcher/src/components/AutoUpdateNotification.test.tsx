@@ -289,6 +289,48 @@ describe('AutoUpdateNotification', () => {
 
       expect(mockAnnounce).toHaveBeenCalledWith('Downloading update: 60%');
     });
+
+    // CR R1 H-3: Verify milestone-based throttling
+    it('should throttle announcements to 25% milestones', () => {
+      const mockAnnounce = vi.fn();
+      vi.mocked(LiveAnnouncer.useAnnounce).mockReturnValue(mockAnnounce);
+
+      const { rerender } = render(
+        <AutoUpdateNotification
+          {...defaultProps}
+          isDownloading={true}
+          downloadProgress={10}
+        />
+      );
+
+      // First render at 10% — milestone 0, should announce
+      expect(mockAnnounce).toHaveBeenCalledWith('Downloading update: 10%');
+      mockAnnounce.mockClear();
+
+      // 15% — still milestone 0, should NOT re-announce
+      rerender(
+        <AutoUpdateNotification
+          {...defaultProps}
+          isDownloading={true}
+          downloadProgress={15}
+        />
+      );
+      // Should not have been called with a downloading announcement
+      const downloadCalls = mockAnnounce.mock.calls.filter(
+        (call) => typeof call[0] === 'string' && call[0].includes('Downloading')
+      );
+      expect(downloadCalls).toHaveLength(0);
+
+      // 30% — milestone 25, should announce
+      rerender(
+        <AutoUpdateNotification
+          {...defaultProps}
+          isDownloading={true}
+          downloadProgress={30}
+        />
+      );
+      expect(mockAnnounce).toHaveBeenCalledWith('Downloading update: 30%');
+    });
   });
 
   describe('ready state (AC-3, Task 3.5)', () => {
@@ -446,6 +488,59 @@ describe('AutoUpdateNotification', () => {
     });
   });
 
+  // CR R1 L-2: Timer clearing tests
+  describe('auto-dismiss timer clearing', () => {
+    it('should clear auto-dismiss timer when Update Now is clicked', async () => {
+      const onUpdateNow = vi.fn();
+      render(
+        <AutoUpdateNotification
+          {...defaultProps}
+          updateAvailable={true}
+          updateInfo={mockUpdateInfo}
+          onUpdateNow={onUpdateNow}
+        />
+      );
+
+      expect(screen.getByText('Update available: v1.2.0')).toBeInTheDocument();
+
+      // Advance 5s into the 10s auto-dismiss timer
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      // Click Update Now — this clears dismissedVersion and calls onUpdateNow
+      fireEvent.click(screen.getByText('Update Now'));
+      expect(onUpdateNow).toHaveBeenCalledTimes(1);
+
+      // Toast should still be visible immediately after click (dismissedVersion was reset to null)
+      expect(screen.getByText('Update available: v1.2.0')).toBeInTheDocument();
+    });
+
+    it('should clear auto-dismiss timer when Later is clicked before timeout', async () => {
+      const onLater = vi.fn();
+      const { container } = render(
+        <AutoUpdateNotification
+          {...defaultProps}
+          updateAvailable={true}
+          updateInfo={mockUpdateInfo}
+          onLater={onLater}
+        />
+      );
+
+      expect(screen.getByText('Update available: v1.2.0')).toBeInTheDocument();
+
+      // Click Later (dismisses immediately)
+      fireEvent.click(screen.getByText('Later'));
+      expect(onLater).toHaveBeenCalledTimes(1);
+
+      // Should be hidden now
+      await act(async () => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(container.firstChild).toBeNull();
+    });
+  });
+
   describe('keyboard navigation', () => {
     it('should support tab navigation in toast', () => {
       render(
@@ -489,6 +584,78 @@ describe('AutoUpdateNotification', () => {
       fireEvent.click(button); // Simulate browser behavior
 
       expect(onUpdateNow).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('onToastHidden callback (CR R2 H-1)', () => {
+    it('should NOT fire onToastHidden on initial render (starts hidden)', () => {
+      const onToastHidden = vi.fn();
+      render(
+        <AutoUpdateNotification
+          {...defaultProps}
+          onToastHidden={onToastHidden}
+        />
+      );
+      expect(onToastHidden).not.toHaveBeenCalled();
+    });
+
+    it('should fire onToastHidden when transitioning from toast to hidden via auto-dismiss', async () => {
+      const onToastHidden = vi.fn();
+      render(
+        <AutoUpdateNotification
+          {...defaultProps}
+          updateAvailable={true}
+          updateInfo={mockUpdateInfo}
+          onToastHidden={onToastHidden}
+        />
+      );
+
+      // Toast is showing, onToastHidden should not have fired
+      expect(screen.getByText(/Update available/)).toBeInTheDocument();
+      expect(onToastHidden).not.toHaveBeenCalled();
+
+      // Auto-dismiss after 10 seconds → state transitions to hidden
+      await act(async () => {
+        vi.advanceTimersByTime(10000);
+      });
+
+      expect(onToastHidden).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fire onToastHidden when transitioning from toast to hidden via Later button', () => {
+      const onToastHidden = vi.fn();
+      render(
+        <AutoUpdateNotification
+          {...defaultProps}
+          updateAvailable={true}
+          updateInfo={mockUpdateInfo}
+          onToastHidden={onToastHidden}
+        />
+      );
+
+      expect(onToastHidden).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByText('Later'));
+
+      expect(onToastHidden).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fire onToastHidden when transitioning from toast to hidden via Escape', () => {
+      const onToastHidden = vi.fn();
+      render(
+        <AutoUpdateNotification
+          {...defaultProps}
+          updateAvailable={true}
+          updateInfo={mockUpdateInfo}
+          onToastHidden={onToastHidden}
+        />
+      );
+
+      expect(onToastHidden).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      expect(onToastHidden).toHaveBeenCalledTimes(1);
     });
   });
 });

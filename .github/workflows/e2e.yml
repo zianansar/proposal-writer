@@ -8,10 +8,29 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Lightweight quality gate — runs first, no Rust compile needed
+  verify-commands:
+    name: Verify Command Registration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify command registration
+        working-directory: upwork-researcher
+        run: node scripts/verify-command-registration.mjs
+
   test:
     name: E2E Tests (${{ matrix.platform }})
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 30
+    needs: verify-commands
 
     strategy:
       fail-fast: false

@@ -10,8 +10,26 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+// Story 10.5 C-3/C-4: Mock useSettings for badge visibility logic
+const mockSetNewStrategiesDismissed = vi.fn().mockResolvedValue(undefined);
+vi.mock("../hooks/useSettings", () => ({
+  useSettings: vi.fn(() => ({
+    newStrategiesFirstSeen: {},
+    newStrategiesDismissed: {},
+    setNewStrategiesDismissed: mockSetNewStrategiesDismissed,
+  })),
+}));
+
+// Story 10.3: Mock useStrategySyncListener (Tauri event listener)
+vi.mock("../hooks/useStrategySyncListener", () => ({
+  useStrategySyncListener: vi.fn(),
+}));
+
 import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
+
+import { useSettings } from "../hooks/useSettings";
+const mockUseSettings = vi.mocked(useSettings);
 
 describe("HookStrategySelector", () => {
   // M3 Code Review Fix: Mock console methods to silence expected error/warn logs
@@ -30,6 +48,9 @@ describe("HookStrategySelector", () => {
       examples_json: '["Example 1", "Example 2"]',
       best_for: "Experienced freelancers",
       created_at: "2026-02-09",
+      status: "active",
+      remote_id: null,
+      ab_weight: 0.2,
     },
     {
       id: 2,
@@ -38,6 +59,9 @@ describe("HookStrategySelector", () => {
       examples_json: '["Example A", "Example B"]',
       best_for: "Bold freelancers",
       created_at: "2026-02-09",
+      status: "active",
+      remote_id: null,
+      ab_weight: 0.2,
     },
     {
       id: 3,
@@ -46,6 +70,9 @@ describe("HookStrategySelector", () => {
       examples_json: '["Example X", "Example Y"]',
       best_for: "Results-driven freelancers",
       created_at: "2026-02-09",
+      status: "active",
+      remote_id: null,
+      ab_weight: 0.2,
     },
     {
       id: 4,
@@ -54,6 +81,9 @@ describe("HookStrategySelector", () => {
       examples_json: '["Example M", "Example N"]',
       best_for: "Consultative freelancers",
       created_at: "2026-02-09",
+      status: "active",
+      remote_id: null,
+      ab_weight: 0.2,
     },
     {
       id: 5,
@@ -62,6 +92,9 @@ describe("HookStrategySelector", () => {
       examples_json: '["Example P", "Example Q"]',
       best_for: "Curious freelancers",
       created_at: "2026-02-09",
+      status: "active",
+      remote_id: null,
+      ab_weight: 0.2,
     },
   ];
 
@@ -332,5 +365,127 @@ describe("HookStrategySelector", () => {
     fireEvent.keyDown(cards[0], { key: "ArrowDown" });
 
     expect(document.activeElement).toBe(cards[1]);
+  });
+});
+
+// Story 10.5 C-3/C-4: New badge integration tests
+describe("HookStrategySelector - New Badge Integration (Story 10.5)", () => {
+  const mockStrategiesWithRemoteId: HookStrategy[] = [
+    {
+      id: 1,
+      name: "Social Proof",
+      description: "Lead with relevant experience",
+      examples_json: '["Example 1"]',
+      best_for: "Experienced freelancers",
+      created_at: "2026-02-09",
+      status: "active",
+      remote_id: "remote-1",
+      ab_weight: 0.2,
+    },
+    {
+      id: 2,
+      name: "Contrarian",
+      description: "Challenge assumptions",
+      examples_json: '["Example A"]',
+      best_for: "Bold freelancers",
+      created_at: "2026-02-09",
+      status: "active",
+      remote_id: "remote-2",
+      ab_weight: 0.2,
+    },
+  ];
+
+  const mockOnSelectionChange = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset useSettings mock to default
+    mockUseSettings.mockReturnValue({
+      newStrategiesFirstSeen: {},
+      newStrategiesDismissed: {},
+      setNewStrategiesDismissed: mockSetNewStrategiesDismissed,
+    } as any);
+  });
+
+  it("should show NEW badge for strategy with recent firstSeen (C-3)", async () => {
+    const now = new Date().toISOString();
+    mockUseSettings.mockReturnValue({
+      newStrategiesFirstSeen: { "remote-2": now },
+      newStrategiesDismissed: {},
+      setNewStrategiesDismissed: mockSetNewStrategiesDismissed,
+    } as any);
+    mockInvoke.mockResolvedValue(mockStrategiesWithRemoteId);
+
+    render(<HookStrategySelector onSelectionChange={mockOnSelectionChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("radiogroup")).toBeInTheDocument();
+    });
+
+    // "Contrarian" (remote-2) should show NEW badge
+    expect(screen.getByText("NEW")).toBeInTheDocument();
+  });
+
+  it("should not show NEW badge for dismissed strategy (C-3)", async () => {
+    const now = new Date().toISOString();
+    mockUseSettings.mockReturnValue({
+      newStrategiesFirstSeen: { "remote-2": now },
+      newStrategiesDismissed: { "remote-2": true },
+      setNewStrategiesDismissed: mockSetNewStrategiesDismissed,
+    } as any);
+    mockInvoke.mockResolvedValue(mockStrategiesWithRemoteId);
+
+    render(<HookStrategySelector onSelectionChange={mockOnSelectionChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("radiogroup")).toBeInTheDocument();
+    });
+
+    // Badge should NOT appear (dismissed)
+    expect(screen.queryByText("NEW")).not.toBeInTheDocument();
+  });
+
+  it("should not show NEW badge for strategy older than 7 days (C-3)", async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    mockUseSettings.mockReturnValue({
+      newStrategiesFirstSeen: { "remote-2": eightDaysAgo },
+      newStrategiesDismissed: {},
+      setNewStrategiesDismissed: mockSetNewStrategiesDismissed,
+    } as any);
+    mockInvoke.mockResolvedValue(mockStrategiesWithRemoteId);
+
+    render(<HookStrategySelector onSelectionChange={mockOnSelectionChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("radiogroup")).toBeInTheDocument();
+    });
+
+    // Badge should NOT appear (expired)
+    expect(screen.queryByText("NEW")).not.toBeInTheDocument();
+  });
+
+  it("should dismiss badge on selection (C-4)", async () => {
+    const now = new Date().toISOString();
+    mockUseSettings.mockReturnValue({
+      newStrategiesFirstSeen: { "remote-2": now },
+      newStrategiesDismissed: {},
+      setNewStrategiesDismissed: mockSetNewStrategiesDismissed,
+    } as any);
+    mockInvoke.mockResolvedValue(mockStrategiesWithRemoteId);
+
+    render(<HookStrategySelector onSelectionChange={mockOnSelectionChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("radiogroup")).toBeInTheDocument();
+    });
+
+    // Click on the strategy with the NEW badge
+    const contrarianCard = screen.getByLabelText(/Contrarian/);
+    fireEvent.click(contrarianCard);
+
+    // setNewStrategiesDismissed should be called with remote-2 dismissed
+    expect(mockSetNewStrategiesDismissed).toHaveBeenCalledWith({
+      "remote-2": true,
+    });
   });
 });

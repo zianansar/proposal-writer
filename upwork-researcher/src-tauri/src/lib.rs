@@ -3,6 +3,7 @@
 // TODO: Upgrade to #![deny(clippy::unwrap_used)] after fixing: claude.rs:473,503 rss.rs:634 migration/mod.rs:500-502 lib.rs:206,222
 #![warn(clippy::unwrap_used)]
 
+pub mod ab_testing;
 pub mod analysis;
 pub mod archive;
 pub mod archive_export;
@@ -21,6 +22,7 @@ pub mod logs;
 pub mod migration;
 pub mod network;
 pub mod passphrase;
+pub mod remote_config;
 pub mod sanitization;
 pub mod scoring;
 pub mod voice;
@@ -286,17 +288,19 @@ async fn generate_proposal(
 /// Story 3.3: Reads humanization intensity from settings and injects into prompt.
 /// Story 3.8: Enforces cooldown rate limiting (FR-12).
 /// Story 5.2 Subtask 5.7: Accepts hook strategy ID to customize generation prompt.
+/// Story 10.4: If user_selected_strategy_id is None, A/B assigns a strategy via weighted random.
 #[tauri::command]
 async fn generate_proposal_streaming(
     job_content: String,
     strategy_id: Option<i64>,
+    user_selected_strategy_id: Option<String>,
     app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
     database: State<'_, db::AppDatabase>,
     draft_state: State<'_, DraftState>,
     cooldown: State<'_, CooldownState>,
     voice_cache: State<'_, VoiceCache>, // Story 5.8 Subtask 4.1: Voice cache state
-) -> Result<String, String> {
+) -> Result<serde_json::Value, String> {
     let database = database.get()?;
     // Story 3.8: Check cooldown FIRST — before any API call (FR-12)
     let remaining = cooldown.remaining_seconds();
@@ -307,16 +311,14 @@ async fn generate_proposal_streaming(
     let api_key = config_state.get_api_key()?;
 
     // Story 5.8 Subtask 3.3: Optimized parallel loading (AC-2)
-    // Note: SQLite single-connection architecture requires sequential queries within one lock.
-    // This is MORE efficient than the previous double-lock approach and meets <150ms target.
     let load_start = std::time::Instant::now();
 
     // Story 5.8 Subtask 4.3: Check voice cache first (AC-6)
     let cached_profile = voice_cache.get();
     let use_cache = cached_profile.is_some();
 
-    // Single lock acquisition for both queries (AC-2 optimization)
-    let (voice_profile, intensity) = {
+    // Single lock acquisition for voice, intensity, and A/B strategy selection (Story 10.4)
+    let (voice_profile, intensity, selected_hook_strategy_id, ab_assigned, ab_weight_at_assignment) = {
         let conn = database
             .conn
             .lock()
@@ -331,10 +333,8 @@ async fn generate_proposal_streaming(
             let voice_profile_row = db::queries::voice_profile::get_voice_profile(&conn, "default")
                 .map_err(|e| format!("Failed to get voice profile: {}", e))?;
 
-            // Subtask 3.4: Convert VoiceProfileRow to VoiceProfile if exists
             let profile_opt = voice_profile_row.as_ref().map(|row| row.to_voice_profile());
 
-            // Subtask 4.2: Populate cache on first load
             if let Some(ref profile) = profile_opt {
                 voice_cache.set(profile.clone());
                 tracing::debug!("Voice profile cached");
@@ -348,17 +348,39 @@ async fn generate_proposal_streaming(
             .map_err(|e| format!("Failed to get humanization setting: {}", e))?
             .unwrap_or_else(|| "medium".to_string());
 
-        (voice_profile, intensity)
+        // Story 10.4 Task 3: A/B strategy selection (AC-2, AC-3)
+        let (selected_hook_strategy_id, ab_assigned, ab_weight_at_assignment) =
+            if let Some(ref key) = user_selected_strategy_id {
+                // AC-2: User explicit selection bypasses A/B
+                tracing::info!(strategy = %key, "Using user-selected hook strategy (bypassing A/B)");
+                (Some(key.clone()), false, None)
+            } else {
+                // Load strategies and apply weighted random A/B selection
+                let strategies = db::queries::hook_strategies::get_all_hook_strategies(&conn)
+                    .map_err(|e| format!("Failed to load hook strategies: {}", e))?;
+
+                match ab_testing::select_hook_strategy_ab(&strategies) {
+                    Ok((strategy_name, weight)) => {
+                        tracing::info!(strategy = %strategy_name, weight = %weight, "A/B assigned hook strategy");
+                        (Some(strategy_name), true, Some(weight))
+                    }
+                    Err(ab_testing::ABTestingError::NoActiveWeights) => {
+                        // AC-6: All weights are 0.0 → emit toast, no A/B assignment
+                        tracing::warn!("A/B testing: all strategy weights are 0.0, emitting fallback toast");
+                        if let Err(e) = app_handle.emit("ab:no-active-weights", ()) {
+                            tracing::warn!("Failed to emit ab:no-active-weights event: {}", e);
+                        }
+                        return Err("AB_NO_ACTIVE_WEIGHTS: No strategies are currently in A/B testing. Please select a strategy manually.".to_string());
+                    }
+                }
+            };
+
+        (voice_profile, intensity, selected_hook_strategy_id, ab_assigned, ab_weight_at_assignment)
     }; // Lock released here
 
-    // AC-2: Log parallel loading performance (<150ms target)
     let load_elapsed = load_start.elapsed();
-    tracing::debug!(
-        elapsed_ms = load_elapsed.as_millis(),
-        "Context loading complete"
-    );
+    tracing::debug!(elapsed_ms = load_elapsed.as_millis(), "Context loading complete");
 
-    // Subtask 3.5: Log voice profile usage (AR-16: log metadata only, not content)
     if let Some(ref profile) = voice_profile {
         tracing::info!(
             calibration_source = ?profile.calibration_source,
@@ -369,7 +391,6 @@ async fn generate_proposal_streaming(
         tracing::info!("Generating with default voice (no calibration)");
     }
 
-    // Story 5.8 Subtask 3.4: Pass loaded voice_profile to generation
     let result = claude::generate_proposal_streaming_with_key(
         &job_content,
         app_handle,
@@ -384,7 +405,13 @@ async fn generate_proposal_streaming(
     // Story 3.8: Record successful generation timestamp (after API call succeeds)
     cooldown.record();
 
-    Ok(result)
+    // Story 10.4 AC-3: Return A/B metadata so frontend can pass to save_proposal
+    Ok(serde_json::json!({
+        "proposalText": result,
+        "hookStrategyId": selected_hook_strategy_id,
+        "abAssigned": ab_assigned,
+        "abWeightAtAssignment": ab_weight_at_assignment,
+    }))
 }
 
 /// Regenerate proposal with escalated humanization intensity (Story 3.4)
@@ -529,6 +556,9 @@ fn save_proposal(
     database: State<'_, db::AppDatabase>,
     job_content: String,
     generated_text: String,
+    hook_strategy_id: Option<String>,
+    ab_assigned: Option<bool>,
+    ab_weight_at_assignment: Option<f32>,
 ) -> Result<serde_json::Value, String> {
     let database = database.get()?;
     let conn = database
@@ -536,8 +566,17 @@ fn save_proposal(
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
-    let id = db::queries::proposals::insert_proposal(&conn, &job_content, &generated_text, None)
-        .map_err(|e| format!("Failed to save proposal: {}", e))?;
+    let id = db::queries::proposals::insert_proposal_with_ab_context(
+        &conn,
+        &job_content,
+        &generated_text,
+        None,
+        hook_strategy_id.as_deref(),
+        None,
+        ab_assigned.unwrap_or(false),
+        ab_weight_at_assignment,
+    )
+    .map_err(|e| format!("Failed to save proposal: {}", e))?;
 
     Ok(serde_json::json!({
         "id": id,
@@ -2862,6 +2901,14 @@ pub fn run() {
                 tracing::warn!("Failed to cleanup orphaned import temp files: {}", e);
             }
 
+            // Story 10.2: Load cached remote config on startup (AC-3)
+            // Returns immediately from cache (no network delay), spawns background fetch if stale
+            let _startup_config = remote_config::load_config_on_startup(app.handle());
+            tracing::info!("Remote config loaded on startup");
+
+            // Story 10.2: Start periodic config refresh every 4 hours (AC-6)
+            let _config_refresh_handle = remote_config::start_periodic_config_refresh(app.handle().clone());
+
             // Story 2-7b: Emit passphrase-required event after state is registered
             if migration_complete {
                 let handle = app.handle().clone();
@@ -3013,8 +3060,9 @@ pub fn run() {
             commands::import::read_archive_metadata,
             commands::import::decrypt_archive,
             commands::import::execute_import,
-            // Health check & version tracking commands (Story 9.9)
+            // Health check & version tracking commands (Story 9.9, TD2.3)
             health_check::get_installed_version_command,
+            health_check::set_installed_version_command,
             health_check::detect_update_command,
             health_check::run_health_checks_command,
             // Backup & rollback commands (Story 9.9)
@@ -3022,7 +3070,18 @@ pub fn run() {
             health_check::rollback_to_previous_version_command,
             health_check::get_failed_update_versions_command,
             health_check::clear_failed_update_versions_command,
-            health_check::cleanup_old_backups_command
+            health_check::cleanup_old_backups_command,
+            health_check::check_and_clear_rollback_command,
+            // A/B testing analytics (Story 10.4)
+            commands::proposals::get_strategy_effectiveness,
+            // Remote config commands (Story 10.1)
+            remote_config::fetch_remote_config_command,
+            remote_config::get_bundled_config_command,
+            // Remote config storage commands (Story 10.2)
+            remote_config::get_cached_config_command,
+            remote_config::force_config_refresh_command,
+            // Config update check command (Story 10.5)
+            remote_config::check_for_config_updates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

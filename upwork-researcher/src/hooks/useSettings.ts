@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import {
   useSettingsStore,
@@ -15,6 +16,12 @@ import {
   getAutoUpdateEnabled,
   getSkippedVersion,
   getLastUpdateCheck,
+  getLastConfigChecked,
+  getLastConfigVersion,
+  getConfigSource,
+  getNewStrategiesFirstSeen,
+  getNewStrategiesDismissed,
+  type ConfigSource,
 } from "../stores/useSettingsStore";
 
 /**
@@ -33,6 +40,14 @@ export function useSettings() {
   const autoUpdateEnabled = useSettingsStore(getAutoUpdateEnabled);
   const skippedVersion = useSettingsStore(getSkippedVersion);
   const lastUpdateCheck = useSettingsStore(getLastUpdateCheck);
+
+  // Story 10.5: Remote config settings getters
+  const lastConfigChecked = useSettingsStore(getLastConfigChecked);
+  const lastConfigVersion = useSettingsStore(getLastConfigVersion);
+  const configSource = useSettingsStore(getConfigSource);
+  // useShallow prevents infinite re-renders from new object references on each call
+  const newStrategiesFirstSeen = useSettingsStore(useShallow(getNewStrategiesFirstSeen));
+  const newStrategiesDismissed = useSettingsStore(useShallow(getNewStrategiesDismissed));
 
   // Typed setters
   const setTheme = useCallback(
@@ -77,6 +92,42 @@ export function useSettings() {
     [setSetting],
   );
 
+  // Story 10.5: Remote config settings setters
+  const setLastConfigChecked = useCallback(
+    async (value: string) => {
+      await setSetting("last_config_checked", value);
+    },
+    [setSetting],
+  );
+
+  const setLastConfigVersion = useCallback(
+    async (value: string) => {
+      await setSetting("last_config_version", value);
+    },
+    [setSetting],
+  );
+
+  const setConfigSource = useCallback(
+    async (value: ConfigSource) => {
+      await setSetting("config_source", value);
+    },
+    [setSetting],
+  );
+
+  const setNewStrategiesFirstSeen = useCallback(
+    async (value: Record<string, string>) => {
+      await setSetting("new_strategies_first_seen", JSON.stringify(value));
+    },
+    [setSetting],
+  );
+
+  const setNewStrategiesDismissed = useCallback(
+    async (value: Record<string, boolean>) => {
+      await setSetting("new_strategies_dismissed", JSON.stringify(value));
+    },
+    [setSetting],
+  );
+
   // Generic getter for custom settings
   const getSetting = useCallback(
     (key: string): string | undefined => {
@@ -112,6 +163,18 @@ export function useSettings() {
     setSkippedVersion,
     lastUpdateCheck,
     setLastUpdateCheck,
+
+    // Story 10.5: Remote config settings
+    lastConfigChecked,
+    setLastConfigChecked,
+    lastConfigVersion,
+    setLastConfigVersion,
+    configSource,
+    setConfigSource,
+    newStrategiesFirstSeen,
+    setNewStrategiesFirstSeen,
+    newStrategiesDismissed,
+    setNewStrategiesDismissed,
 
     // Generic access
     getSetting,

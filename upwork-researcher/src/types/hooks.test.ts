@@ -55,6 +55,9 @@ describe("hooks types", () => {
       examples_json: '["Example 1", "Example 2"]',
       best_for: "Experienced freelancers",
       created_at: "2026-02-09T00:00:00Z",
+      status: "active",
+      remote_id: null,
+      ab_weight: 0.2,
     };
 
     it("should parse strategy and extract first example", () => {

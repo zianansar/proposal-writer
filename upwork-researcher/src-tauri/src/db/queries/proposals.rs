@@ -41,6 +41,7 @@ pub fn insert_proposal(
 /// Insert a new proposal with optional hook strategy and job post context (Story 7.1).
 /// AC-2: Stores hook_strategy_id (e.g., 'social_proof', 'contrarian').
 /// AC-3: Stores job_post_id FK reference to originating job_posts row.
+/// Story 10.4 AC-3: Stores ab_assigned and ab_weight_at_assignment for A/B tracking.
 pub fn insert_proposal_with_context(
     conn: &Connection,
     job_content: &str,
@@ -49,10 +50,37 @@ pub fn insert_proposal_with_context(
     hook_strategy_id: Option<&str>,
     job_post_id: Option<i64>,
 ) -> Result<i64, rusqlite::Error> {
+    insert_proposal_with_ab_context(conn, job_content, generated_text, status, hook_strategy_id, job_post_id, false, None)
+}
+
+/// Insert a new proposal with A/B testing tracking fields (Story 10.4: AC-3).
+///
+/// * `ab_assigned` - true if the hook strategy was A/B assigned (false if manually selected)
+/// * `ab_weight_at_assignment` - the strategy's ab_weight at generation time; None if manual
+pub fn insert_proposal_with_ab_context(
+    conn: &Connection,
+    job_content: &str,
+    generated_text: &str,
+    status: Option<&str>,
+    hook_strategy_id: Option<&str>,
+    job_post_id: Option<i64>,
+    ab_assigned: bool,
+    ab_weight_at_assignment: Option<f32>,
+) -> Result<i64, rusqlite::Error> {
     let status = status.unwrap_or("draft");
+    let ab_assigned_int = if ab_assigned { 1i64 } else { 0i64 };
     conn.execute(
-        "INSERT INTO proposals (job_content, generated_text, status, hook_strategy_id, job_post_id) VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![job_content, generated_text, status, hook_strategy_id, job_post_id],
+        "INSERT INTO proposals (job_content, generated_text, status, hook_strategy_id, job_post_id, ab_assigned, ab_weight_at_assignment)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            job_content,
+            generated_text,
+            status,
+            hook_strategy_id,
+            job_post_id,
+            ab_assigned_int,
+            ab_weight_at_assignment.map(|w| w as f64),
+        ],
     )?;
 
     Ok(conn.last_insert_rowid())

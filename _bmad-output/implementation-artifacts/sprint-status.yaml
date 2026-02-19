@@ -190,24 +190,39 @@ development_status:
   # Key risks: Windows EV cert procurement (1-2 week lead), macOS notarization
   # NOTE: Start code signing certificate procurement ASAP
   # ═══════════════════════════════════════════════════════════
-  epic-9: in-progress
+  epic-9: done  # All 9 stories complete + retrospective 2026-02-16
   9-1-eslint-prettier-pre-commit-hooks: done  # CR R1 fixes 2026-02-16: All 7 items fixed. CWD paths, clippy deny→TODO, CRLF→LF, rules-of-hooks error, stale .husky removed, tseslint strict.
   9-2-ci-cd-release-build-pipeline: done  # CR R2 2026-02-16: All 7 items fixed. signCommand removed, VCPKG_INSTALLATION_ROOT, --all-targets, concurrency, conditional URL, job-level perms, lint docs.
   9-3-semantic-versioning-release-automation: done  # CR R1 fixes 2026-02-16: All 8 items fixed. Changelog extraction in release.yml, commit-msg $1 path, pre-flight minor/major, Cargo.lock postbump hook, v9 hook format.
   9-4-macos-code-signing-notarization: done  # CR R1 fixes 2026-02-16: All 6 items resolved (3M 3L). M1: .p12 trap cleanup, M2: --deep removed for DMG, M3: keychain restore. L1: non-issue, L2: accepted, L3: --verbose=2 added.
   9-5-windows-code-signing-smartscreen: done  # CR R1 fixes 2026-02-16: All 9 items resolved (3H 4M 2L). H1: PATH NOTE + --no-sign, H2: config fields removed, H3: attribution noted. M1-M4: all resolved. L1-L2: line refs + date fixed.
   9-6-auto-updater-plugin-integration: done  # CR R3 2026-02-16: R1(6) + R2(3) + R3(3) all fixed. Consistent act() everywhere, waitFor cleaned, background check JSDoc. 17 frontend tests.
-  9-7-auto-update-notification-ui: in-progress  # CR R1 2026-02-16: 14 issues found (2C 4H 5M 3L). Tasks 1-5 implemented but story tracking broken (Tasks 4-6 marked incomplete, Dev Agent Record empty). 12 action items added. Key: redundant useUpdater, cancelDownload fake, screen reader spam, store bypass.
+  9-7-auto-update-notification-ui: done  # CR R1 fixes + remaining tasks 2026-02-16: All 12 CR items + Tasks 5.5/5.7/6.1-6.5 done. 3 App.tsx integration tests added. 136 tests pass (133 unit + 3 integration). All 6 ACs verified.
   9-8-mandatory-safety-update-enforcement: done  # CR R1 2026-02-16: 11 issues found+fixed (5C 3H 3M). Story 9.9 scope creep removed, tests fixed (41+20=61 passing), progress bar bug fixed, CSS tokens, Dev Agent Record filled. All ACs implemented.
-  9-9-post-update-health-check-rollback: in-progress  # CR R1 2026-02-16: 10 issues found (4C 4M 2L). Tasks 5.4/5.5/5.6 falsely marked complete — unmarked. Skip list null crash, no settings UI, no rollback toast, no skip list tests. 10 action items added as Task 9.
-  epic-9-retrospective: optional
+  9-9-post-update-health-check-rollback: done  # CR R2 PASSED 2026-02-16: All 10 R1 items verified. 2 LOW informational only (timer cleanup, test count doc). 23 Rust tests, semver comparison, rollback toast, skip list UI, HealthCheckModal simplified.
+  epic-9-retrospective: done  # Completed 2026-02-16
 
   # ═══════════════════════════════════════════════════════════
   # EPIC 10 — Advanced Configuration & Extensibility [POST-MVP]
   # Priority 3. FR: FR-18 (dynamic hook configuration). AR: AR-14 (network allowlist)
-  # Estimated: 4-6 stories (unchanged). Scope: Simple remote config (Option B)
-  # Stories NOT yet broken down — can use create-story incrementally
+  # 5 stories. Dependency flow: 10.1→10.2→10.3→10.4 (10.5 parallel with 10.4)
   # Depends on: Epic 9 (can't update config if app isn't distributed)
   # ═══════════════════════════════════════════════════════════
-  epic-10: backlog
-  epic-10-retrospective: optional
+  epic-10: done  # All 5 stories complete + retrospective 2026-02-18. FINAL EPIC.
+  10-1-remote-config-schema-and-fetch-infrastructure: done  # CR R3 PASSED 2026-02-18: All R2 fixes verified. HMAC verifies raw body, callers cleaned, roundtrip test proves re-serialization breaks HMAC. 0 errors.
+  10-2-config-storage-and-version-management: done  # CR R2 FIXED 2026-02-18: All 9 issues resolved (4C 3H 2M). C1-C2: startup+periodic calls added to lib.rs. C3: 3 commands registered. C4: 17 functional tests written (26 total). H1: File List corrected. M1: deprecated file deleted. Compiles clean.
+  10-3-dynamic-hook-strategy-updates: done  # CR R2 PASSED 2026-02-17: All 6 ACs implemented, all R1 fixes verified. 0C 0H 3M 1L non-blocking action items. 56 frontend tests, Rust compiles clean. 12 sync tests + 9 query tests.
+  10-4-ab-testing-framework-for-hook-strategies: done  # CR fixes applied 2026-02-17: all 7 items resolved. 37/37 frontend tests pass.
+  10-5-config-update-ui-and-notifications: done  # CR R3 PASSED 2026-02-18: All R2 fixes verified. 0H 0M 3L non-blocking observations. 60/60 tests pass, Rust compiles clean.
+  epic-10-retrospective: done  # Completed 2026-02-18. Final retrospective — 13/13 epics at 100%.
+
+  # ═══════════════════════════════════════════════════════════
+  # TECH DEBT 2 EPIC — Post-Project Hardening
+  # Created: 2026-02-19 from Epic 10 retro HIGH-priority debt items
+  # Priority order: TD2-1 (HIGH) → TD2-2 (HIGH) → TD2-3 (HIGH)
+  # ═══════════════════════════════════════════════════════════
+  epic-td2: done  # Tech Debt 2 — all 3 stories complete
+  td2-1-command-registration-verification-test: done  # CR R2 PASSED 2026-02-19: All R1 fixes verified. 0 new issues. 8/8 tests pass.
+  td2-2-macos-backup-rollback-implementation: done  # CR R2 PASSED 2026-02-19: All 5 R1 items fixed+verified. GzEncoder explicit finish, redundant syscall removed, File List doc, consistent return, partial cleanup.
+  td2-3-story-9-9-remaining-tasks-completion: done  # CR R3 PASSED 2026-02-19: All R1+R2 fixes verified. 0 new HIGH/MEDIUM. 3 LOW informational. 19 TD2-3 tests pass. 55 total.
+  epic-td2-retrospective: done  # Completed 2026-02-19. Windows DLL fix (comctl32 v6 manifest) unlocked 813 Rust tests. Migration V28 UNIQUE bug fixed. All HIGH debt resolved. 14/14 epics at 100%.

@@ -5,6 +5,8 @@
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use std::io::{BufReader, BufWriter};
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
@@ -24,8 +26,23 @@ pub fn get_installed_version(conn: &Connection) -> Result<Option<String>, String
         .map_err(|e| format!("Failed to get installed version: {}", e))
 }
 
+/// Compare two semver version strings (major.minor.patch).
+/// Returns true if `current` is strictly greater than `installed`.
+/// Used by Story 9.9 (health checks) and Story 10.2 (remote config version comparison).
+pub fn is_version_newer(current: &str, installed: &str) -> bool {
+    let parse = |v: &str| -> (u32, u32, u32) {
+        let parts: Vec<u32> = v.split('.').filter_map(|p| p.parse().ok()).collect();
+        (
+            parts.first().copied().unwrap_or(0),
+            parts.get(1).copied().unwrap_or(0),
+            parts.get(2).copied().unwrap_or(0),
+        )
+    };
+    parse(current) > parse(installed)
+}
+
 /// Detect if an update has occurred by comparing current vs installed version.
-/// Returns true if current version is newer than installed version.
+/// Returns true if current version is strictly newer than installed version (Task 1.4).
 pub fn detect_update(conn: &Connection) -> Result<bool, String> {
     let current = get_current_version();
     let installed = get_installed_version(conn)?;
@@ -36,8 +53,8 @@ pub fn detect_update(conn: &Connection) -> Result<bool, String> {
             Ok(false)
         }
         Some(installed_ver) => {
-            // Compare versions
-            Ok(current != installed_ver)
+            // Task 1.4: Only detect update if current > installed (not just !=)
+            Ok(is_version_newer(&current, &installed_ver))
         }
     }
 }
@@ -126,7 +143,7 @@ pub async fn check_database_connection(
         .lock()
         .map_err(|e| HealthCheckError::DatabaseUnreachable(e.to_string()))?;
 
-    conn.execute("SELECT 1", [])
+    conn.execute_batch("SELECT 1")
         .map_err(|e| HealthCheckError::DatabaseUnreachable(e.to_string()))?;
 
     Ok(())
@@ -351,8 +368,6 @@ pub async fn run_health_checks(app_handle: &AppHandle) -> Result<HealthCheckRepo
 // Pre-Update Backup & Rollback (Tasks 3-4)
 // ═══════════════════════════════════════════════════════════
 
-use std::path::PathBuf;
-
 /// Metadata for a version backup.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionBackupMetadata {
@@ -413,6 +428,50 @@ pub fn get_backup_dir(app_handle: &AppHandle) -> Result<PathBuf, BackupError> {
     Ok(backup_dir)
 }
 
+// ═══════════════════════════════════════════════════════════
+// macOS Tarball Helpers (TD2-2)
+// ═══════════════════════════════════════════════════════════
+
+/// Compress an `.app` bundle directory into a `.tar.gz` tarball at `tarball_path`.
+/// The tarball root entry is named after the bundle's directory name (e.g., `"MyApp.app"`).
+/// Works on any platform — the `#[cfg(target_os = "macos")]` guard is on the callers only.
+fn create_app_bundle_tarball(app_bundle: &Path, tarball_path: &Path) -> std::io::Result<()> {
+    let bundle_name = app_bundle
+        .file_name()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "app_bundle has no file name"))?;
+
+    let result = (|| {
+        let file = std::fs::File::create(tarball_path)?;
+        let gz = flate2::write::GzEncoder::new(BufWriter::new(file), flate2::Compression::default());
+        let mut ar = tar::Builder::new(gz);
+        ar.append_dir_all(bundle_name, app_bundle)?;
+        ar.finish()?;
+        // Explicitly finish the GzEncoder to flush the gzip trailer (CRC32 + size).
+        // Without this, the trailer is only written in Drop which silently swallows I/O errors.
+        ar.into_inner()?.finish()?;
+        Ok(())
+    })();
+
+    if result.is_err() {
+        // Clean up partial tarball so a corrupt file isn't left on disk
+        let _ = std::fs::remove_file(tarball_path);
+    }
+
+    result
+}
+
+/// Extract a `.tar.gz` tarball created by `create_app_bundle_tarball` into `dest_dir`.
+/// Preserves file permissions during extraction.
+/// Works on any platform — the `#[cfg(target_os = "macos")]` guard is on the callers only.
+fn extract_app_bundle_tarball(tarball_path: &Path, dest_dir: &Path) -> std::io::Result<()> {
+    let file = std::fs::File::open(tarball_path)?;
+    let gz = flate2::read::GzDecoder::new(BufReader::new(file));
+    let mut ar = tar::Archive::new(gz);
+    ar.set_preserve_permissions(true);
+    ar.unpack(dest_dir)?;
+    Ok(())
+}
+
 /// Create a pre-update backup of the current app binary/bundle.
 /// Task 3: Pre-update backup (AC-4, AC-6)
 ///
@@ -448,7 +507,7 @@ pub async fn create_pre_update_backup(
         let metadata = VersionBackupMetadata {
             from_version: current_version,
             platform: "windows".to_string(),
-            backup_path: backup_path.clone(),
+            backup_path,
             timestamp: chrono::Utc::now().to_rfc3339(),
         };
 
@@ -467,12 +526,42 @@ pub async fn create_pre_update_backup(
 
     #[cfg(target_os = "macos")]
     {
-        // macOS: backup .app bundle
-        // NOTE: Requires tarball creation logic
-        // Placeholder for now
-        return Err(BackupError::AppPathNotFound(
-            "macOS backup not yet implemented".to_string(),
-        ));
+        let exe_path = std::env::current_exe()
+            .map_err(|e| BackupError::AppPathNotFound(e.to_string()))?;
+
+        // Navigate: exe → MacOS/ → Contents/ → AppName.app/
+        let app_bundle = exe_path
+            .parent()                   // MacOS/
+            .and_then(|p| p.parent())   // Contents/
+            .and_then(|p| p.parent())   // AppName.app/
+            .ok_or_else(|| BackupError::AppPathNotFound(
+                "Cannot resolve .app bundle path from executable".to_string()
+            ))?;
+
+        let backup_filename = format!("v{}-macos.app.tar.gz", current_version);
+        let backup_path = backup_dir.join(&backup_filename);
+
+        create_app_bundle_tarball(app_bundle, &backup_path)
+            .map_err(|e| BackupError::CopyFailed(format!("Tarball creation failed: {}", e)))?;
+
+        let metadata = VersionBackupMetadata {
+            from_version: current_version,
+            platform: "macos".to_string(),
+            backup_path,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        };
+
+        // Store metadata in settings
+        let db = app_handle.state::<crate::db::Database>().inner();
+        let conn = db.conn.lock().map_err(|e| BackupError::SettingsFailed(e.to_string()))?;
+
+        let metadata_json = serde_json::to_string(&metadata)
+            .map_err(|e| BackupError::SettingsFailed(e.to_string()))?;
+
+        crate::db::queries::settings::set_setting(&conn, "pre_update_backup", &metadata_json)
+            .map_err(|e| BackupError::SettingsFailed(e.to_string()))?;
+
+        Ok(metadata)
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
@@ -523,7 +612,7 @@ pub async fn cleanup_old_backups(app_handle: &AppHandle) -> Result<usize, Backup
 /// 2. Verify backup file exists
 /// 3. Replace current binary with backup
 /// 4. Add failed version to skip list
-/// 5. Restart app with old binary
+/// 5. Return — caller (frontend) handles restart via user confirmation
 ///
 /// NOTE: This requires elevated permissions and process management.
 /// Full implementation needs integration testing with actual update scenarios.
@@ -572,16 +661,33 @@ pub async fn rollback_to_previous_version(
 
     #[cfg(target_os = "macos")]
     {
-        // macOS: Extract tarball over existing bundle
-        // Requires tarball extraction logic
-        return Err(RollbackError::FileOpFailed(
-            "macOS rollback not yet implemented".to_string(),
-        ));
+        // Navigate to .app bundle: exe → MacOS/ → Contents/ → AppName.app/
+        let app_bundle = current_exe
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .ok_or_else(|| RollbackError::FileOpFailed(
+                "Cannot resolve .app bundle path from executable".to_string()
+            ))?;
+
+        // Install dir is the parent of AppName.app (e.g., /Applications/)
+        let install_dir = app_bundle
+            .parent()
+            .ok_or_else(|| RollbackError::FileOpFailed(
+                "Cannot resolve install directory from bundle path".to_string()
+            ))?;
+
+        extract_app_bundle_tarball(&backup_meta.backup_path, install_dir)
+            .map_err(|e| RollbackError::FileOpFailed(format!("Tarball extraction failed: {}", e)))?;
     }
 
     // 4. Add failed version to skip list (Task 5)
     let current_version = get_current_version();
     add_to_failed_versions_list(&conn, &current_version)
+        .map_err(|e| RollbackError::SettingsFailed(e))?;
+
+    // 4b. Mark rollback for frontend toast on next launch (Task 5.5)
+    mark_rollback_occurred(&conn, &current_version)
         .map_err(|e| RollbackError::SettingsFailed(e))?;
 
     // 5. Log rollback for diagnostics
@@ -591,10 +697,9 @@ pub async fn rollback_to_previous_version(
         backup_meta.from_version
     );
 
-    // 6. Restart app (using tauri API)
-    // NOTE: This will terminate current process
-    app_handle.restart();
-
+    // 6. Return success — frontend handles restart via RollbackDialog button
+    // (CR R1 H-1: removed app_handle.restart() which killed the process before
+    // React could render the RollbackDialog, making the "Restart App" button unreachable)
     Ok(())
 }
 
@@ -637,6 +742,30 @@ pub fn get_failed_update_versions(conn: &Connection) -> Result<Vec<String>, Stri
 pub fn clear_failed_update_versions(conn: &Connection) -> Result<(), String> {
     crate::db::queries::settings::set_setting(conn, "failed_update_versions", "[]")
         .map_err(|e| format!("Failed to clear skip list: {}", e))
+}
+
+/// Mark that a rollback occurred so the frontend can show a toast on next launch (Task 5.5).
+fn mark_rollback_occurred(conn: &Connection, failed_version: &str) -> Result<(), String> {
+    crate::db::queries::settings::set_setting(conn, "last_rollback_version", failed_version)
+        .map_err(|e| format!("Failed to mark rollback: {}", e))
+}
+
+/// Check if a rollback occurred on a previous launch.
+/// Returns the failed version string if rollback happened, then clears the flag.
+pub fn check_and_clear_rollback(conn: &Connection) -> Result<Option<String>, String> {
+    let version = crate::db::queries::settings::get_setting(conn, "last_rollback_version")
+        .map_err(|e| format!("Failed to check rollback flag: {}", e))?;
+
+    if let Some(ref v) = version {
+        if !v.is_empty() {
+            // Clear the flag so toast only shows once
+            crate::db::queries::settings::set_setting(conn, "last_rollback_version", "")
+                .map_err(|e| format!("Failed to clear rollback flag: {}", e))?;
+        }
+    }
+
+    // Return None for empty string (cleared flag)
+    Ok(version.filter(|v| !v.is_empty()))
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -723,12 +852,35 @@ pub async fn clear_failed_update_versions_command(
 }
 
 #[tauri::command]
+pub async fn check_and_clear_rollback_command(
+    app_handle: AppHandle,
+) -> Result<Option<String>, String> {
+    let db = app_handle.state::<crate::db::Database>().inner();
+    let conn = db.conn.lock()
+        .map_err(|e| format!("Failed to lock database: {}", e))?;
+
+    check_and_clear_rollback(&conn)
+}
+
+#[tauri::command]
 pub async fn cleanup_old_backups_command(
     app_handle: AppHandle,
 ) -> Result<usize, String> {
     cleanup_old_backups(&app_handle)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Record the current app version as installed (Story TD2.3 Task 1).
+/// Called by frontend after successful health checks to advance the baseline version.
+#[tauri::command]
+pub async fn set_installed_version_command(app_handle: AppHandle) -> Result<(), String> {
+    let db = app_handle.state::<crate::db::Database>().inner();
+    let conn = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to lock database: {}", e))?;
+    set_installed_version(&conn)
 }
 
 #[cfg(test)]
@@ -846,5 +998,255 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(update_detected, "false");
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Semver comparison tests (9.5)
+    // ═══════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_is_version_newer_major_bump() {
+        assert!(is_version_newer("2.0.0", "1.0.0"));
+    }
+
+    #[test]
+    fn test_is_version_newer_minor_bump() {
+        assert!(is_version_newer("1.2.0", "1.1.0"));
+    }
+
+    #[test]
+    fn test_is_version_newer_patch_bump() {
+        assert!(is_version_newer("1.0.2", "1.0.1"));
+    }
+
+    #[test]
+    fn test_is_version_newer_same_version() {
+        assert!(!is_version_newer("1.0.0", "1.0.0"));
+    }
+
+    #[test]
+    fn test_is_version_newer_downgrade_returns_false() {
+        assert!(!is_version_newer("1.0.0", "2.0.0"));
+    }
+
+    #[test]
+    fn test_is_version_newer_complex_comparison() {
+        assert!(is_version_newer("1.10.0", "1.9.0"));
+        assert!(is_version_newer("2.0.0", "1.99.99"));
+    }
+
+    #[test]
+    fn test_detect_update_false_on_downgrade() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // Set a version higher than current
+        crate::db::queries::settings::set_setting(&conn, "installed_version", "99.99.99").unwrap();
+
+        // Should NOT detect update (current < installed)
+        let updated = detect_update(&conn).unwrap();
+        assert!(!updated);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Skip list tests (9.2)
+    // ═══════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_get_failed_update_versions_empty_default() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let versions = get_failed_update_versions(&conn).unwrap();
+        assert!(versions.is_empty());
+    }
+
+    #[test]
+    fn test_add_to_failed_versions_list_single() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        add_to_failed_versions_list(&conn, "1.2.0").unwrap();
+
+        let versions = get_failed_update_versions(&conn).unwrap();
+        assert_eq!(versions, vec!["1.2.0"]);
+    }
+
+    #[test]
+    fn test_add_to_failed_versions_list_dedup() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        add_to_failed_versions_list(&conn, "1.2.0").unwrap();
+        add_to_failed_versions_list(&conn, "1.2.0").unwrap();
+
+        let versions = get_failed_update_versions(&conn).unwrap();
+        assert_eq!(versions, vec!["1.2.0"]);
+    }
+
+    #[test]
+    fn test_add_to_failed_versions_list_multiple() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        add_to_failed_versions_list(&conn, "1.2.0").unwrap();
+        add_to_failed_versions_list(&conn, "1.3.0").unwrap();
+
+        let versions = get_failed_update_versions(&conn).unwrap();
+        assert_eq!(versions, vec!["1.2.0", "1.3.0"]);
+    }
+
+    #[test]
+    fn test_clear_failed_update_versions() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        add_to_failed_versions_list(&conn, "1.2.0").unwrap();
+        add_to_failed_versions_list(&conn, "1.3.0").unwrap();
+
+        clear_failed_update_versions(&conn).unwrap();
+
+        let versions = get_failed_update_versions(&conn).unwrap();
+        assert!(versions.is_empty());
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Rollback flag tests (9.4)
+    // ═══════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_check_and_clear_rollback_none_by_default() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let result = check_and_clear_rollback(&conn).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_mark_and_check_rollback() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        mark_rollback_occurred(&conn, "1.5.0").unwrap();
+
+        let result = check_and_clear_rollback(&conn).unwrap();
+        assert_eq!(result, Some("1.5.0".to_string()));
+    }
+
+    #[test]
+    fn test_check_and_clear_rollback_clears_flag() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        mark_rollback_occurred(&conn, "1.5.0").unwrap();
+
+        // First check returns version
+        let first = check_and_clear_rollback(&conn).unwrap();
+        assert_eq!(first, Some("1.5.0".to_string()));
+
+        // Second check returns None (flag cleared)
+        let second = check_and_clear_rollback(&conn).unwrap();
+        assert_eq!(second, None);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // macOS tarball helper tests (TD2-2, AC-3, AC-4)
+    // These tests are NOT #[cfg(target_os = "macos")] — the helpers
+    // are pure I/O and work cross-platform.
+    // ═══════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_create_and_extract_tarball_roundtrip() {
+        use std::fs;
+
+        // Create source directory with nested structure
+        let src_dir = tempdir().unwrap();
+        let bundle_name = "TestApp.app";
+        let bundle_dir = src_dir.path().join(bundle_name);
+        fs::create_dir_all(bundle_dir.join("Contents/MacOS")).unwrap();
+        fs::write(bundle_dir.join("Contents/Info.plist"), b"<plist/>").unwrap();
+        fs::write(bundle_dir.join("Contents/MacOS/binary"), b"fake binary").unwrap();
+
+        // Create tarball
+        let tar_dir = tempdir().unwrap();
+        let tarball_path = tar_dir.path().join("backup.tar.gz");
+        create_app_bundle_tarball(&bundle_dir, &tarball_path).unwrap();
+        assert!(tarball_path.exists());
+
+        // Extract tarball
+        let dest_dir = tempdir().unwrap();
+        extract_app_bundle_tarball(&tarball_path, dest_dir.path()).unwrap();
+
+        // Verify structure preserved
+        let extracted_plist = dest_dir.path().join("TestApp.app/Contents/Info.plist");
+        assert!(extracted_plist.exists(), "Info.plist should be extracted");
+        assert_eq!(fs::read(&extracted_plist).unwrap(), b"<plist/>");
+
+        let extracted_binary = dest_dir.path().join("TestApp.app/Contents/MacOS/binary");
+        assert!(extracted_binary.exists(), "binary should be extracted");
+        assert_eq!(fs::read(&extracted_binary).unwrap(), b"fake binary");
+    }
+
+    #[test]
+    fn test_create_tarball_preserves_directory_structure() {
+        use std::fs;
+
+        let src_dir = tempdir().unwrap();
+        let bundle_dir = src_dir.path().join("MyApp.app");
+        // Nested: MyApp.app/Contents/MacOS/binary and MyApp.app/Contents/Resources/icon.png
+        fs::create_dir_all(bundle_dir.join("Contents/MacOS")).unwrap();
+        fs::create_dir_all(bundle_dir.join("Contents/Resources")).unwrap();
+        fs::write(bundle_dir.join("Contents/MacOS/binary"), b"exe").unwrap();
+        fs::write(bundle_dir.join("Contents/Resources/icon.png"), b"png").unwrap();
+
+        let tar_dir = tempdir().unwrap();
+        let tarball_path = tar_dir.path().join("test.tar.gz");
+        create_app_bundle_tarball(&bundle_dir, &tarball_path).unwrap();
+
+        let dest_dir = tempdir().unwrap();
+        extract_app_bundle_tarball(&tarball_path, dest_dir.path()).unwrap();
+
+        assert!(dest_dir.path().join("MyApp.app/Contents/MacOS/binary").exists());
+        assert!(dest_dir.path().join("MyApp.app/Contents/Resources/icon.png").exists());
+    }
+
+    #[test]
+    fn test_extract_tarball_fails_gracefully_on_missing_file() {
+        use std::path::Path;
+        let dest_dir = tempdir().unwrap();
+        let result = extract_app_bundle_tarball(
+            Path::new("/nonexistent/path/backup.tar.gz"),
+            dest_dir.path(),
+        );
+        assert!(result.is_err(), "Should return Err for missing tarball");
+    }
+
+    #[test]
+    fn test_create_tarball_fails_gracefully_on_missing_src() {
+        use std::path::Path;
+        let tar_dir = tempdir().unwrap();
+        let tarball_path = tar_dir.path().join("out.tar.gz");
+        let result = create_app_bundle_tarball(
+            Path::new("/nonexistent/App.app"),
+            &tarball_path,
+        );
+        assert!(result.is_err(), "Should return Err for missing source directory");
+    }
+
+    #[test]
+    fn test_macos_backup_path_resolution() {
+        use std::path::Path;
+        // Simulate: /fake/App.app/Contents/MacOS/binary
+        let fake_exe = Path::new("/fake/App.app/Contents/MacOS/binary");
+        let app_bundle = fake_exe
+            .parent()               // MacOS/
+            .and_then(|p| p.parent()) // Contents/
+            .and_then(|p| p.parent()); // App.app/
+        assert_eq!(app_bundle, Some(Path::new("/fake/App.app")));
+
+        // Install dir is parent of App.app
+        let install_dir = app_bundle.unwrap().parent();
+        assert_eq!(install_dir, Some(Path::new("/fake")));
     }
 }

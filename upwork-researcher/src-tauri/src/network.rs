@@ -8,7 +8,10 @@ use thiserror::Error;
 /// SYNC REQUIRED: This list MUST match the `connect-src` directive in
 /// `src-tauri/tauri.conf.json` security.csp. Both must be updated together.
 /// See Story 8.13 for dual-enforcement architecture.
-const ALLOWED_DOMAINS: &[&str] = &["api.anthropic.com"];
+const ALLOWED_DOMAINS: &[&str] = &[
+    "api.anthropic.com",
+    "raw.githubusercontent.com", // Story 10.1: Remote config fetch endpoint
+];
 
 /// Network validation errors
 #[derive(Debug, Error)]

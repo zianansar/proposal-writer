@@ -6,6 +6,11 @@ cd upwork-researcher || exit 1
 # Run lint-staged for TS/TSX/JSON/CSS/MD files
 npx lint-staged
 
+# Command registration verification (Story TD2-1)
+# Ensures every #[tauri::command] fn is in invoke_handler! and vice versa
+# Must run before `cd src-tauri` — CWD must be upwork-researcher/
+node scripts/verify-command-registration.mjs
+
 # Rust formatting check (blocks commit if unformatted — run `cargo fmt` to fix)
 cd src-tauri || exit 1
 cargo fmt --check

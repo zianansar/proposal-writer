@@ -11,6 +11,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect, useRef, useCallback } from "react";
 
+import { useSettings } from "../hooks/useSettings";
+import { useStrategySyncListener } from "../hooks/useStrategySyncListener";
 import { HookStrategy, parseHookStrategy } from "../types/hooks";
 
 import HookStrategyCard from "./HookStrategyCard";
@@ -27,6 +29,13 @@ export default function HookStrategySelector({ onSelectionChange }: HookStrategy
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Story 10.5 Task 6.4: "New" badge visibility settings
+  const {
+    newStrategiesFirstSeen,
+    newStrategiesDismissed,
+    setNewStrategiesDismissed,
+  } = useSettings();
 
   // AC-5: Refs for arrow key navigation between cards
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -78,15 +87,43 @@ export default function HookStrategySelector({ onSelectionChange }: HookStrategy
     }
   };
 
+  // Story 10.3: AC-6 — refresh strategies list when remote sync completes (Task 5.2)
+  useStrategySyncListener({ onSync: fetchStrategies });
+
   // Fetch strategies on component mount (L2 fix: no eslint-disable needed with ref pattern)
   useEffect(() => {
     fetchStrategies();
   }, []);
 
+  // Story 10.5 Task 6.4: Compute whether a strategy has the "New" badge
+  const isStrategyNew = useCallback(
+    (strategy: HookStrategy): boolean => {
+      if (!strategy.remote_id) return false;
+      const firstSeen = newStrategiesFirstSeen[strategy.remote_id];
+      if (!firstSeen) return false;
+      // Within 7 days?
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      if (Date.now() - new Date(firstSeen).getTime() > sevenDaysMs) return false;
+      // Not dismissed?
+      if (newStrategiesDismissed[strategy.remote_id]) return false;
+      return true;
+    },
+    [newStrategiesFirstSeen, newStrategiesDismissed],
+  );
+
   // AC-3: Handle strategy selection
   const handleSelect = (id: number) => {
     setSelectedId(id);
     onSelectionChange(id); // AC-4: Pass to parent
+
+    // Story 10.5 Task 6.5: Dismiss "New" badge on selection
+    const strategy = strategies.find((s) => s.id === id);
+    if (strategy?.remote_id && newStrategiesFirstSeen[strategy.remote_id]) {
+      setNewStrategiesDismissed({
+        ...newStrategiesDismissed,
+        [strategy.remote_id]: true,
+      }).catch(() => {});
+    }
   };
 
   // AC-5: Arrow key navigation handler for radiogroup
@@ -186,6 +223,8 @@ export default function HookStrategySelector({ onSelectionChange }: HookStrategy
               isSelected={strategy.id === selectedId}
               onSelect={handleSelect}
               onKeyDown={(e) => handleKeyDown(e, index)}
+              status={strategy.status}
+              isNew={isStrategyNew(strategy)}
             />
           );
         })}

@@ -84,9 +84,30 @@ function SettingsPanel({ checkForUpdate, isChecking }: SettingsPanelProps) {
   const [showImportDialog, setShowImportDialog] = useState(false);
 
   // Story 9.7: Auto-update settings state (CR R1 H-1: checkForUpdate/isChecking via props)
-  const { autoUpdateEnabled, setAutoUpdateEnabled, setLastUpdateCheck, lastUpdateCheck } = useSettings();
+  const {
+    autoUpdateEnabled,
+    setAutoUpdateEnabled,
+    setLastUpdateCheck,
+    lastUpdateCheck,
+    // Story 10.5: Remote config settings
+    lastConfigChecked,
+    lastConfigVersion,
+    configSource,
+    setLastConfigChecked,
+    setLastConfigVersion,
+    setConfigSource,
+  } = useSettings();
   const [currentVersion, setCurrentVersion] = useState<string>("");
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
+
+  // Story 10.5 Task 3: Remote config check state
+  const [isCheckingConfig, setIsCheckingConfig] = useState(false);
+  const [configCheckMessage, setConfigCheckMessage] = useState<string | null>(null);
+
+  // Story 9.9 Task 5.4: Skip list reset state
+  const [skippedVersions, setSkippedVersions] = useState<string[]>([]);
+  const [clearingSkipList, setClearingSkipList] = useState(false);
+  const [skipListMessage, setSkipListMessage] = useState<string | null>(null);
 
   // Story 9.7 Task 4.2: Load app version on mount
   useEffect(() => {
@@ -306,6 +327,36 @@ function SettingsPanel({ checkForUpdate, isChecking }: SettingsPanelProps) {
     }, 500);
   }, []);
 
+  // Story 9.9 Task 5.4: Load skipped versions on mount
+  useEffect(() => {
+    const loadSkipList = async () => {
+      try {
+        const versions = await invoke<string[]>("get_failed_update_versions_command");
+        setSkippedVersions(versions ?? []);
+      } catch {
+        // Non-critical — skip list display is informational
+      }
+    };
+    loadSkipList();
+  }, []);
+
+  // Story 9.9 Task 5.4: Handle clearing the skip list
+  const handleClearSkipList = async () => {
+    setClearingSkipList(true);
+    setSkipListMessage(null);
+    try {
+      await invoke("clear_failed_update_versions_command");
+      setSkippedVersions([]);
+      setSkipListMessage("Skipped updates cleared. All versions will be offered again.");
+      setTimeout(() => setSkipListMessage(null), 5000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setSkipListMessage(`Failed: ${errorMessage}`);
+    } finally {
+      setClearingSkipList(false);
+    }
+  };
+
   // Story 9.7 Task 4.3: Handle auto-update toggle
   const handleAutoUpdateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.checked;
@@ -335,6 +386,39 @@ function SettingsPanel({ checkForUpdate, isChecking }: SettingsPanelProps) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setCheckMessage(`Check failed: ${errorMessage}`);
+    }
+  };
+
+  // Story 10.5 Task 3.5-3.7: Handle manual config update check
+  const handleCheckForConfigUpdates = async () => {
+    setIsCheckingConfig(true);
+    setConfigCheckMessage(null);
+    try {
+      const result = await invoke<{
+        success: boolean;
+        version: string | null;
+        error: string | null;
+        source: "remote" | "cached" | "defaults";
+      }>("check_for_config_updates");
+
+      const now = new Date().toISOString();
+      await setLastConfigChecked(now);
+      await setConfigSource(result.source);
+      if (result.version) {
+        await setLastConfigVersion(result.version);
+      }
+
+      if (result.success && result.version) {
+        setConfigCheckMessage(`Config updated to v${result.version}`);
+      } else {
+        setConfigCheckMessage("Config is up to date");
+      }
+      setTimeout(() => setConfigCheckMessage(null), 5000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setConfigCheckMessage(`Config check failed: ${errorMessage}. Using cached config.`);
+    } finally {
+      setIsCheckingConfig(false);
     }
   };
 
@@ -594,7 +678,7 @@ function SettingsPanel({ checkForUpdate, isChecking }: SettingsPanelProps) {
         </p>
       </section>
 
-      {/* Story 9.7 Task 4.5: Auto-Update Settings */}
+      {/* Story 9.7 Task 4.5: Auto-Update Settings + Story 9.9 Task 5.4: Skip list reset */}
       <section className="settings-section">
         <h3>Auto-Update</h3>
         <div className="settings-field">
@@ -648,6 +732,103 @@ function SettingsPanel({ checkForUpdate, isChecking }: SettingsPanelProps) {
               data-testid="check-message"
             >
               {checkMessage}
+            </p>
+          )}
+        </div>
+
+        {/* Story 9.9 Task 5.4: Skip list reset for advanced users */}
+        {skippedVersions.length > 0 && (
+          <div className="settings-field">
+            <p className="settings-help">
+              {skippedVersions.length} version{skippedVersions.length !== 1 ? "s" : ""} skipped due to
+              failed updates: {skippedVersions.join(", ")}
+            </p>
+            <button
+              onClick={handleClearSkipList}
+              disabled={clearingSkipList}
+              className="button-secondary"
+              data-testid="clear-skip-list-button"
+            >
+              {clearingSkipList ? "Clearing..." : "Clear Skipped Updates"}
+            </button>
+            {skipListMessage && (
+              <p
+                className={`settings-message ${skipListMessage.includes("Failed") ? "error" : "success"}`}
+                role="status"
+                aria-live="polite"
+              >
+                {skipListMessage}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Story 10.5 Task 3: Remote Configuration section (AC-2, AC-3, AC-4) */}
+      <section className="settings-section">
+        <h3>Remote Configuration</h3>
+
+        <div className="settings-field">
+          {/* AC-2: Status indicator with 3 states */}
+          <div className="remote-config-status-row">
+            <span
+              className={`remote-config-status-dot remote-config-status-dot--${configSource}`}
+              aria-hidden="true"
+            />
+            <span
+              className={`remote-config-status--${configSource}`}
+              data-testid="remote-config-status"
+            >
+              {configSource === "remote" && "Connected"}
+              {configSource === "cached" && "Using cached"}
+              {configSource === "defaults" && "Using defaults"}
+            </span>
+          </div>
+
+          {/* AC-2: Last fetched + version */}
+          <div className="remote-config-info">
+            <div>
+              <span className="settings-label">Last fetched: </span>
+              <span data-testid="last-config-checked">
+                {lastConfigChecked
+                  ? new Date(lastConfigChecked).toLocaleString()
+                  : "Never"}
+              </span>
+            </div>
+            {lastConfigVersion && (
+              <div>
+                <span className="settings-label">Config version: </span>
+                <span>v{lastConfigVersion}</span>
+              </div>
+            )}
+          </div>
+
+          {/* AC-4: Informational note when using defaults */}
+          {configSource === "defaults" && (
+            <p className="settings-help settings-help--warning">
+              Remote config is unavailable. Using bundled strategies.
+            </p>
+          )}
+
+          {/* AC-3: Check for Config Updates button (Task 3.5, 3.6) */}
+          <button
+            onClick={handleCheckForConfigUpdates}
+            disabled={isCheckingConfig}
+            className="button-secondary"
+            data-testid="check-config-button"
+          >
+            {isCheckingConfig ? "Checking..." : "Check for Config Updates"}
+          </button>
+
+          {/* AC-3: Success / failure feedback (Task 3.7) */}
+          {configCheckMessage && (
+            <p
+              className={`settings-message ${configCheckMessage.includes("failed") ? "error" : "success"}`}
+              role="status"
+              aria-live="polite"
+              data-testid="config-check-message"
+            >
+              {configCheckMessage}
             </p>
           )}
         </div>

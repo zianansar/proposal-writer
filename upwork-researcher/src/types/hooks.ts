@@ -5,7 +5,7 @@
  * Fetched from the database and displayed in a selectable card UI.
  */
 
-/** Hook strategy from Rust backend (Story 5.1) */
+/** Hook strategy from Rust backend (Story 5.1, extended in Story 10.3, 10.4) */
 export interface HookStrategy {
   id: number;
   name: string;
@@ -14,6 +14,12 @@ export interface HookStrategy {
   examples_json: string;
   best_for: string;
   created_at: string;
+  /** Strategy status: 'active', 'deprecated', or 'retired' (Story 10.3) */
+  status: string;
+  /** Remote config ID for sync mapping (Story 10.3). Null for seed strategies. */
+  remote_id: string | null;
+  /** A/B testing weight in [0.0, 1.0]. 0.0 = inactive for A/B (Story 10.4) */
+  ab_weight: number;
 }
 
 /**
@@ -75,6 +81,9 @@ export function parseHookStrategy(strategy: HookStrategy): ParsedHookStrategy {
     description: strategy.description,
     best_for: strategy.best_for,
     created_at: strategy.created_at,
+    status: strategy.status,
+    remote_id: strategy.remote_id,
+    ab_weight: strategy.ab_weight,
     firstExample: allExamples[0] || "No example available",
     allExamples,
   };

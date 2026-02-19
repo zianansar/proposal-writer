@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -13,6 +13,27 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
+
+// Story 10.5: Import listen mock for strategies:updated event testing
+import { listen } from "@tauri-apps/api/event";
+const mockListen = vi.mocked(listen);
+
+// Mock Tauri updater/process plugins (Story 9.7 Task 5.7)
+vi.mock("@tauri-apps/plugin-updater", () => ({
+  check: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-process", () => ({
+  relaunch: vi.fn(),
+}));
+
+// Mock @tauri-apps/api/app for getVersion (Story TD2.3 Task 5)
+vi.mock("@tauri-apps/api/app", () => ({
+  getVersion: vi.fn().mockResolvedValue("1.2.0"),
+}));
+
+import { check } from "@tauri-apps/plugin-updater";
+const mockCheck = vi.mocked(check);
 
 // Helper to setup invoke mock with API key check and onboarding completed
 const setupInvokeMock = () => {
@@ -129,9 +150,14 @@ describe("App", () => {
   it("displays error on API failure", async () => {
     const user = userEvent.setup();
     // Override mock for this test to simulate API failure after API key check
-    mockInvoke.mockImplementation((command: string) => {
+    // CR R1 M-2: Must handle get_setting for onboarding_completed to prevent
+    // onboarding wizard from covering the error message
+    mockInvoke.mockImplementation((command: string, args?: any) => {
       if (command === "has_api_key") {
         return Promise.resolve(true);
+      }
+      if (command === "get_setting" && args?.key === "onboarding_completed") {
+        return Promise.resolve("true");
       }
       if (command === "generate_proposal_streaming") {
         return Promise.reject("API error: rate limited");
@@ -297,9 +323,13 @@ describe("App", () => {
 
     // First call succeeds, second call fails
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
+    // CR R1 M-2: Include get_setting handler for onboarding
+    mockInvoke.mockImplementation((command: string, args?: any) => {
       if (command === "has_api_key") {
         return Promise.resolve(true);
+      }
+      if (command === "get_setting" && args?.key === "onboarding_completed") {
+        return Promise.resolve("true");
       }
       if (command === "save_job_post") {
         return Promise.resolve({ id: 1, saved: true });
@@ -408,9 +438,13 @@ describe("App", () => {
     const user = userEvent.setup();
 
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
+    // CR R1 M-2: Include get_setting handler for onboarding
+    mockInvoke.mockImplementation((command: string, args?: any) => {
       if (command === "has_api_key") {
         return Promise.resolve(true);
+      }
+      if (command === "get_setting" && args?.key === "onboarding_completed") {
+        return Promise.resolve("true");
       }
       if (command === "save_job_post") {
         return Promise.resolve({ id: 1, saved: true });
@@ -844,5 +878,390 @@ describe("App", () => {
 
     // Verify JobAnalysisPanel renders (receives jobPostId prop for breakdown fetch)
     expect(screen.getByTestId("job-analysis-panel")).toBeInTheDocument();
+  });
+});
+
+// Story 9.7 Task 5.7: Auto-Update Integration Tests
+describe("App - Auto-Update Integration (Story 9.7)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useGenerationStore.getState().reset();
+    useOnboardingStore.getState().reset();
+    useOnboardingStore.getState().setShowOnboarding(false);
+    setupInvokeMock();
+  });
+
+  it("renders AutoUpdateNotification toast when non-critical update available", async () => {
+    mockCheck.mockResolvedValue({
+      version: "2.0.0",
+      currentVersion: "1.0.0",
+      body: "Bug fixes and improvements",
+      date: "2026-02-16",
+      downloadAndInstall: vi.fn(),
+    } as any);
+
+    render(<App />);
+
+    // Wait for update notification toast to appear (background check resolves)
+    await waitFor(() => {
+      expect(screen.getByText("Update available: v2.0.0")).toBeInTheDocument();
+    });
+
+    // Main app should still be visible (non-critical doesn't block)
+    expect(screen.getByRole("heading", { name: /upwork research agent/i })).toBeInTheDocument();
+  });
+
+  it("renders MandatoryUpdateDialog for critical updates, blocking normal UI", async () => {
+    mockCheck.mockResolvedValue({
+      version: "2.0.0",
+      currentVersion: "1.0.0",
+      body: "Critical security fix",
+      date: "2026-02-16",
+      critical: true,
+      downloadAndInstall: vi.fn(),
+    } as any);
+
+    render(<App />);
+
+    // Wait for MandatoryUpdateDialog to appear
+    await waitFor(() => {
+      expect(screen.getByText("Critical Security Update Required")).toBeInTheDocument();
+    });
+
+    // Main app heading should NOT be visible (critical update blocks everything)
+    expect(
+      screen.queryByRole("heading", { name: /upwork research agent/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show update notification when no update available", async () => {
+    mockCheck.mockResolvedValue(null);
+
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+    });
+
+    // No update notification should appear
+    expect(screen.queryByText(/update available/i)).not.toBeInTheDocument();
+    // Main app renders normally
+    expect(screen.getByRole("heading", { name: /upwork research agent/i })).toBeInTheDocument();
+  });
+});
+
+// Story 10.5: Config Update Notification Integration Tests
+describe("App - Config Update Integration (Story 10.5)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCheck.mockResolvedValue(null); // No auto-update by default
+    useGenerationStore.getState().reset();
+    useOnboardingStore.getState().reset();
+    useOnboardingStore.getState().setShowOnboarding(false);
+    setupInvokeMock();
+  });
+
+  it("does not show ConfigUpdateNotification by default (no config updates)", async () => {
+    render(<App />);
+    await waitForAppReady();
+
+    // ConfigUpdateNotification renders null when not visible
+    expect(screen.queryByText(/hook strategies updated/i)).not.toBeInTheDocument();
+  });
+
+  it("shows ConfigUpdateNotification when strategies:updated event fires (AC-1)", async () => {
+    render(<App />);
+    await waitForAppReady();
+
+    // Find the strategies:updated listener registered by useRemoteConfig
+    const strategiesCall = mockListen.mock.calls.find(
+      (call) => call[0] === "strategies:updated",
+    );
+    expect(strategiesCall).toBeDefined();
+
+    // Fire the event
+    const callback = strategiesCall![1] as (event: { payload: unknown }) => void;
+    act(() => {
+      callback({
+        payload: { newCount: 2, updatedCount: 1, newStrategies: [] },
+      });
+    });
+
+    // ConfigUpdateNotification should appear (text also exists in LiveAnnouncer, so use class selector)
+    await waitFor(() => {
+      const notification = document.querySelector(".config-update-notification");
+      expect(notification).toBeInTheDocument();
+      expect(notification).toHaveTextContent(
+        /hook strategies updated: 2 new, 1 updated/i,
+      );
+    });
+  });
+
+  it("hides ConfigUpdateNotification when app-update is also showing (AC-6)", async () => {
+    // Non-critical update available — AutoUpdateNotification shows
+    mockCheck.mockResolvedValue({
+      version: "2.0.0",
+      currentVersion: "1.0.0",
+      body: "Bug fixes",
+      date: "2026-02-16",
+      downloadAndInstall: vi.fn(),
+    } as any);
+
+    render(<App />);
+    await waitForAppReady();
+
+    // Wait for auto-update notification to appear first
+    await waitFor(() => {
+      expect(screen.getByText("Update available: v2.0.0")).toBeInTheDocument();
+    });
+
+    // Fire strategies:updated event
+    const strategiesCall = mockListen.mock.calls.find(
+      (call) => call[0] === "strategies:updated",
+    );
+    if (strategiesCall) {
+      const callback = strategiesCall[1] as (event: { payload: unknown }) => void;
+      act(() => {
+        callback({
+          payload: { newCount: 1, updatedCount: 0, newStrategies: [] },
+        });
+      });
+    }
+
+    // Config notification should NOT be visible (app-update takes priority)
+    expect(screen.queryByText(/hook strategies updated/i)).not.toBeInTheDocument();
+  });
+
+  it("shows ConfigUpdateNotification after auto-update toast is dismissed (CR R2 H-1)", async () => {
+    // Non-critical update available — AutoUpdateNotification shows
+    mockCheck.mockResolvedValue({
+      version: "2.0.0",
+      currentVersion: "1.0.0",
+      body: "Bug fixes",
+      date: "2026-02-16",
+      downloadAndInstall: vi.fn(),
+    } as any);
+
+    render(<App />);
+    await waitForAppReady();
+
+    // Wait for auto-update notification to appear
+    await waitFor(() => {
+      expect(screen.getByText("Update available: v2.0.0")).toBeInTheDocument();
+    });
+
+    // Fire strategies:updated event while auto-update is showing
+    const strategiesCall = mockListen.mock.calls.find(
+      (call) => call[0] === "strategies:updated",
+    );
+    expect(strategiesCall).toBeDefined();
+    const callback = strategiesCall![1] as (event: { payload: unknown }) => void;
+    act(() => {
+      callback({
+        payload: { newCount: 3, updatedCount: 0, newStrategies: [] },
+      });
+    });
+
+    // Config notification should NOT be visible yet (auto-update showing)
+    expect(screen.queryByText(/hook strategies updated/i)).not.toBeInTheDocument();
+
+    // Dismiss auto-update toast by clicking "Later"
+    // This triggers onLater → state transitions to 'hidden' → onToastHidden fires
+    fireEvent.click(screen.getByText("Later"));
+
+    // Now config notification should appear (auto-update dismissed → onToastHidden)
+    await waitFor(() => {
+      const notification = document.querySelector(".config-update-notification");
+      expect(notification).toBeInTheDocument();
+      expect(notification).toHaveTextContent(/hook strategies updated: 3 new, 0 updated/i);
+    });
+  });
+});
+
+// Story 10.5 CR R2 M-3: Startup cleanup of expired first-seen entries
+describe("App - Startup Cleanup (Story 10.5 Task 6.6)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useGenerationStore.getState().reset();
+    useOnboardingStore.getState().reset();
+    useOnboardingStore.getState().setShowOnboarding(false);
+    setupInvokeMock();
+  });
+
+  it("prunes expired new_strategies_first_seen entries on startup", async () => {
+    const { useSettingsStore } = await import("./stores/useSettingsStore");
+
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const oneDayAgo = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
+
+    const testFirstSeen = JSON.stringify({
+      "expired-strategy": eightDaysAgo,
+      "fresh-strategy": oneDayAgo,
+    });
+    const testDismissed = JSON.stringify({
+      "expired-strategy": true,
+      "fresh-strategy": true,
+    });
+
+    // Mock get_all_settings to return our test data so initializeApp loads them
+    mockInvoke.mockImplementation((command: string, args?: any) => {
+      if (command === "has_api_key") return Promise.resolve(true);
+      if (command === "get_setting" && args?.key === "onboarding_completed")
+        return Promise.resolve("true");
+      if (command === "get_all_settings") {
+        return Promise.resolve([
+          { key: "new_strategies_first_seen", value: testFirstSeen, updated_at: "" },
+          { key: "new_strategies_dismissed", value: testDismissed, updated_at: "" },
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    render(<App />);
+    await waitForAppReady();
+
+    // Wait for initializeApp to complete and cleanup to run
+    await waitFor(() => {
+      const store = useSettingsStore.getState();
+      const firstSeen = JSON.parse(store.settings["new_strategies_first_seen"] || "{}");
+      // Expired entry should be pruned, fresh entry should remain
+      expect(firstSeen["expired-strategy"]).toBeUndefined();
+      expect(firstSeen["fresh-strategy"]).toBe(oneDayAgo);
+    });
+
+    // Dismissed entries for expired strategies should also be pruned
+    const store = useSettingsStore.getState();
+    const dismissed = JSON.parse(store.settings["new_strategies_dismissed"] || "{}");
+    expect(dismissed["expired-strategy"]).toBeUndefined();
+    expect(dismissed["fresh-strategy"]).toBe(true);
+  });
+});
+
+// Story TD2.3 Task 5: Health check integration tests (AC-1, AC-2, AC-3)
+describe("App health check orchestration (TD2.3)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useGenerationStore.getState().reset();
+    useOnboardingStore.getState().reset();
+    useOnboardingStore.getState().setShowOnboarding(false);
+  });
+
+  const setupHealthCheckInvokes = (overrides: Record<string, unknown> = {}) => {
+    mockInvoke.mockImplementation((command: string, args?: unknown) => {
+      const typedArgs = args as Record<string, unknown> | undefined;
+      const defaults: Record<string, unknown> = {
+        has_api_key: true,
+        detect_update_command: false,
+        get_installed_version_command: "1.1.0",
+        set_installed_version_command: null,
+        run_health_checks_command: {
+          passed: true,
+          checks_run: 4,
+          failures: [],
+          duration_ms: 100,
+        },
+        check_and_clear_rollback_command: null,
+        rollback_to_previous_version_command: null,
+        check_encryption_status: { databaseEncrypted: false },
+        get_encryption_status: { databaseEncrypted: false },
+        check_for_draft: null,
+        get_cooldown_remaining: 0,
+        check_threshold_learning: null,
+        check_threshold_decrease: null,
+        list_settings: [],
+        ...overrides,
+      };
+      if (command === "get_setting" && typedArgs?.key === "onboarding_completed") {
+        return Promise.resolve("true");
+      }
+      if (command in defaults) return Promise.resolve(defaults[command]);
+      return Promise.resolve(null);
+    });
+  };
+
+  it("does not show HealthCheckModal when detect_update_command returns false (AC-1)", async () => {
+    setupHealthCheckInvokes({ detect_update_command: false });
+    render(<App />);
+    await waitForAppReady();
+    // Health check modal should never appear
+    expect(screen.queryByText("Verifying app health...")).not.toBeInTheDocument();
+  });
+
+  it("shows success toast when health checks pass (AC-2)", async () => {
+    setupHealthCheckInvokes({
+      detect_update_command: true,
+      get_installed_version_command: "1.1.0",
+      run_health_checks_command: {
+        passed: true,
+        checks_run: 4,
+        failures: [],
+        duration_ms: 80,
+      },
+    });
+    render(<App />);
+    await waitForAppReady();
+    // Wait for health check flow to complete and success toast to appear
+    await waitFor(
+      () => {
+        expect(screen.getByText(/updated to v/i)).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
+    expect(screen.getByText("Update Successful")).toBeInTheDocument();
+  });
+
+  it("shows RollbackDialog when health checks fail (AC-3)", async () => {
+    setupHealthCheckInvokes({
+      detect_update_command: true,
+      get_installed_version_command: "1.1.0",
+      run_health_checks_command: {
+        passed: false,
+        checks_run: 4,
+        failures: [
+          { check: "Database integrity", error: "PRAGMA cipher_integrity_check failed", critical: true },
+        ],
+        duration_ms: 200,
+      },
+    });
+    render(<App />);
+    await waitForAppReady();
+    // Wait for rollback dialog to appear
+    await waitFor(
+      () => {
+        expect(screen.getByRole("dialog", { name: /update failed/i })).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
+    expect(screen.getByText(/PRAGMA cipher_integrity_check failed/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /restart app/i })).toBeInTheDocument();
+    // CR R2 M-1: Verify rollback command was actually invoked before dialog appeared
+    expect(mockInvoke).toHaveBeenCalledWith("rollback_to_previous_version_command");
+  });
+
+  it("dismisses success toast on Escape keypress (AC-4)", async () => {
+    // CR R2 L-1: Test the Escape keydown handler added by CR R1 M-1
+    setupHealthCheckInvokes({
+      detect_update_command: true,
+      get_installed_version_command: "1.1.0",
+      run_health_checks_command: {
+        passed: true,
+        checks_run: 4,
+        failures: [],
+        duration_ms: 80,
+      },
+    });
+    render(<App />);
+    await waitForAppReady();
+    // Wait for success toast to appear
+    await waitFor(
+      () => {
+        expect(screen.getByText("Update Successful")).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
+    // Press Escape to dismiss
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByText("Update Successful")).not.toBeInTheDocument();
+    });
   });
 });

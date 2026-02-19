@@ -337,6 +337,97 @@ pub async fn get_weekly_activity(
         .map_err(|e| format!("Failed to get weekly activity: {}", e))
 }
 
+// =========================================================================
+// Story 10.4: A/B Testing Analytics (Task 4)
+// =========================================================================
+
+/// Strategy effectiveness data for analytics dashboard (Story 10.4: AC-4)
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StrategyEffectivenessData {
+    pub hook_strategy_id: String,
+    pub ab_assigned: bool,
+    pub total: i64,
+    pub won: i64,
+    pub response_rate: f32,
+    pub avg_score: f32,
+}
+
+/// Get strategy effectiveness grouped by (hook_strategy_id, ab_assigned) (Story 10.4: AC-4)
+///
+/// Response rate = won / total where won = ['hired', 'interview', 'response_received']
+/// Average score: hired=3, interview=2, response_received=1, others=0
+/// Sorted by response_rate DESC.
+#[tauri::command]
+pub async fn get_strategy_effectiveness(
+    db: State<'_, AppDatabase>,
+) -> Result<Vec<StrategyEffectivenessData>, String> {
+    let db = db.get()?;
+
+    let conn_guard = db
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to acquire database lock: {}", e))?;
+
+    get_strategy_effectiveness_internal(&conn_guard)
+        .map_err(|e| format!("Failed to get strategy effectiveness: {}", e))
+}
+
+fn get_strategy_effectiveness_internal(
+    conn: &Connection,
+) -> Result<Vec<StrategyEffectivenessData>, String> {
+    let query = "
+        SELECT
+            hook_strategy_id,
+            ab_assigned,
+            COUNT(*) as total,
+            SUM(CASE WHEN outcome_status IN ('hired', 'interview', 'response_received') THEN 1 ELSE 0 END) as won,
+            CAST(SUM(CASE WHEN outcome_status IN ('hired', 'interview', 'response_received') THEN 1 ELSE 0 END) AS REAL)
+                / CAST(COUNT(*) AS REAL) as response_rate,
+            AVG(CASE
+                WHEN outcome_status = 'hired' THEN 3.0
+                WHEN outcome_status = 'interview' THEN 2.0
+                WHEN outcome_status = 'response_received' THEN 1.0
+                ELSE 0.0
+            END) as avg_score
+        FROM proposals
+        WHERE hook_strategy_id IS NOT NULL
+        GROUP BY hook_strategy_id, ab_assigned
+        ORDER BY response_rate DESC
+    ";
+
+    let mut stmt = conn
+        .prepare(query)
+        .map_err(|e| format!("Failed to prepare strategy effectiveness query: {}", e))?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            let ab_assigned_int: i64 = row.get(1)?;
+            let total: i64 = row.get(2)?;
+            let won: i64 = row.get(3)?;
+            let response_rate: f64 = row.get(4)?;
+            let avg_score: f64 = row.get(5)?;
+            Ok(StrategyEffectivenessData {
+                hook_strategy_id: row.get(0)?,
+                ab_assigned: ab_assigned_int != 0,
+                total,
+                won,
+                response_rate: response_rate as f32,
+                avg_score: avg_score as f32,
+            })
+        })
+        .map_err(|e| format!("Failed to execute strategy effectiveness query: {}", e))?;
+
+    let mut results = Vec::new();
+    for row in rows {
+        results.push(
+            row.map_err(|e| format!("Failed to read strategy effectiveness row: {}", e))?,
+        );
+    }
+
+    Ok(results)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -571,5 +662,75 @@ mod tests {
             without_strategy.hook_strategy_id.is_none(),
             "hook_strategy_id should be null when not set"
         );
+    }
+
+    // =========================================================================
+    // Story 10.4: Strategy Effectiveness tests (Task 4.13)
+    // =========================================================================
+
+    #[test]
+    fn test_strategy_effectiveness_empty() {
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        let result = get_strategy_effectiveness_internal(&conn).unwrap();
+        assert!(result.is_empty(), "Should return empty for no proposals");
+    }
+
+    #[test]
+    fn test_strategy_effectiveness_aggregates_correctly() {
+        use crate::db::queries::proposals::insert_proposal_with_ab_context;
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // Insert 3 A/B proposals for "social_proof": 2 hired (won), 1 pending (lost)
+        insert_proposal_with_ab_context(&conn, "job1", "text1", None, Some("social_proof"), None, true, Some(0.5)).unwrap();
+        insert_proposal_with_ab_context(&conn, "job2", "text2", None, Some("social_proof"), None, true, Some(0.5)).unwrap();
+        insert_proposal_with_ab_context(&conn, "job3", "text3", None, Some("social_proof"), None, true, Some(0.5)).unwrap();
+
+        // Update outcomes
+        conn.execute("UPDATE proposals SET outcome_status='hired' WHERE id=1", []).unwrap();
+        conn.execute("UPDATE proposals SET outcome_status='hired' WHERE id=2", []).unwrap();
+        // id=3 stays 'pending'
+
+        let results = get_strategy_effectiveness_internal(&conn).unwrap();
+        assert_eq!(results.len(), 1, "Should have one row for (social_proof, ab_assigned=true)");
+
+        let row = &results[0];
+        assert_eq!(row.hook_strategy_id, "social_proof");
+        assert!(row.ab_assigned, "Should be marked ab_assigned=true");
+        assert_eq!(row.total, 3);
+        assert_eq!(row.won, 2);
+        assert!((row.response_rate - 2.0_f32 / 3.0_f32).abs() < 1e-4, "Response rate should be 2/3");
+    }
+
+    #[test]
+    fn test_strategy_effectiveness_ab_assigned_filtering() {
+        use crate::db::queries::proposals::insert_proposal_with_ab_context;
+        let db = create_test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // A/B proposal for "contrarian"
+        insert_proposal_with_ab_context(&conn, "job1", "text1", None, Some("contrarian"), None, true, Some(0.3)).unwrap();
+        // Manual proposal for "contrarian"
+        insert_proposal_with_ab_context(&conn, "job2", "text2", None, Some("contrarian"), None, false, None).unwrap();
+
+        // Set outcomes
+        conn.execute("UPDATE proposals SET outcome_status='response_received' WHERE id=1", []).unwrap();
+        conn.execute("UPDATE proposals SET outcome_status='hired' WHERE id=2", []).unwrap();
+
+        let results = get_strategy_effectiveness_internal(&conn).unwrap();
+
+        // Should produce 2 rows: one for (contrarian, ab_assigned=1) and one for (contrarian, ab_assigned=0)
+        assert_eq!(results.len(), 2, "A/B and Manual should produce separate rows for same strategy");
+
+        let ab_row = results.iter().find(|r| r.ab_assigned).expect("Should find A/B row");
+        let manual_row = results.iter().find(|r| !r.ab_assigned).expect("Should find Manual row");
+
+        assert_eq!(ab_row.total, 1);
+        assert_eq!(manual_row.total, 1);
+        // manual has hired (score 3.0), ab has response_received (score 1.0)
+        assert!((manual_row.avg_score - 3.0_f32).abs() < 1e-4, "Manual hired should have avg_score 3.0");
+        assert!((ab_row.avg_score - 1.0_f32).abs() < 1e-4, "A/B response_received should have avg_score 1.0");
     }
 }

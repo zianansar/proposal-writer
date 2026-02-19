@@ -1,6 +1,7 @@
-// Analytics Dashboard component (Story 7.5)
+// Analytics Dashboard component (Story 7.5, extended in Story 10.4)
 import { OutcomeDistributionChart } from "./OutcomeDistributionChart";
 import { formatLabel } from "./OutcomeDropdown";
+import { StrategyEffectivenessTable } from "./StrategyEffectivenessTable";
 import { StrategyPerformanceChart } from "./StrategyPerformanceChart";
 import { useAnalyticsSummary } from "./useProposalAnalytics";
 import { WeeklyActivityChart } from "./WeeklyActivityChart";
@@ -107,6 +108,12 @@ export function ProposalAnalyticsDashboard({ onBack }: ProposalAnalyticsDashboar
       <div className="chart-container-full">
         <h3>Weekly Activity (Last 12 Weeks)</h3>
         <WeeklyActivityChart />
+      </div>
+
+      {/* Story 10.4: A/B Strategy Effectiveness Table (AC-4) */}
+      <div className="chart-container-full">
+        <h3>Hook Strategy Effectiveness</h3>
+        <StrategyEffectivenessTable />
       </div>
     </div>
   );

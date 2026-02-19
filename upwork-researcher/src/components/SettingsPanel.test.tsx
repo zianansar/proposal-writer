@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { createSettingsMockInvoke } from "../test/settingsPanelMocks";
+import { useSettings } from "../hooks/useSettings";
 
 import SettingsPanel from "./SettingsPanel";
 
@@ -43,6 +44,10 @@ vi.mock("@tauri-apps/api/app", () => ({
 // Mock useSettings hook (Story 9.7)
 const mockSetAutoUpdateEnabled = vi.fn(() => Promise.resolve());
 const mockSetLastUpdateCheck = vi.fn(() => Promise.resolve());
+const mockSetLastConfigChecked = vi.fn(() => Promise.resolve());
+const mockSetLastConfigVersion = vi.fn(() => Promise.resolve());
+const mockSetConfigSource = vi.fn(() => Promise.resolve());
+
 vi.mock("../hooks/useSettings", () => ({
   useSettings: vi.fn(() => ({
     // State
@@ -62,21 +67,29 @@ vi.mock("../hooks/useSettings", () => ({
     setSkippedVersion: vi.fn(() => Promise.resolve()),
     lastUpdateCheck: "2026-02-16T10:00:00Z",
     setLastUpdateCheck: mockSetLastUpdateCheck,
+    // Story 10.5: Remote config settings
+    lastConfigChecked: "2026-02-17T10:00:00Z",
+    setLastConfigChecked: mockSetLastConfigChecked,
+    lastConfigVersion: "1.0.0",
+    setLastConfigVersion: mockSetLastConfigVersion,
+    configSource: "remote" as const,
+    setConfigSource: mockSetConfigSource,
+    newStrategiesFirstSeen: {},
+    setNewStrategiesFirstSeen: vi.fn(() => Promise.resolve()),
+    newStrategiesDismissed: {},
+    setNewStrategiesDismissed: vi.fn(() => Promise.resolve()),
     // Generic access
     getSetting: vi.fn(),
     setSetting: vi.fn(() => Promise.resolve()),
   })),
 }));
 
-// Mock useUpdater hook (Story 9.7)
+// CR R1 H-1: SettingsPanel now receives checkForUpdate/isChecking as props (no useUpdater mock needed)
 const mockCheckForUpdate = vi.fn();
-vi.mock("../hooks/useUpdater", () => ({
-  useUpdater: vi.fn(() => ({
-    checkForUpdate: mockCheckForUpdate,
-    isChecking: false,
-    updateInfo: null,
-  })),
-}));
+const defaultSettingsPanelProps = {
+  checkForUpdate: mockCheckForUpdate,
+  isChecking: false,
+};
 
 // Mock formatRelativeTime (Story 9.7)
 vi.mock("../utils/dateUtils", () => ({
@@ -110,7 +123,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   // Story 3.5, Task 6.5: Test Safety section renders with slider (140-220 range)
   it("renders Safety section with slider (range 140-220)", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for async threshold load
@@ -132,7 +145,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   // Story 3.5, Task 6.6: Test slider displays default value 180 on load
   it("displays default threshold 180 on load", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for async threshold load
@@ -149,7 +162,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   // Story 3.5, Task 6.7: Test changing slider calls set_setting with new value (debounced 300ms)
   it("calls set_setting after debounce (300ms) when slider changes", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for initial load
@@ -184,7 +197,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   // Story 3.5, Task 6.8: Test labels "Strict", "Balanced", "Permissive" display correctly
   it("displays labels Strict (140), Balanced (180), Permissive (220)", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for render
@@ -206,7 +219,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   // Story 3.5: Test success message appears after save
   it("shows success message '✓ Saved' after set_setting succeeds", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -245,7 +258,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
     );
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -286,7 +299,7 @@ describe("SettingsPanel - Safety Threshold (Story 3.5)", () => {
   // Story 3.5: Test multiple rapid changes only trigger one save (debouncing)
   it("debounces rapid slider changes (only saves once after 300ms)", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -353,7 +366,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
   // Subtask 9.4: Test hourly rate input renders
   it("renders hourly rate input field", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -369,7 +382,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
   // Subtask 9.4: Test project rate input renders
   it("renders project rate input field", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -392,7 +405,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
     );
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -407,7 +420,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
   // Subtask 9.4: Test hourly rate saves with debounce (500ms)
   it("saves hourly rate after 500ms debounce", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -438,7 +451,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
   // Subtask 9.4: Test project rate saves with debounce (500ms)
   it("saves project rate after 500ms debounce", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -480,7 +493,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
     );
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -516,7 +529,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
   // Subtask 9.4: Test help text is displayed
   it("shows help text for rate configuration", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -531,7 +544,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
   // Subtask 9.4: Test success message appears
   it("shows success message after hourly rate saved", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -561,7 +574,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
     );
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -589,7 +602,7 @@ describe("SettingsPanel - Rate Configuration (Story 4b.4)", () => {
   // Subtask 9.4: Test invalid value (<=0) doesn't trigger save
   it("does not save invalid hourly rate value (<=0)", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -637,7 +650,7 @@ describe("SettingsPanel - VoiceSettings Integration (Story 6.2)", () => {
   // [AI-Review] Test that VoiceSettings component renders within SettingsPanel
   it("renders VoiceSettings component with Voice Settings header", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for all async loading to complete
@@ -652,7 +665,7 @@ describe("SettingsPanel - VoiceSettings Integration (Story 6.2)", () => {
   // [AI-Review] Test that VoiceSettings sliders are accessible in SettingsPanel
   it("renders VoiceSettings sliders within SettingsPanel", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -668,7 +681,7 @@ describe("SettingsPanel - VoiceSettings Integration (Story 6.2)", () => {
   // [AI-Review] Test that VoiceSettings info message is visible
   it("displays VoiceSettings info message in SettingsPanel", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -699,7 +712,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
   // Task 6.1: Privacy indicator renders with correct text
   it("renders Privacy section with zero telemetry indicator", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for component to mount
@@ -717,7 +730,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
   // Task 6.2: Crash reporting toggle defaults to OFF
   it("crash reporting toggle defaults to OFF when setting is not set", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for settings to load
@@ -741,7 +754,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
     );
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -753,7 +766,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
   // Task 6.3: Crash reporting toggle persists to settings store
   it("persists crash reporting toggle to settings when enabled", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for initial load
@@ -792,7 +805,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
     );
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     // Wait for initial load - checkbox should be checked
@@ -821,7 +834,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
   // Task 6.4: Privacy section is visible in settings view
   it("displays Privacy section above Humanization section", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -842,7 +855,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
 
   it("displays warning text for crash reporting", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -854,7 +867,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
   it("reverts crash reporting toggle on save failure", async () => {
     // Start with crash reporting disabled (default)
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -892,7 +905,7 @@ describe("SettingsPanel - Privacy & Telemetry (Story 8.14)", () => {
 
   it("disables crash reporting checkbox while saving", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -958,7 +971,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
   // Task 4.6: Test Auto-Update section renders
   it("renders Auto-Update section with toggle", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -971,7 +984,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
   // Task 4.6: Test toggle defaults to checked when enabled
   it("shows toggle as checked when auto-update is enabled", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -983,7 +996,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
   // Task 4.6: Test current version loads from getVersion
   it("loads and displays current version", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await waitFor(() => {
@@ -997,7 +1010,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
   // Task 4.6: Test last update check displays
   it("displays last update check time", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -1006,23 +1019,23 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
     expect(lastCheck).toBeInTheDocument();
   });
 
-  // Task 4.6: Test Check for Updates button renders
-  it("renders Check for Updates button", async () => {
+  // Task 4.6: Test Check Now button renders (CR R1 M-3: label updated)
+  it("renders Check Now button", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
 
     const button = screen.getByTestId("check-update-button");
     expect(button).toBeInTheDocument();
-    expect(button).toHaveTextContent("Check for Updates");
+    expect(button).toHaveTextContent("Check Now");
   });
 
   // Task 4.6: Test toggling auto-update calls setAutoUpdateEnabled
   it("calls setAutoUpdateEnabled when toggle is changed", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -1042,7 +1055,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
     mockCheckForUpdate.mockResolvedValue(null);
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -1062,7 +1075,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
     mockCheckForUpdate.mockResolvedValue(null);
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -1090,7 +1103,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
     });
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -1112,7 +1125,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
     mockCheckForUpdate.mockRejectedValue(new Error("Network error"));
 
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -1130,27 +1143,10 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
   });
 
   // Task 4.6: Test button shows "Checking..." while checking
+  // CR R1 H-1+L-3: isChecking now comes via props, no useUpdater mock needed
   it("shows 'Checking...' on button while checking for updates", async () => {
-    const { useUpdater } = await import("../hooks/useUpdater");
-    vi.mocked(useUpdater).mockReturnValue({
-      checkForUpdate: mockCheckForUpdate,
-      isChecking: true,
-      updateInfo: null,
-      downloadAndInstall: vi.fn(),
-      relaunchApp: vi.fn(),
-      retryDownload: vi.fn(),
-      clearError: vi.fn(),
-      cancelDownload: vi.fn(),
-      error: null,
-      updateAvailable: false,
-      downloadProgress: 0,
-      isDownloaded: false,
-      pendingCriticalUpdate: false,
-      isDownloading: false,
-    });
-
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} isChecking={true} />);
     });
 
     await flushPromises();
@@ -1172,7 +1168,7 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
   // Task 4.6: Test help text is displayed
   it("shows help text for auto-update", async () => {
     await act(async () => {
-      render(<SettingsPanel />);
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
     });
 
     await flushPromises();
@@ -1180,5 +1176,192 @@ describe("SettingsPanel - Auto-Update (Story 9.7)", () => {
     expect(
       screen.getByText("When enabled, the app checks for updates in the background every 4 hours."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("SettingsPanel - Remote Configuration (Story 10.5 Task 3)", () => {
+  // Default values for useSettings mock within this describe block
+  const defaultRemoteConfigSettings = () => ({
+    isLoading: false,
+    error: null,
+    isInitialized: true,
+    theme: "light" as const,
+    setTheme: vi.fn(),
+    safetyThreshold: 180,
+    setSafetyThreshold: vi.fn(),
+    onboardingCompleted: true,
+    setOnboardingCompleted: vi.fn(),
+    autoUpdateEnabled: true,
+    setAutoUpdateEnabled: vi.fn(),
+    skippedVersion: "",
+    setSkippedVersion: vi.fn(),
+    lastUpdateCheck: "",
+    setLastUpdateCheck: vi.fn(),
+    lastConfigChecked: "2026-02-17T10:00:00Z",
+    setLastConfigChecked: vi.fn(),
+    lastConfigVersion: "1.0.0",
+    setLastConfigVersion: vi.fn(),
+    configSource: "remote" as const,
+    setConfigSource: vi.fn(),
+    newStrategiesFirstSeen: {},
+    setNewStrategiesFirstSeen: vi.fn(),
+    newStrategiesDismissed: {},
+    setNewStrategiesDismissed: vi.fn(),
+    getSetting: vi.fn(),
+    setSetting: vi.fn(),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockInvoke.mockImplementation(createSettingsMockInvoke());
+    // Restore useSettings mock to default values for this block
+    vi.mocked(useSettings).mockImplementation(defaultRemoteConfigSettings);
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
+  it("renders Remote Configuration section heading (AC-2)", async () => {
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+    expect(screen.getByText("Remote Configuration")).toBeInTheDocument();
+  });
+
+  it("shows 'Connected' status indicator when configSource is 'remote' (AC-2)", async () => {
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+    expect(screen.getByText(/Connected/)).toBeInTheDocument();
+  });
+
+  it("shows last fetched timestamp when available (AC-2)", async () => {
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+    // lastConfigChecked is "2026-02-17T10:00:00Z" in mock → should show formatted date
+    expect(screen.getByTestId("last-config-checked")).toBeInTheDocument();
+  });
+
+  it("shows config version when available (AC-2)", async () => {
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+    expect(screen.getByText(/v1\.0\.0/)).toBeInTheDocument();
+  });
+
+  it("renders Check for Config Updates button (AC-3)", async () => {
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+    expect(screen.getByTestId("check-config-button")).toBeInTheDocument();
+    expect(screen.getByTestId("check-config-button")).not.toBeDisabled();
+  });
+
+  it("shows 'Last fetched: Never' when lastConfigChecked is empty (AC-2)", async () => {
+    // Override useSettings mock with "defaults" state (persistent across all renders)
+    vi.mocked(useSettings).mockImplementation(() => ({
+      ...defaultRemoteConfigSettings(),
+      lastConfigChecked: "",
+      lastConfigVersion: "",
+      configSource: "defaults" as const,
+    }));
+
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+    expect(screen.getByText(/Never/)).toBeInTheDocument();
+  });
+
+  it("shows informational note when configSource is 'defaults' (AC-4)", async () => {
+    // Override useSettings mock with "defaults" state (persistent across all renders)
+    vi.mocked(useSettings).mockImplementation(() => ({
+      ...defaultRemoteConfigSettings(),
+      lastConfigChecked: "",
+      lastConfigVersion: "",
+      configSource: "defaults" as const,
+    }));
+
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+    expect(screen.getByText(/Remote config is unavailable/)).toBeInTheDocument();
+  });
+
+  it("shows loading spinner on button during config check (AC-3)", async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "check_for_config_updates") {
+        return new Promise(() => {}); // Never resolves — simulates loading
+      }
+      return createSettingsMockInvoke()(cmd);
+    });
+
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+
+    const button = screen.getByTestId("check-config-button");
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(button).toBeDisabled();
+    expect(screen.getByText(/Checking/)).toBeInTheDocument();
+  });
+
+  it("shows success toast when config is up to date (AC-3)", async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "check_for_config_updates") {
+        return Promise.resolve({ success: true, version: "1.0.0", error: null, source: "remote" });
+      }
+      return createSettingsMockInvoke()(cmd);
+    });
+
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("check-config-button"));
+    });
+    await flushPromises();
+
+    expect(screen.getByTestId("config-check-message")).toBeInTheDocument();
+  });
+
+  it("shows failure toast when config check fails (AC-3)", async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "check_for_config_updates") {
+        return Promise.reject(new Error("Network error"));
+      }
+      return createSettingsMockInvoke()(cmd);
+    });
+
+    await act(async () => {
+      render(<SettingsPanel {...defaultSettingsPanelProps} />);
+    });
+    await flushPromises();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("check-config-button"));
+    });
+    await flushPromises();
+
+    const message = screen.getByTestId("config-check-message");
+    expect(message).toBeInTheDocument();
+    expect(message.textContent).toMatch(/failed/i);
   });
 });
