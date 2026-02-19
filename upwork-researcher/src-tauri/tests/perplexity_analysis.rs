@@ -333,7 +333,7 @@ mod tests {
         let sample_text = "I have extensive experience in React development and have built similar features before. I can deliver this in 2 weeks.";
 
         #[allow(deprecated)]
-        let result = claude::analyze_perplexity(sample_text, None).await;
+        let result = claude::analyze_perplexity(sample_text, None, None).await;
 
         match result {
             Ok(score) => {
@@ -363,7 +363,7 @@ mod tests {
 
         let sample_text = "I am delighted to delve into this opportunity. I possess extensive experience in this domain. I would be honored to leverage my expertise to deliver exceptional results.";
 
-        let result = claude::analyze_perplexity_with_sentences(sample_text, 180, None).await;
+        let result = claude::analyze_perplexity_with_sentences(sample_text, 180, None, None).await;
 
         match result {
             Ok(analysis) => {
