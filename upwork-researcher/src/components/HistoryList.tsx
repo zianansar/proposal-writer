@@ -29,7 +29,7 @@ function HistoryList() {
         setLoading(true);
         setError(null);
         const result = await invoke<ProposalSummary[]>("get_proposals");
-        setProposals(result);
+        setProposals(result ?? []);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
