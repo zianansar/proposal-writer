@@ -5,8 +5,10 @@
  * Ensures keyboard navigation follows expected order and no elements are skipped.
  */
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import App from "../App";
@@ -22,11 +24,24 @@ vi.mock("@tauri-apps/api/core", () => ({
     if (cmd === "check_for_draft") return Promise.resolve(null);
     if (cmd === "get_setting") return Promise.resolve("true"); // onboarding completed
     if (cmd === "get_proposals") return Promise.resolve([]);
+    if (cmd === "get_proposal_history")
+      return Promise.resolve({ proposals: [], totalCount: 0, hasMore: false });
+    if (cmd === "search_proposals")
+      return Promise.resolve({ proposals: [], totalCount: 0, hasMore: false });
     if (cmd === "get_user_skills") return Promise.resolve([]);
     if (cmd === "get_hourly_rate") return Promise.resolve({ hourly_rate: 50.0, daily_rate: 400.0 });
     return Promise.resolve(null);
   }),
 }));
+
+const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+const Wrapper = ({ children }: { children: React.ReactNode }) => (
+  <QueryClientProvider client={createQueryClient()}>{children}</QueryClientProvider>
+);
 
 describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
   beforeEach(() => {
@@ -36,7 +51,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
   describe("Task 4.1: Tab Order Audit Checklist", () => {
     it("test_skip_link_is_first_focusable", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      render(<App />, { wrapper: Wrapper });
 
       // Wait for async initialization
       await screen.findByRole("main");
@@ -51,7 +66,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
 
     it("test_navigation_tabs_follow_skip_link", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 
@@ -68,6 +83,10 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
       await user.tab();
       expect(screen.getByRole("tab", { name: "History" })).toHaveFocus();
 
+      // Tab to Analytics tab
+      await user.tab();
+      expect(screen.getByRole("tab", { name: "Analytics" })).toHaveFocus();
+
       // Tab to Settings tab
       await user.tab();
       expect(screen.getByRole("tab", { name: "Settings" })).toHaveFocus();
@@ -77,7 +96,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
   describe("Task 4.2: Generate Tab Order", () => {
     it("test_generate_view_tab_order", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 
@@ -85,6 +104,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
       await user.tab(); // Skip link
       await user.tab(); // Generate tab
       await user.tab(); // History tab
+      await user.tab(); // Analytics tab
       await user.tab(); // Settings tab
 
       // Now we should be in the Generate tab content
@@ -111,14 +131,14 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
   describe("Task 4.3: History Tab Order", () => {
     it("test_history_view_accessible_via_tab", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 
       // Tab to History tab and activate it
       await user.tab(); // Skip link
       await user.tab(); // Generate tab
-      await user.tab(); // History tab
+      await user.tab(); // History tab (before Analytics)
 
       const historyTab = screen.getByRole("tab", { name: "History" });
       expect(historyTab).toHaveFocus();
@@ -134,7 +154,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
   describe("Task 4.4: Settings Tab Order", () => {
     it("test_settings_view_accessible_via_tab", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 
@@ -142,6 +162,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
       await user.tab(); // Skip link
       await user.tab(); // Generate tab
       await user.tab(); // History tab
+      await user.tab(); // Analytics tab
       await user.tab(); // Settings tab
 
       const settingsTab = screen.getByRole("tab", { name: "Settings" });
@@ -157,7 +178,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
 
   describe("Task 4.5: No Positive TabIndex Values", () => {
     it("test_no_positive_tabindex_in_dom", async () => {
-      const { container } = render(<App />);
+      const { container } = render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 
@@ -176,7 +197,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
 
   describe("Task 4.6: Hidden Elements Not Focusable", () => {
     it("test_main_content_not_in_initial_tab_order", async () => {
-      const { container } = render(<App />);
+      const { container } = render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 
@@ -194,7 +215,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
   describe("AC2: Reverse Tab Navigation (Shift+Tab)", () => {
     it("test_shift_tab_moves_backwards", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 
@@ -211,7 +232,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
 
     it("test_shift_tab_from_settings_to_history", async () => {
       const user = userEvent.setup();
-      render(<App />);
+      render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 
@@ -219,9 +240,14 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
       await user.tab(); // Skip link
       await user.tab(); // Generate
       await user.tab(); // History
+      await user.tab(); // Analytics
       await user.tab(); // Settings
 
       expect(screen.getByRole("tab", { name: "Settings" })).toHaveFocus();
+
+      // Shift+Tab back to Analytics
+      await user.tab({ shift: true });
+      expect(screen.getByRole("tab", { name: "Analytics" })).toHaveFocus();
 
       // Shift+Tab back to History
       await user.tab({ shift: true });
@@ -235,7 +261,7 @@ describe("Story 8.2 Task 4: Tab Order Audit (AC1, AC2)", () => {
 
   describe("AC1: No Elements Skipped", () => {
     it("test_all_interactive_elements_reachable", async () => {
-      const { container } = render(<App />);
+      const { container } = render(<App />, { wrapper: Wrapper });
 
       await screen.findByRole("main");
 

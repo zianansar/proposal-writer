@@ -6,6 +6,7 @@
  * Includes Epic 5/6 components (M3) and VoiceLearningTimeline.
  */
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import React from "react";
 import { BrowserRouter, MemoryRouter } from "react-router-dom";
@@ -16,6 +17,23 @@ import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 import DraftRecoveryModal from "../components/DraftRecoveryModal";
 
 // Epic 5/6 component imports
+
+// Mock Tauri APIs for SettingsPanel and other components that call invoke
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn((cmd: string) => {
+    if (cmd === "get_user_skills") return Promise.resolve([]);
+    if (cmd === "get_hourly_rate") return Promise.resolve({ hourly_rate: 50.0, daily_rate: 400.0 });
+    if (cmd === "get_setting") return Promise.resolve(null);
+    if (cmd === "has_api_key") return Promise.resolve(true);
+    if (cmd === "get_encryption_status")
+      return Promise.resolve({ databaseEncrypted: false, apiKeyInKeychain: false, cipherVersion: "N/A" });
+    return Promise.resolve(null);
+  }),
+}));
+
+vi.mock("@tauri-apps/api/app", () => ({
+  getVersion: vi.fn(() => Promise.resolve("1.0.0")),
+}));
 
 // Mock TipTap editor for ProposalEditor and EditorToolbar tests
 vi.mock("@tiptap/react", () => {
@@ -205,9 +223,16 @@ describe("Component-Specific Accessibility Audits", () => {
 
   describe("Task 3.2: Settings Panel", () => {
     it("should pass accessibility audit for SettingsPanel", async () => {
-      const mockClose = vi.fn();
+      const mockCheckForUpdate = vi.fn().mockResolvedValue(null);
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
 
-      const { container } = render(<SettingsPanel onClose={mockClose} />);
+      const { container } = render(
+        <QueryClientProvider client={queryClient}>
+          <SettingsPanel checkForUpdate={mockCheckForUpdate} isChecking={false} />
+        </QueryClientProvider>,
+      );
 
       const results = await runAxeAudit(container);
 

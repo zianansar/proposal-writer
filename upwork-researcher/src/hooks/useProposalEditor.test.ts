@@ -219,13 +219,18 @@ describe("useProposalEditor", () => {
   });
 
   it("sets saveStatus to saving during save", async () => {
-    // Create a promise we can control
+    // Create a promise we can control for update_proposal_content
     let resolveInvoke: () => void;
     mockInvoke.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveInvoke = resolve;
-        }),
+      (command: string) => {
+        if (command === "update_proposal_content") {
+          return new Promise<void>((resolve) => {
+            resolveInvoke = resolve;
+          });
+        }
+        // create_revision and other calls resolve immediately
+        return Promise.resolve();
+      },
     );
 
     const { result } = renderHook(() =>
@@ -327,8 +332,11 @@ describe("useProposalEditor", () => {
       vi.advanceTimersByTime(2000);
     });
 
-    // Only one save with final content
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    // Only one save with final content (create_revision also fires, so filter by command)
+    const updateCalls = mockInvoke.mock.calls.filter(
+      ([cmd]: [string]) => cmd === "update_proposal_content",
+    );
+    expect(updateCalls).toHaveLength(1);
     expect(mockInvoke).toHaveBeenCalledWith("update_proposal_content", {
       proposalId: 1,
       content: "<p>Change 4</p>",
@@ -421,13 +429,17 @@ describe("useProposalEditor", () => {
       }
     });
 
+    // Helper to count update_proposal_content calls (create_revision also fires on success)
+    const updateCallCount = () =>
+      mockInvoke.mock.calls.filter(([cmd]: [string]) => cmd === "update_proposal_content").length;
+
     // Initial save attempt (after 2s debounce)
     await act(async () => {
       vi.advanceTimersByTime(2000);
       await Promise.resolve();
     });
 
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(updateCallCount()).toBe(1);
 
     // First retry after 1s (base delay)
     await act(async () => {
@@ -435,7 +447,7 @@ describe("useProposalEditor", () => {
       await Promise.resolve();
     });
 
-    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(updateCallCount()).toBe(2);
 
     // Second retry after 2s (exponential backoff: 1000 * 2^1)
     await act(async () => {
@@ -443,7 +455,7 @@ describe("useProposalEditor", () => {
       await Promise.resolve();
     });
 
-    expect(mockInvoke).toHaveBeenCalledTimes(3);
+    expect(updateCallCount()).toBe(3);
     expect(result.current.saveStatus).toBe("saved");
 
     consoleSpy.mockRestore();

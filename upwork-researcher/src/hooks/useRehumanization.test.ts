@@ -61,6 +61,7 @@ describe("useRehumanization", () => {
     });
     expect(mockInvoke).toHaveBeenCalledWith("analyze_perplexity", {
       text: "Regenerated proposal",
+      threshold: 180,
     });
 
     // Score < 180 → onSuccess called, attempts reset

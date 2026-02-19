@@ -44,7 +44,7 @@ describe("useNetworkBlockedNotification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListeners.clear();
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
@@ -188,6 +188,11 @@ describe("useNetworkBlockedNotification", () => {
     });
 
     unmount();
+
+    // Wait for async cleanup (unlisten.then() in useEffect cleanup)
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     // Listener should be removed
     expect(mockListeners.get("network:blocked")!.length).toBe(0);

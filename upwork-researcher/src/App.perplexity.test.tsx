@@ -77,6 +77,7 @@ describe("App — Perplexity Analysis Integration", () => {
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith("analyze_perplexity", {
         text: "A generated proposal about React development.",
+        threshold: 180,
       });
     });
   });

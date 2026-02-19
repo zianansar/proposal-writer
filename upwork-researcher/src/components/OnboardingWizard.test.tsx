@@ -1,9 +1,15 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, beforeEach } from "vitest";
 
 import { useOnboardingStore } from "../stores/useOnboardingStore";
 
 import OnboardingWizard from "./OnboardingWizard";
+
+// Wrapper for Router context (VoiceCalibrationStep uses useNavigate)
+const Wrapper = ({ children }: { children: React.ReactNode }) => (
+  <MemoryRouter>{children}</MemoryRouter>
+);
 
 describe("OnboardingWizard", () => {
   beforeEach(() => {
@@ -41,10 +47,10 @@ describe("OnboardingWizard", () => {
 
     // Step 1
     useOnboardingStore.getState().setCurrentStep(1);
-    const { rerender } = render(<OnboardingWizard />);
+    const { rerender } = render(<OnboardingWizard />, { wrapper: Wrapper });
     expect(screen.getByText("Step 1 of 4")).toBeInTheDocument();
 
-    // Step 3
+    // Step 3 (VoiceCalibrationStep uses useNavigate, needs Router)
     useOnboardingStore.getState().setCurrentStep(3);
     rerender(<OnboardingWizard />);
     expect(screen.getByText("Step 3 of 4")).toBeInTheDocument();

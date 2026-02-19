@@ -1,6 +1,6 @@
 import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import App from "./App";
 import { useGenerationStore } from "./stores/useGenerationStore";
@@ -35,17 +35,28 @@ vi.mock("@tauri-apps/api/app", () => ({
 import { check } from "@tauri-apps/plugin-updater";
 const mockCheck = vi.mocked(check);
 
+// Helper to create invoke handler with base commands + custom overrides
+const createInvokeHandler = (overrides: Record<string, (args?: any) => any> = {}) => {
+  return (command: string, args?: any) => {
+    if (overrides[command]) {
+      return overrides[command](args);
+    }
+    if (command === "has_api_key") return Promise.resolve(true);
+    if (command === "get_setting" && args?.key === "onboarding_completed")
+      return Promise.resolve("true");
+    if (command === "get_encryption_status")
+      return Promise.resolve({
+        databaseEncrypted: false,
+        apiKeyInKeychain: false,
+        cipherVersion: "N/A",
+      });
+    return Promise.resolve(null);
+  };
+};
+
 // Helper to setup invoke mock with API key check and onboarding completed
 const setupInvokeMock = () => {
-  mockInvoke.mockImplementation((command: string, args?: any) => {
-    if (command === "has_api_key") {
-      return Promise.resolve(true);
-    }
-    if (command === "get_setting" && args?.key === "onboarding_completed") {
-      return Promise.resolve("true"); // Onboarding already completed
-    }
-    return Promise.resolve(null);
-  });
+  mockInvoke.mockImplementation(createInvokeHandler());
 };
 
 // Helper to wait for app to finish loading (API key check)
@@ -62,8 +73,20 @@ describe("App", () => {
     useGenerationStore.getState().reset();
     useOnboardingStore.getState().reset();
     useOnboardingStore.getState().setShowOnboarding(false); // Hide onboarding for tests
+    // Ensure updater mock returns a resolved promise (not undefined)
+    mockCheck.mockResolvedValue(null);
+    // Mock listen to return a no-op unlisten function
+    mockListen.mockResolvedValue(() => {});
     // Setup default mock for has_api_key and onboarding
     setupInvokeMock();
+  });
+
+  // Flush pending async operations between tests to prevent state leaking
+  afterEach(async () => {
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+    });
   });
 
   it("renders the app heading", async () => {
@@ -150,20 +173,9 @@ describe("App", () => {
   it("displays error on API failure", async () => {
     const user = userEvent.setup();
     // Override mock for this test to simulate API failure after API key check
-    // CR R1 M-2: Must handle get_setting for onboarding_completed to prevent
-    // onboarding wizard from covering the error message
-    mockInvoke.mockImplementation((command: string, args?: any) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "get_setting" && args?.key === "onboarding_completed") {
-        return Promise.resolve("true");
-      }
-      if (command === "generate_proposal_streaming") {
-        return Promise.reject("API error: rate limited");
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      generate_proposal_streaming: () => Promise.reject("API error: rate limited"),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -179,17 +191,11 @@ describe("App", () => {
     const user = userEvent.setup();
     // Use a promise that we can resolve manually to check loading state
     let resolvePromise: (value: string) => void;
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "generate_proposal_streaming") {
-        return new Promise((resolve) => {
-          resolvePromise = resolve;
-        });
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      generate_proposal_streaming: () => new Promise((resolve) => {
+        resolvePromise = resolve;
+      }),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -214,12 +220,9 @@ describe("App", () => {
   });
 
   it("shows API key setup when no API key configured", async () => {
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(false);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      has_api_key: () => Promise.resolve(false),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -245,21 +248,13 @@ describe("App", () => {
 
     // Mock analyze_job_post to return skills
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return Promise.resolve({
-          clientName: "John Doe",
-          keySkills: ["React", "TypeScript", "API Integration"],
-        });
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => Promise.resolve({
+        clientName: "John Doe",
+        keySkills: ["React", "TypeScript", "API Integration"],
+      }),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -286,21 +281,13 @@ describe("App", () => {
 
     // Mock analyze_job_post to return empty skills
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return Promise.resolve({
-          clientName: "Jane Smith",
-          keySkills: [],
-        });
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => Promise.resolve({
+        clientName: "Jane Smith",
+        keySkills: [],
+      }),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -323,18 +310,9 @@ describe("App", () => {
 
     // First call succeeds, second call fails
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    // CR R1 M-2: Include get_setting handler for onboarding
-    mockInvoke.mockImplementation((command: string, args?: any) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "get_setting" && args?.key === "onboarding_completed") {
-        return Promise.resolve("true");
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => {
         callCount++;
         if (callCount === 1) {
           return Promise.resolve({
@@ -343,9 +321,8 @@ describe("App", () => {
           });
         }
         return Promise.reject(new Error("API rate limit exceeded"));
-      }
-      return Promise.resolve(null);
-    });
+      },
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -362,7 +339,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /analyze job/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/api rate limit exceeded/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/api rate limit exceeded/i).length).toBeGreaterThan(0);
     });
 
     // AC-6: Previously extracted client name should still be displayed
@@ -376,18 +353,10 @@ describe("App", () => {
 
     // Use a promise that never resolves to keep analyzing state
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return new Promise(() => {}); // Never resolves
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => new Promise(() => {}), // Never resolves
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -405,22 +374,14 @@ describe("App", () => {
     const user = userEvent.setup();
 
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return Promise.resolve({
-          clientName: "John Doe",
-          keySkills: ["React"],
-          hiddenNeeds: [],
-        });
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => Promise.resolve({
+        clientName: "John Doe",
+        keySkills: ["React"],
+        hiddenNeeds: [],
+      }),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -438,22 +399,10 @@ describe("App", () => {
     const user = userEvent.setup();
 
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    // CR R1 M-2: Include get_setting handler for onboarding
-    mockInvoke.mockImplementation((command: string, args?: any) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "get_setting" && args?.key === "onboarding_completed") {
-        return Promise.resolve("true");
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return Promise.reject(new Error("Network error"));
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => Promise.reject(new Error("Network error")),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -472,18 +421,10 @@ describe("App", () => {
     const user = userEvent.setup();
 
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return new Promise(() => {}); // Never resolves - keep in analyzing state
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => new Promise(() => {}), // Never resolves - keep in analyzing state
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -502,18 +443,10 @@ describe("App", () => {
     const user = userEvent.setup();
 
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return new Promise(() => {}); // Never resolves
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => new Promise(() => {}), // Never resolves
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -534,19 +467,13 @@ describe("App", () => {
     let analyzeCallCount = 0;
 
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => {
         analyzeCallCount++;
         return new Promise(() => {}); // Never resolves
-      }
-      return Promise.resolve(null);
-    });
+      },
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -572,27 +499,19 @@ describe("App", () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     // H2 Code Review Fix: Add save_job_post mock for Story 4a.8 flow
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => new Promise((resolve) => {
         // Return a promise that resolves after component would be unmounted
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({
-              clientName: "Test",
-              keySkills: [],
-              hiddenNeeds: [],
-            });
-          }, 100);
-        });
-      }
-      return Promise.resolve(null);
-    });
+        setTimeout(() => {
+          resolve({
+            clientName: "Test",
+            keySkills: [],
+            hiddenNeeds: [],
+          });
+        }, 100);
+      }),
+    }));
 
     const { unmount } = render(<App />);
     await waitForAppReady();
@@ -630,14 +549,9 @@ describe("App", () => {
     const user = userEvent.setup();
 
     // Setup: save_job_post fails
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") return Promise.resolve(true);
-      if (command === "get_setting") return Promise.resolve("true");
-      if (command === "save_job_post") {
-        return Promise.reject(new Error("Database locked"));
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.reject(new Error("Database locked")),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -652,9 +566,9 @@ describe("App", () => {
     const analyzeButton = screen.getByRole("button", { name: /analyze/i });
     await user.click(analyzeButton);
 
-    // Should show error in analysis progress
+    // Should show error in analysis progress (matches both visible error and sr-only alert)
     await waitFor(() => {
-      expect(screen.getByText(/database locked/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/database locked/i).length).toBeGreaterThan(0);
     });
 
     // Verify error stage is displayed
@@ -666,23 +580,15 @@ describe("App", () => {
   it("shows truncation warning when wasTruncated is true (4a.9 AC-3)", async () => {
     const user = userEvent.setup();
 
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return Promise.resolve({
-          clientName: "Test Client",
-          keySkills: ["React"],
-          hiddenNeeds: [],
-          wasTruncated: true, // Simulates truncated input
-        });
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => Promise.resolve({
+        clientName: "Test Client",
+        keySkills: ["React"],
+        hiddenNeeds: [],
+        wasTruncated: true, // Simulates truncated input
+      }),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -705,23 +611,15 @@ describe("App", () => {
   it("does not show truncation warning when wasTruncated is false (4a.9 AC-3)", async () => {
     const user = userEvent.setup();
 
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return Promise.resolve({
-          clientName: "Test Client",
-          keySkills: ["React"],
-          hiddenNeeds: [],
-          wasTruncated: false, // Normal input, not truncated
-        });
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => Promise.resolve({
+        clientName: "Test Client",
+        keySkills: ["React"],
+        hiddenNeeds: [],
+        wasTruncated: false, // Normal input, not truncated
+      }),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -742,23 +640,15 @@ describe("App", () => {
   it("clears truncation warning when job content changes (4a.9)", async () => {
     const user = userEvent.setup();
 
-    mockInvoke.mockImplementation((command: string) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 1, saved: true });
-      }
-      if (command === "analyze_job_post") {
-        return Promise.resolve({
-          clientName: "Test Client",
-          keySkills: ["React"],
-          hiddenNeeds: [],
-          wasTruncated: true,
-        });
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 1, saved: true }),
+      analyze_job_post: () => Promise.resolve({
+        clientName: "Test Client",
+        keySkills: ["React"],
+        hiddenNeeds: [],
+        wasTruncated: true,
+      }),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -838,14 +728,9 @@ describe("App", () => {
     let savedJobPostId: number | null = null;
 
     // Mock flow: save_job_post returns id, analyze_job_post succeeds
-    mockInvoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
-      if (command === "has_api_key") {
-        return Promise.resolve(true);
-      }
-      if (command === "save_job_post") {
-        return Promise.resolve({ id: 123, saved: true }); // Returns jobPostId
-      }
-      if (command === "analyze_job_post") {
+    mockInvoke.mockImplementation(createInvokeHandler({
+      save_job_post: () => Promise.resolve({ id: 123, saved: true }), // Returns jobPostId
+      analyze_job_post: (args?: any) => {
         // Capture that analyze_job_post receives the jobPostId from save_job_post
         savedJobPostId = args?.jobPostId as number;
         return Promise.resolve({
@@ -853,12 +738,9 @@ describe("App", () => {
           keySkills: ["React"],
           hiddenNeeds: [],
         });
-      }
-      if (command === "calculate_and_store_skills_match") {
-        return Promise.resolve(75.0);
-      }
-      return Promise.resolve(null);
-    });
+      },
+      calculate_and_store_skills_match: () => Promise.resolve(75.0),
+    }));
 
     render(<App />);
     await waitForAppReady();
@@ -1103,18 +985,12 @@ describe("App - Startup Cleanup (Story 10.5 Task 6.6)", () => {
     });
 
     // Mock get_all_settings to return our test data so initializeApp loads them
-    mockInvoke.mockImplementation((command: string, args?: any) => {
-      if (command === "has_api_key") return Promise.resolve(true);
-      if (command === "get_setting" && args?.key === "onboarding_completed")
-        return Promise.resolve("true");
-      if (command === "get_all_settings") {
-        return Promise.resolve([
-          { key: "new_strategies_first_seen", value: testFirstSeen, updated_at: "" },
-          { key: "new_strategies_dismissed", value: testDismissed, updated_at: "" },
-        ]);
-      }
-      return Promise.resolve(null);
-    });
+    mockInvoke.mockImplementation(createInvokeHandler({
+      get_all_settings: () => Promise.resolve([
+        { key: "new_strategies_first_seen", value: testFirstSeen, updated_at: "" },
+        { key: "new_strategies_dismissed", value: testDismissed, updated_at: "" },
+      ]),
+    }));
 
     render(<App />);
     await waitForAppReady();
