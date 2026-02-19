@@ -19,6 +19,7 @@ export default defineConfig(async () => ({
     environment: "jsdom",
     globals: false,
     setupFiles: ["./src/test/setup.ts"],
+    exclude: ["tests/e2e/**/*.spec.ts", "node_modules/**"],
     alias: {
       // Stub for packages not installed on disk but imported by source files
       "@tauri-apps/plugin-dialog": path.resolve(
