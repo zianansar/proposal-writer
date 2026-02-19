@@ -15,6 +15,7 @@ pub mod config;
 pub mod db;
 pub mod events;
 pub mod health_check;
+pub mod http;
 pub mod humanization;
 pub mod job;
 pub mod keychain;

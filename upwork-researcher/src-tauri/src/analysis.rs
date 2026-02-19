@@ -3,7 +3,6 @@
 /// Extensible design for future analysis fields (4a-3: skills, 4a-4: hidden needs)
 /// Story 4a.9: Prompt injection defense via input sanitization
 use crate::sanitization::sanitize_job_content;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -157,10 +156,7 @@ pub struct BudgetAlignment {
 /// AC-3: Parses various budget formats ($50/hr, $2000 fixed, $30-50/hour, etc.)
 /// AR-5: Uses prompt caching for system prompt
 pub async fn extract_budget(raw_content: &str, api_key: &str) -> Result<BudgetInfo, String> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client = crate::http::client();
 
     // System prompt with few-shot examples (AR-5: prompt caching enabled)
     let system_prompt = r#"You are a budget extraction specialist for Upwork job posts.
@@ -248,6 +244,7 @@ Return ONLY valid JSON, no other text."#;
 
     let response = client
         .post(ANTHROPIC_API_URL)
+        .timeout(Duration::from_secs(5))
         .header("x-api-key", api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("anthropic-beta", PROMPT_CACHING_BETA) // AR-5: Enable caching
@@ -423,10 +420,7 @@ pub async fn analyze_job(raw_content: &str, api_key: &str) -> Result<JobAnalysis
         );
     }
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(5)) // AC-4: <3 seconds target, 5s allows for network latency
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client = crate::http::client();
 
     // System prompt with few-shot examples (AR-5: prompt caching enabled)
     // Story 4a.3: Extended to also extract key skills (3-7 skills)
@@ -569,6 +563,7 @@ Return ONLY valid JSON, no other text."#;
 
     let response = client
         .post(ANTHROPIC_API_URL)
+        .timeout(Duration::from_secs(5)) // AC-4: <3 seconds target, 5s allows for network latency
         .header("x-api-key", api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("anthropic-beta", PROMPT_CACHING_BETA) // AR-5: Enable caching

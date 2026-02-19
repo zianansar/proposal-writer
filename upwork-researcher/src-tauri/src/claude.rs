@@ -1,6 +1,5 @@
 use crate::{db, events, humanization, network, sanitization::sanitize_job_content, DraftState};
 use futures::StreamExt;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::time::{Duration, Instant};
@@ -154,10 +153,7 @@ pub async fn generate_proposal_with_key(
     // AR-16: Log intensity, not prompt content
     tracing::info!(intensity = %humanization_intensity, "Generating proposal with humanization");
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client = crate::http::client();
 
     // Story 4a.9 AC-2: Prompt boundary enforcement with XML delimiters (AR-13)
     // Sanitized content is already XML-escaped, safe to wrap in <job_post> tags
@@ -188,6 +184,7 @@ pub async fn generate_proposal_with_key(
 
     let response = client
         .post(ANTHROPIC_API_URL)
+        .timeout(Duration::from_secs(30))
         .header("x-api-key", &api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("content-type", "application/json")
@@ -286,10 +283,7 @@ pub async fn generate_proposal_streaming_with_key(
     // AR-16: Log intensity, not prompt content
     tracing::info!(intensity = %humanization_intensity, attempt = ?rehumanization_attempt, "Generating streaming proposal with humanization");
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(60)) // Longer timeout for streaming
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client = crate::http::client();
 
     // Create async queue for draft saves (Code Review Fix: prevents race conditions)
     // Queue ensures saves execute sequentially even if token batches arrive faster than saves complete
@@ -333,6 +327,7 @@ pub async fn generate_proposal_streaming_with_key(
 
     let response = client
         .post(ANTHROPIC_API_URL)
+        .timeout(Duration::from_secs(60)) // Longer timeout for streaming
         .header("x-api-key", &api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("content-type", "application/json")
@@ -608,10 +603,7 @@ pub async fn analyze_perplexity(
 ) -> Result<f32, String> {
     let api_key = resolve_api_key(api_key)?;
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(10)) // Fast analysis
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client = crate::http::client();
 
     // Prompt for perplexity analysis
     let system_prompt = "You are an AI detection analyzer. Analyze the given text and return ONLY a numeric perplexity score (0-300). Higher scores indicate more human-like writing. Return only the number, no other text.";
@@ -643,6 +635,7 @@ pub async fn analyze_perplexity(
 
     let response = client
         .post(ANTHROPIC_API_URL)
+        .timeout(Duration::from_secs(10)) // Fast analysis
         .header("x-api-key", &api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("content-type", "application/json")
@@ -705,10 +698,7 @@ pub async fn analyze_perplexity_with_sentences(
 ) -> Result<PerplexityAnalysis, String> {
     let api_key = resolve_api_key(api_key)?;
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(15)) // Slightly longer for sentence analysis
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client = crate::http::client();
 
     // Enhanced prompt for sentence-level analysis
     let system_prompt =
@@ -761,6 +751,7 @@ Return ONLY valid JSON, no other text."#,
 
     let response = client
         .post(ANTHROPIC_API_URL)
+        .timeout(Duration::from_secs(15)) // Slightly longer for sentence analysis
         .header("x-api-key", &api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("content-type", "application/json")

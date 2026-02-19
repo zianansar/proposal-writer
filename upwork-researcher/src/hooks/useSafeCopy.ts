@@ -8,7 +8,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 import type { PerplexityAnalysis } from "../types/perplexity";
 
@@ -69,6 +69,17 @@ export function useSafeCopy(): UseSafeCopyReturn {
   // Story 3.7 H4: Queue override when proposalId not yet available
   const [pendingOverride, setPendingOverride] = useState<PendingOverride | null>(null);
 
+  // Timer ref for "copied" auto-reset — cleaned up on unmount
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) {
+        clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, []);
+
   const triggerCopy = useCallback(async (text: string) => {
     if (!text) return;
 
@@ -101,7 +112,7 @@ export function useSafeCopy(): UseSafeCopyReturn {
         setCopied(true);
         setAnalyzing(false);
 
-        setTimeout(() => {
+        copiedTimerRef.current = setTimeout(() => {
           setCopied(false);
         }, 2000);
         return;
@@ -116,7 +127,7 @@ export function useSafeCopy(): UseSafeCopyReturn {
         setCopied(true);
         setError(null);
 
-        setTimeout(() => {
+        copiedTimerRef.current = setTimeout(() => {
           setCopied(false);
         }, 2000);
       } else {
@@ -175,7 +186,7 @@ export function useSafeCopy(): UseSafeCopyReturn {
           }
         }
 
-        setTimeout(() => setCopied(false), 2000);
+        copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
       } catch (err) {
         setError("Failed to copy to clipboard");
         console.error("Clipboard write failed:", err);

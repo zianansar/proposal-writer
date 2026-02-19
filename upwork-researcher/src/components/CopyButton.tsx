@@ -112,9 +112,7 @@ function CopyButton({ text, getContent, disabled = false, proposalId }: CopyButt
         >
           {analyzing ? (
             <>
-              <span className="copy-icon" aria-hidden="true">
-                ⏳
-              </span>
+              <span className="copy-icon copy-icon--spinner" aria-hidden="true" />
               Checking safety...
             </>
           ) : copied ? (
@@ -126,9 +124,10 @@ function CopyButton({ text, getContent, disabled = false, proposalId }: CopyButt
             </>
           ) : (
             <>
-              <span className="copy-icon" aria-hidden="true">
-                📋
-              </span>
+              <svg className="copy-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="5.5" y="5.5" width="8" height="8" rx="1" />
+                <path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" />
+              </svg>
               Copy to Clipboard
             </>
           )}

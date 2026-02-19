@@ -2,7 +2,6 @@
 // Scrapes Upwork search pages when RSS feeds are blocked
 
 use crate::job::rss::ParsedJob;
-use reqwest::Client;
 use scraper::{Html, Selector};
 use std::collections::HashSet;
 use std::time::Duration;
@@ -53,15 +52,12 @@ pub fn rss_url_to_search_url(rss_url: &str) -> Result<String, String> {
 pub async fn fetch_upwork_search_page(search_url: &str) -> Result<String, String> {
     info!("Fetching Upwork search page: {}", search_url);
 
-    // Create HTTP client with 5-second timeout
-    let client = Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client = crate::http::client();
 
     // Perform GET request with browser-like headers
     let response = client
         .get(search_url)
+        .timeout(Duration::from_secs(5))
         .header(
             "User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",

@@ -384,6 +384,21 @@ h1 {
 
 .copy-icon {
   font-size: var(--font-size-base);
+  vertical-align: middle;
+}
+
+.copy-icon--spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: copy-spin 0.8s linear infinite;
+}
+
+@keyframes copy-spin {
+  to { transform: rotate(360deg); }
 }
 
 .copy-error {

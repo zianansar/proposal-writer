@@ -247,7 +247,7 @@ function PassphraseEntry({ onComplete, onCancel, showRecoveryOption }: Passphras
                 className="toggle-visibility-btn"
                 aria-label={showPassphrase ? "Hide passphrase" : "Show passphrase"}
               >
-                {showPassphrase ? "👁️" : "👁️‍🗨️"}
+                {showPassphrase ? "Hide" : "Show"}
               </button>
             </div>
           </div>

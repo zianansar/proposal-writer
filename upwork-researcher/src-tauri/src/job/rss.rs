@@ -10,7 +10,6 @@ use crate::job::scraper;
 use crate::keychain;
 use chrono::Utc;
 use regex::Regex;
-use reqwest::Client;
 use rss::Channel;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -547,16 +546,12 @@ pub async fn fetch_rss_feed(url: &str) -> Result<String, String> {
     // Validate URL first
     validate_rss_url(url)?;
 
-    // Create HTTP client with timeout
-    let client = Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client = crate::http::client();
 
     info!("Fetching RSS feed from: {}", url);
 
     // Perform GET request
-    let response = client.get(url).send().await.map_err(|e| {
+    let response = client.get(url).timeout(Duration::from_secs(10)).send().await.map_err(|e| {
         if e.is_timeout() {
             "Feed request timed out after 10 seconds".to_string()
         } else if e.is_connect() {

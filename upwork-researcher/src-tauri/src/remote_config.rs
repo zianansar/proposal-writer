@@ -317,14 +317,10 @@ pub async fn fetch_remote_config(
 
     tracing::info!("Fetching remote config from: {}", REMOTE_CONFIG_URL);
 
-    // Build HTTP client with 10-second timeout
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .map_err(|e| RemoteConfigError::NetworkError(e.to_string()))?;
+    let client = crate::http::client();
 
     // Fetch config
-    let response = client.get(REMOTE_CONFIG_URL).send().await?;
+    let response = client.get(REMOTE_CONFIG_URL).timeout(Duration::from_secs(10)).send().await?;
 
     // Check HTTP status
     if !response.status().is_success() {

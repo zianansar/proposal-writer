@@ -163,7 +163,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
       >
         <div className="passphrase-unlock-modal">
           <div className="passphrase-unlock-icon" aria-hidden="true">
-            &#x2705;
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-success, #22c55e)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg>
           </div>
           <h2 className="passphrase-unlock-title">Passphrase Updated</h2>
           <p className="passphrase-unlock-subtitle">
@@ -193,7 +193,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
       >
         <div className="passphrase-unlock-modal">
           <div className="passphrase-unlock-icon" aria-hidden="true">
-            &#x1F510;
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /><circle cx="12" cy="16" r="1" /></svg>
           </div>
           <h2 className="passphrase-unlock-title">Set New Passphrase</h2>
           <p className="passphrase-unlock-subtitle">
@@ -302,7 +302,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
       >
         <div className="passphrase-unlock-modal">
           <div className="passphrase-unlock-icon" aria-hidden="true">
-            &#x1F511;
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="15" r="4" /><path d="m11.5 12.5 9-9" /><path d="m16 7 2-2 3 3-2 2" /></svg>
           </div>
           <h2 className="passphrase-unlock-title">Recovery Key</h2>
           <p className="passphrase-unlock-subtitle">
@@ -369,7 +369,7 @@ function PassphraseUnlock({ onUnlocked }: PassphraseUnlockProps) {
     >
       <div className="passphrase-unlock-modal">
         <div className="passphrase-unlock-icon" aria-hidden="true">
-          &#x1F512;
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
         </div>
         <h2 className="passphrase-unlock-title">Unlock Database</h2>
         <p className="passphrase-unlock-subtitle">
