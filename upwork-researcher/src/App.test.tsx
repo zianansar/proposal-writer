@@ -182,6 +182,12 @@ describe("App", () => {
     await user.type(screen.getByRole("textbox"), "Job post content");
     await user.click(screen.getByRole("button", { name: /generate proposal/i }));
 
+    // Flush microtasks so the rejected invoke promise and ensureListenersReady
+    // chain fully settle before we start polling for the error text
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
     await waitFor(() => {
       expect(screen.getByText(/api error: rate limited/i)).toBeInTheDocument();
     });
