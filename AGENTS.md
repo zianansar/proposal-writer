@@ -180,3 +180,116 @@ So that [benefit].
 **When** [action]
 **Then** [expected outcome]
 ```
+
+---
+
+## Application Codebase (`upwork-researcher/`)
+
+The actual Tauri v2 desktop app lives in `upwork-researcher/`. This section covers
+build/test commands and code style for the React + Rust codebase.
+
+### Build/Lint/Test Commands
+
+Run from `upwork-researcher/` directory:
+
+```bash
+# Development
+npm run dev              # Vite dev server (port 1420)
+npm run tauri dev        # Tauri app with hot reload
+
+# Build
+npm run build            # TypeScript check + Vite build
+npm run tauri build      # Distributable Tauri app
+
+# Linting
+npm run lint             # ESLint check
+npm run lint:fix         # ESLint auto-fix
+npm run lint:types       # tsc --noEmit
+npm run format:check     # Prettier check
+npm run format:fix       # Prettier auto-format
+
+# Unit Tests (Vitest)
+npm run test                                    # All tests once
+npm run test:watch                              # Watch mode
+npm run test -- src/hooks/useSettings.test.ts  # Single file
+npm run test -- --grep "pattern"               # By name pattern
+
+# E2E Tests (Playwright)
+npm run test:e2e         # All E2E tests
+npm run test:e2e:ui      # Interactive UI
+npm run test:e2e:debug   # Debug mode
+
+# Performance
+npm run test:perf        # Run benchmarks
+
+# Rust (from src-tauri/)
+cargo fmt                # Format
+cargo fmt --check        # Check formatting
+cargo clippy             # Lint
+cargo test               # All tests
+cargo test test_name     # Single test
+```
+
+### TypeScript/React Style
+
+**Formatting (Prettier):** 2-space indent, double quotes, trailing commas, semicolons, 100 char width, LF
+
+**Import Order (ESLint):** builtin → external → internal (`@/`) → parent → sibling → CSS (blank lines between groups)
+
+**Types:** Strict mode, avoid `any`, prefix unused params with `_`, use `import type` for type-only imports
+
+**React:** Functional components only, Zustand for state (`src/stores/`), `useCallback` for prop callbacks, no inline `style` props
+
+**Naming:** PascalCase components, `use` prefix hooks, `*.test.ts(x)` co-located tests, UPPER_SNAKE_CASE constants
+
+**Errors:** try/catch around `invoke()`, `console.error` only in dev (`import.meta.env.DEV`)
+
+### Rust Style
+
+**Format:** `cargo fmt` before commit
+
+**Naming:** snake_case functions/variables, PascalCase types, UPPER_SNAKE_CASE constants
+
+**Tauri Commands:** `#[tauri::command]` + register in `invoke_handler!` (pre-commit verifies)
+
+**Errors:** Return `Result<T, String>`, use `?` operator, log with `tracing::error!`/`warn!`
+
+### Commit Messages
+
+Conventional Commits (commitlint enforced):
+
+```
+type(scope): subject
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+
+### Pre-commit Hooks (Husky)
+
+1. lint-staged (ESLint + Prettier on staged files)
+2. verify-command-registration.mjs
+3. cargo fmt --check
+4. cargo clippy
+5. commitlint
+
+### Project Structure
+
+```
+upwork-researcher/
+  src/                  # React frontend
+    components/         # UI components
+    features/           # Feature modules
+    hooks/              # Custom hooks
+    stores/             # Zustand stores
+    styles/             # CSS tokens
+    types/              # TypeScript types
+  src-tauri/            # Rust backend
+    src/commands/       # Tauri commands
+    src/db/             # Database
+  tests/e2e/            # Playwright tests
+  tests/performance/    # Benchmarks
+```
+
+### Path Alias
+
+Use `@/` for src imports: `import { x } from "@/stores/useSettingsStore"`
