@@ -4,6 +4,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
+
 import { HealthCheckModal } from "./HealthCheckModal";
 
 // Mock useFocusTrap — tested separately in hooks/useFocusTrap.test.ts

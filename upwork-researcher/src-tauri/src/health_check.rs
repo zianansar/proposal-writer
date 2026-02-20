@@ -488,7 +488,7 @@ pub async fn create_pre_update_backup(
     app_handle: &AppHandle,
 ) -> Result<VersionBackupMetadata, BackupError> {
     let current_version = get_current_version();
-    let platform = std::env::consts::OS;
+    let _platform = std::env::consts::OS;
 
     let backup_dir = get_backup_dir(app_handle)?;
 
@@ -684,11 +684,11 @@ pub async fn rollback_to_previous_version(
     // 4. Add failed version to skip list (Task 5)
     let current_version = get_current_version();
     add_to_failed_versions_list(&conn, &current_version)
-        .map_err(|e| RollbackError::SettingsFailed(e))?;
+        .map_err(RollbackError::SettingsFailed)?;
 
     // 4b. Mark rollback for frontend toast on next launch (Task 5.5)
     mark_rollback_occurred(&conn, &current_version)
-        .map_err(|e| RollbackError::SettingsFailed(e))?;
+        .map_err(RollbackError::SettingsFailed)?;
 
     // 5. Log rollback for diagnostics
     tracing::error!(

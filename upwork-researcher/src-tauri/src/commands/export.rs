@@ -16,6 +16,12 @@ use tauri_plugin_dialog::DialogExt;
 /// Rate limit state for export operations (AC-6: 60s cooldown)
 pub struct ExportRateLimitState(pub Arc<Mutex<Option<Instant>>>);
 
+impl Default for ExportRateLimitState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExportRateLimitState {
     pub fn new() -> Self {
         Self(Arc::new(Mutex::new(None)))

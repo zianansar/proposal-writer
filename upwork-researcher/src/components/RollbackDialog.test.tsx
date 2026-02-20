@@ -5,6 +5,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
+
 import { RollbackDialog } from "./RollbackDialog";
 
 // Mock useFocusTrap — tested separately in hooks/useFocusTrap.test.ts

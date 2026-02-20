@@ -134,7 +134,7 @@ pub fn read_metadata_preview(archive_path: &Path) -> Result<ArchiveMetadata, Arc
 
     // Use optimized metadata-only reader (reads only header, not entire DB)
     let metadata =
-        read_metadata_only(archive_path).map_err(|e| ArchiveImportError::InvalidArchive(e))?;
+        read_metadata_only(archive_path).map_err(ArchiveImportError::InvalidArchive)?;
 
     Ok(metadata)
 }
@@ -150,7 +150,7 @@ pub fn extract_archive_db(
 ) -> Result<(ArchiveMetadata, Vec<u8>, PathBuf), ArchiveImportError> {
     // Read full archive
     let (metadata, salt, db_bytes) =
-        read_archive_metadata(archive_path).map_err(|e| ArchiveImportError::InvalidArchive(e))?;
+        read_archive_metadata(archive_path).map_err(ArchiveImportError::InvalidArchive)?;
 
     // Create temp file with UUID-based name (prevents path injection)
     let temp_dir = std::env::temp_dir();
@@ -302,15 +302,14 @@ pub fn cleanup_orphaned_temp_files(temp_dir: &Path) -> Result<usize, String> {
                     if let Ok(modified) = metadata.modified() {
                         if let Ok(age) = now.duration_since(modified) {
                             // Delete if older than threshold
-                            if age.as_secs() > TEMP_FILE_MAX_AGE_SECS {
-                                if fs::remove_file(&path).is_ok() {
+                            if age.as_secs() > TEMP_FILE_MAX_AGE_SECS
+                                && fs::remove_file(&path).is_ok() {
                                     cleaned += 1;
                                     tracing::info!(
                                         "Cleaned up orphaned temp file: {}",
                                         path.display()
                                     );
                                 }
-                            }
                         }
                     }
                 }

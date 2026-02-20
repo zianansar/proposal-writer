@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { StrategyEffectivenessData } from "../../types/analytics";
+
 import { StrategyEffectivenessTable } from "./StrategyEffectivenessTable";
 
 // Mock Tauri invoke

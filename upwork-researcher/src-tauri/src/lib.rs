@@ -70,6 +70,12 @@ pub struct VoiceCache {
     pub cached_at: Mutex<Option<Instant>>,
 }
 
+impl Default for VoiceCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VoiceCache {
     pub fn new() -> Self {
         Self {
@@ -155,6 +161,12 @@ pub struct BlockedRequestsState {
     pub requests: Arc<Mutex<Vec<BlockedRequest>>>,
 }
 
+impl Default for BlockedRequestsState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BlockedRequestsState {
     pub fn new() -> Self {
         Self {
@@ -213,11 +225,7 @@ impl CooldownState {
         match *guard {
             Some(last) => {
                 let elapsed = last.elapsed().as_secs();
-                if elapsed < COOLDOWN_SECONDS {
-                    COOLDOWN_SECONDS - elapsed
-                } else {
-                    0
-                }
+                COOLDOWN_SECONDS.saturating_sub(elapsed)
             }
             None => 0,
         }
@@ -293,7 +301,7 @@ async fn generate_proposal(
 #[tauri::command]
 async fn generate_proposal_streaming(
     job_content: String,
-    strategy_id: Option<i64>,
+    _strategy_id: Option<i64>,
     user_selected_strategy_id: Option<String>,
     app_handle: AppHandle,
     config_state: State<'_, config::ConfigState>,
@@ -396,7 +404,7 @@ async fn generate_proposal_streaming(
         &job_content,
         app_handle,
         api_key.as_deref(),
-        &database,
+        database,
         &draft_state,
         &intensity,
         None, // rehumanization_attempt (Story TD-1)
@@ -469,13 +477,13 @@ async fn regenerate_with_humanization(
         db::queries::voice_profile::get_voice_profile(&conn, "default")
             .map_err(|e| format!("Failed to get voice profile: {}", e))?
     };
-    let voice_profile = voice_profile_row.as_ref().map(|row| row.to_voice_profile());
+    let _voice_profile = voice_profile_row.as_ref().map(|row| row.to_voice_profile());
 
     let generated_text = claude::generate_proposal_streaming_with_key(
         &job_content,
         app_handle,
         api_key.as_deref(),
-        &database,
+        database,
         &draft_state,
         &escalated_str,
         None, // rehumanization_attempt (Story TD-1)
@@ -1405,7 +1413,7 @@ fn get_skill_suggestions(query: String) -> Result<Vec<String>, String> {
         .map(|s| s.to_string())
         .collect();
 
-    suggestions.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    suggestions.sort_by_key(|a| a.to_lowercase());
     suggestions.truncate(10); // Max 10 suggestions
 
     Ok(suggestions)
@@ -1755,7 +1763,7 @@ fn get_safety_threshold_internal(database: &db::Database) -> Result<i32, String>
 #[tauri::command]
 fn get_safety_threshold(database: State<'_, db::AppDatabase>) -> Result<i32, String> {
     let database = database.get()?;
-    get_safety_threshold_internal(&database)
+    get_safety_threshold_internal(database)
 }
 
 // ============================================================================
@@ -2489,7 +2497,7 @@ async fn export_unencrypted_backup(
 
     tracing::info!("Exporting unencrypted backup");
 
-    let metadata = backup::export_unencrypted_backup(&database, &path_buf)
+    let metadata = backup::export_unencrypted_backup(database, &path_buf)
         .map_err(|e| format!("Backup export failed: {}", e))?;
 
     let message = format!("Backup saved to {}. Store this file securely.", path_str);
@@ -2526,7 +2534,7 @@ async fn create_pre_migration_backup(
 
     tracing::info!("Starting pre-migration backup...");
 
-    let metadata = backup::create_pre_migration_backup(&app_data_dir, &database)
+    let metadata = backup::create_pre_migration_backup(&app_data_dir, database)
         .map_err(|e| format!("Backup failed: {}", e))?;
 
     let message = format!(
@@ -2626,7 +2634,7 @@ async fn get_migration_verification(
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
-    migration::get_migration_verification(&database, &app_data_dir)
+    migration::get_migration_verification(database, &app_data_dir)
         .map_err(|e| format!("Failed to get verification data: {}", e))
 }
 
@@ -3149,7 +3157,7 @@ async fn log_safety_override(
     database: State<'_, db::AppDatabase>,
 ) -> Result<(), String> {
     let database = database.get()?;
-    log_safety_override_internal(score, threshold, &database).await
+    log_safety_override_internal(score, threshold, database).await
 }
 
 /// Internal helper: Record a safety override event for adaptive learning
@@ -3204,7 +3212,7 @@ async fn record_safety_override(
     database: State<'_, db::AppDatabase>,
 ) -> Result<i64, String> {
     let database = database.get()?;
-    record_safety_override_internal(proposal_id, ai_score, threshold, &database).await
+    record_safety_override_internal(proposal_id, ai_score, threshold, database).await
 }
 
 /// Threshold suggestion returned by learning detection (Story 3.7, Task 4)
@@ -3423,7 +3431,7 @@ async fn apply_threshold_adjustment(
 ) -> Result<(), String> {
     let database = database.get()?;
     // Validate threshold range
-    if new_threshold < 140 || new_threshold > THRESHOLD_MAX {
+    if !(140..=THRESHOLD_MAX).contains(&new_threshold) {
         return Err(format!(
             "Threshold must be between 140 and {}",
             THRESHOLD_MAX

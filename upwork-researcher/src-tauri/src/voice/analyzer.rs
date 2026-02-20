@@ -40,8 +40,8 @@ fn segment_sentences(text: &str) -> Vec<String> {
             let words: Vec<&str> = trimmed.split_whitespace().collect();
             if let Some(last_word) = words.last() {
                 let last_word_no_punct =
-                    last_word.trim_end_matches(|c| c == '.' || c == '!' || c == '?');
-                let is_abbreviation = abbrevs.iter().any(|&abbrev| last_word_no_punct == abbrev);
+                    last_word.trim_end_matches(['.', '!', '?']);
+                let is_abbreviation = abbrevs.contains(&last_word_no_punct);
 
                 if !is_abbreviation {
                     // Real sentence ending
@@ -313,8 +313,8 @@ fn calculate_technical_depth(text: &str) -> f32 {
 
     // Calculate ratio and scale to 1-10
     let ratio = technical_count as f32 / words.len() as f32;
-    let score = (ratio * 100.0).min(10.0).max(1.0);
-    score
+    
+    (ratio * 100.0).min(10.0).max(1.0)
 }
 
 /// Extract common phrases (n-grams appearing multiple times)

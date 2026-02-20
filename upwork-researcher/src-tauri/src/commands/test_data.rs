@@ -40,7 +40,7 @@ pub async fn seed_job_posts(database: State<'_, AppDatabase>, count: i64) -> Res
 #[specta::specta]
 pub async fn clear_test_data(database: State<'_, AppDatabase>) -> Result<(), String> {
     let database = database.get()?;
-    let mut conn = database
+    let conn = database
         .conn
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
@@ -115,7 +115,7 @@ fn seed_job_posts_internal(conn: &mut Connection, count: usize) -> Result<(), St
             i + 1
         );
         let client_name = format!("Client{}", i % 50); // 50 unique clients
-        let skills = format!("Rust,TypeScript,React");
+        let skills = "Rust,TypeScript,React".to_string();
 
         tx.execute(
             "INSERT INTO job_posts (title, description, url, client_name, key_skills, posted_at, imported_at)

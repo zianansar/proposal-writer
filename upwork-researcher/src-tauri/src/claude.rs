@@ -404,9 +404,7 @@ pub async fn generate_proposal_streaming_with_key(
             line_buffer = line_buffer[line_end + 1..].to_string();
 
             // SSE format: "data: {...}" or "event: ..."
-            if line.starts_with("data: ") {
-                let json_str = &line[6..];
-
+            if let Some(json_str) = line.strip_prefix("data: ") {
                 // Skip [DONE] marker
                 if json_str.trim() == "[DONE]" {
                     continue;
@@ -545,7 +543,7 @@ pub fn parse_perplexity_score(text: &str) -> Result<f32, String> {
                 .parse::<f32>()
                 .ok()
         })
-        .last()
+        .next_back()
         .ok_or_else(|| format!("Could not parse perplexity score from: {}", text))
 }
 

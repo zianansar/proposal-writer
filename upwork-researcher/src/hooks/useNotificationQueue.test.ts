@@ -3,8 +3,9 @@
  * AC-6: App update notifications have priority over config update notifications
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+
 import { useNotificationQueue } from './useNotificationQueue';
 
 describe('useNotificationQueue', () => {

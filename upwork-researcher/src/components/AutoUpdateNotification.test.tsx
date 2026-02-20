@@ -2,8 +2,9 @@
  * Tests for AutoUpdateNotification component (Story 9.7 Task 3.10)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { AutoUpdateNotification } from './AutoUpdateNotification';
 import * as LiveAnnouncer from './LiveAnnouncer';
 

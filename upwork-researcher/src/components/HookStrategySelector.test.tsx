@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+import { useSettings } from "../hooks/useSettings";
 import { HookStrategy } from "../types/hooks";
 
 import HookStrategySelector from "./HookStrategySelector";
@@ -28,7 +29,6 @@ vi.mock("../hooks/useStrategySyncListener", () => ({
 import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
 
-import { useSettings } from "../hooks/useSettings";
 const mockUseSettings = vi.mocked(useSettings);
 
 describe("HookStrategySelector", () => {

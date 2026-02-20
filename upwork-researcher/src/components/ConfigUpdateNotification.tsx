@@ -6,9 +6,11 @@
  */
 
 import { useEffect } from 'react';
+
 import './ConfigUpdateNotification.css';
-import { useAnnounce } from './LiveAnnouncer';
 import type { ConfigUpdatePayload } from '../hooks/useNotificationQueue';
+
+import { useAnnounce } from './LiveAnnouncer';
 
 export interface ConfigUpdateNotificationProps {
   visible: boolean;

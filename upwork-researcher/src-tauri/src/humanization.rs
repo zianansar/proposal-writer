@@ -437,7 +437,7 @@ pub fn analyze_humanization(text: &str) -> HumanizationMetrics {
 
     // Split into sentences for transition and fragment analysis
     let sentences: Vec<&str> = text
-        .split(|c: char| c == '.' || c == '!' || c == '?')
+        .split(['.', '!', '?'])
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .collect();
@@ -469,7 +469,7 @@ pub fn analyze_humanization(text: &str) -> HumanizationMetrics {
         .iter()
         .filter(|s| {
             let wc = s.split_whitespace().count();
-            wc >= 1 && wc <= 5
+            (1..=5).contains(&wc)
         })
         .count();
 

@@ -2,10 +2,12 @@
  * Tests for useUpdater hook (Story 9.6 Task 6)
  */
 
-import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { useUpdater } from '../useUpdater';
 import type { Update } from '@tauri-apps/plugin-updater';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
+
+import { useUpdater } from '../useUpdater';
+
 
 // Mock the Tauri plugins
 vi.mock('@tauri-apps/plugin-updater', () => ({

@@ -4,9 +4,10 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+
 import './AutoUpdateNotification.css';
-import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useAnnounce } from '../components/LiveAnnouncer';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 export interface AutoUpdateNotificationProps {
   updateAvailable: boolean;

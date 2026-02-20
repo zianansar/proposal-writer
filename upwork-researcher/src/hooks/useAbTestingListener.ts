@@ -8,8 +8,8 @@
  * after 5 seconds.
  */
 
-import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { useEffect } from "react";
 
 /** Exact message from AC-6 specification */
 export const AB_NO_ACTIVE_WEIGHTS_MESSAGE =

@@ -1,10 +1,10 @@
-import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { createSettingsMockInvoke } from "../test/settingsPanelMocks";
 import { useSettings } from "../hooks/useSettings";
+import { createSettingsMockInvoke } from "../test/settingsPanelMocks";
 
 import SettingsPanel from "./SettingsPanel";
 

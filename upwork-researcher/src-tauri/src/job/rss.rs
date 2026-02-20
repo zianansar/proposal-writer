@@ -113,11 +113,11 @@ async fn try_import_with_fallback_inner<R: tauri::Runtime>(
     match fetch_and_parse_rss(feed_url).await {
         Ok(jobs) if !jobs.is_empty() => {
             info!("RSS import succeeded with {} jobs", jobs.len());
-            return Ok((jobs, "rss".to_string()));
+            Ok((jobs, "rss".to_string()))
         }
         Ok(_) => {
             // Empty feed - don't fall back, just return error
-            return Err("No jobs found in RSS feed".to_string());
+            Err("No jobs found in RSS feed".to_string())
         }
         Err(rss_error) => {
             warn!(
@@ -147,21 +147,21 @@ async fn try_import_with_fallback_inner<R: tauri::Runtime>(
             match fetch_and_scrape(&search_url).await {
                 Ok(jobs) if !jobs.is_empty() => {
                     info!("Web scraping succeeded with {} jobs", jobs.len());
-                    return Ok((jobs, "scrape".to_string()));
+                    Ok((jobs, "scrape".to_string()))
                 }
                 Ok(_) => {
-                    return Err(format!(
+                    Err(format!(
                         "RSS failed ({}). Scraping found no jobs.",
                         rss_error
-                    ));
+                    ))
                 }
                 Err(scrape_error) => {
                     // Both methods failed
                     error!("Both RSS and scraping failed");
-                    return Err(format!(
+                    Err(format!(
                         "Both import methods failed. RSS: {}. Scraping: {}. Please paste jobs manually.",
                         rss_error, scrape_error
-                    ));
+                    ))
                 }
             }
         }

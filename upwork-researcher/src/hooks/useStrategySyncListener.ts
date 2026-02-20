@@ -8,8 +8,8 @@
  * can refresh its strategy data (e.g., re-fetching in HookStrategySelector).
  */
 
-import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { useEffect, useRef } from "react";
 
 /** Sync result payload from the `strategies:updated` Tauri event */
 export interface StrategySyncResult {

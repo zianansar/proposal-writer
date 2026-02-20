@@ -3,8 +3,8 @@
  * AC-1: strategies:updated event triggers toast via notification queue
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // vi.hoisted ensures these are available when vi.mock factory is hoisted
 const { mockUnlisten, mockListen } = vi.hoisted(() => {

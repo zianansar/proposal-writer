@@ -60,7 +60,7 @@ pub fn calculate_overall_score(
     let score = (score * 10.0).round() / 10.0; // Round to 1 decimal place
 
     // 4. Color flag from component thresholds
-    let is_zero_hire = client_quality.map_or(false, |q| q <= 45);
+    let is_zero_hire = client_quality.is_some_and(|q| q <= 45);
     let flag = determine_color_flag(skills, client_quality.unwrap_or(65), is_zero_hire);
 
     ScoringResult {
@@ -157,7 +157,7 @@ fn generate_recommendation(
             }
         }
         "red" => {
-            if quality.map_or(false, |q| q <= 45) {
+            if quality.is_some_and(|q| q <= 45) {
                 "High risk. Client has no hire history — proceed only if the project is compelling."
                     .into()
             } else {

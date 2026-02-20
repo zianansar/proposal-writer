@@ -7,8 +7,7 @@ use crate::archive_import::{
     ImportMode, ImportProgress, ImportSummary, SchemaCompatibility,
 };
 use crate::backup::create_pre_migration_backup;
-use crate::db::{AppDatabase, Database};
-use rusqlite::Connection;
+use crate::db::AppDatabase;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -41,7 +40,7 @@ pub async fn read_archive_metadata(archive_path: String) -> Result<ArchiveMetada
 /// AC-3: Decrypt with passphrase, show detailed preview with schema compatibility
 #[tauri::command]
 pub async fn decrypt_archive(
-    app_handle: AppHandle,
+    _app_handle: AppHandle,
     database: State<'_, AppDatabase>,
     archive_path: String,
     passphrase: String,
@@ -94,9 +93,7 @@ pub async fn decrypt_archive(
     let (compat_str, archive_version) = match compat {
         SchemaCompatibility::Compatible => ("compatible".to_string(), None),
         SchemaCompatibility::OlderArchive { archive_version } => {
-            warnings.push(format!(
-                "Archive from older version — some newer fields will be set to defaults."
-            ));
+            warnings.push("Archive from older version — some newer fields will be set to defaults.".to_string());
             ("older".to_string(), Some(archive_version))
         }
         SchemaCompatibility::NewerArchive { archive_version } => {
@@ -146,7 +143,7 @@ pub async fn execute_import(
             .app_data_dir()
             .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
-        let backup_metadata = create_pre_migration_backup(&app_data_dir, &database_instance)
+        let backup_metadata = create_pre_migration_backup(&app_data_dir, database_instance)
             .map_err(|e| format!("Failed to create pre-import backup: {}", e))?;
 
         tracing::info!(
@@ -158,7 +155,7 @@ pub async fn execute_import(
     let archive_path_buf = PathBuf::from(&archive_path);
 
     // Extract archive to temp file
-    let (metadata, salt, temp_db_path) = extract_archive_db(&archive_path_buf)
+    let (_metadata, salt, temp_db_path) = extract_archive_db(&archive_path_buf)
         .map_err(|e| format!("Failed to extract archive: {}", e))?;
 
     // Ensure temp file cleanup on scope exit
@@ -192,7 +189,7 @@ pub async fn execute_import(
 
     // Perform import
     let summary = import_from_archive(
-        &database_instance,
+        database_instance,
         &temp_db_path,
         &hex_key,
         import_mode,

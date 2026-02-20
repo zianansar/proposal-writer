@@ -209,7 +209,7 @@ pub fn read_archive_metadata(path: &Path) -> Result<(ArchiveMetadata, Vec<u8>, V
 /// instead of loading the entire archive into memory. For a 500MB archive,
 /// this reads only a few KB instead of 500MB.
 pub fn read_metadata_only(path: &Path) -> Result<ArchiveMetadata, String> {
-    use std::io::{BufReader, Seek, SeekFrom};
+    use std::io::BufReader;
 
     let file = fs::File::open(path).map_err(|e| format!("Failed to open archive file: {}", e))?;
     let mut reader = BufReader::new(file);

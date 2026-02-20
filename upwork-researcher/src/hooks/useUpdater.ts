@@ -3,9 +3,9 @@
  * Wraps @tauri-apps/plugin-updater for update checking, downloading, and installation
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { check, Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { check, Update } from '@tauri-apps/plugin-updater';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 export interface UpdateInfo {
   version: string;

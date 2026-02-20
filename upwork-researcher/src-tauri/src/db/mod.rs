@@ -170,7 +170,7 @@ impl Database {
         // TD-3: Key is wrapped in Zeroizing — auto-zeroed on drop
         let new_salt = passphrase::generate_random_salt()
             .map_err(|e| format!("Failed to generate new salt: {}", e))?;
-        let mut new_key = passphrase::derive_key(new_passphrase, &new_salt)
+        let new_key = passphrase::derive_key(new_passphrase, &new_salt)
             .map_err(|e| format!("Failed to derive new key: {}", e))?;
 
         // Write new salt to temp file (atomic update pattern — AC-5)

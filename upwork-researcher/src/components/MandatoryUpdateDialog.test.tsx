@@ -2,11 +2,14 @@
  * Tests for MandatoryUpdateDialog component (Story 9.8 Task 7.1)
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MandatoryUpdateDialog } from './MandatoryUpdateDialog';
+import { describe, it, expect, vi } from 'vitest';
+
 import type { UpdateInfo, DownloadProgress } from '../hooks/useUpdater';
+
+import { MandatoryUpdateDialog } from './MandatoryUpdateDialog';
+
 
 const mockUpdateInfo: UpdateInfo = {
   version: '1.0.1',

@@ -4,8 +4,9 @@
  * AC-6: Notification queuing with app update priority
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { ConfigUpdateNotification } from './ConfigUpdateNotification';
 import * as LiveAnnouncer from './LiveAnnouncer';
 

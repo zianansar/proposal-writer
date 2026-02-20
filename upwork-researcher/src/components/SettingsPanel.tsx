@@ -1,18 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 import { DatabaseExportButton } from "../features/proposal-history/DatabaseExportButton";
 import { ImportArchiveDialog } from "../features/proposal-history/ImportArchiveDialog";
+import { useSettings } from "../hooks/useSettings";
+import type { UpdateInfo } from "../hooks/useUpdater";
 import { useOnboardingStore } from "../stores/useOnboardingStore";
 import {
   useSettingsStore,
   getHumanizationIntensity,
   type HumanizationIntensity,
 } from "../stores/useSettingsStore";
-import { useSettings } from "../hooks/useSettings";
-import type { UpdateInfo } from "../hooks/useUpdater";
 import { formatRelativeTime } from "../utils/dateUtils";
 
 import UserSkillsConfig from "./UserSkillsConfig";

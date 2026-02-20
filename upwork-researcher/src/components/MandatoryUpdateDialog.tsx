@@ -11,6 +11,7 @@
  */
 
 import { useRef } from 'react';
+
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import type { UpdateInfo, DownloadProgress } from '../hooks/useUpdater';
 import './MandatoryUpdateDialog.css';
