@@ -133,9 +133,9 @@ pub async fn check_database_connection(
     app_handle: &AppHandle,
 ) -> Result<(), HealthCheckError> {
     // Get database from app state
-    let db = app_handle
-        .state::<crate::db::Database>()
-        .inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get()
+        .map_err(|e| HealthCheckError::DatabaseUnreachable(e))?;
 
     // Try to execute a simple query
     let conn = db
@@ -153,9 +153,9 @@ pub async fn check_database_connection(
 pub async fn check_database_integrity(
     app_handle: &AppHandle,
 ) -> Result<(), HealthCheckError> {
-    let db = app_handle
-        .state::<crate::db::Database>()
-        .inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get()
+        .map_err(|e| HealthCheckError::DatabaseUnreachable(e))?;
 
     let conn = db
         .conn
@@ -176,9 +176,9 @@ pub async fn check_database_integrity(
 
 /// Check schema version matches expected (< 1s timeout).
 pub async fn check_schema_version(app_handle: &AppHandle) -> Result<(), HealthCheckError> {
-    let db = app_handle
-        .state::<crate::db::Database>()
-        .inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get()
+        .map_err(|e| HealthCheckError::DatabaseUnreachable(e))?;
 
     let conn = db
         .conn
@@ -220,9 +220,9 @@ pub async fn check_schema_version(app_handle: &AppHandle) -> Result<(), HealthCh
 
 /// Check settings are loadable (< 1s timeout).
 pub async fn check_settings_loadable(app_handle: &AppHandle) -> Result<(), HealthCheckError> {
-    let db = app_handle
-        .state::<crate::db::Database>()
-        .inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get()
+        .map_err(|e| HealthCheckError::DatabaseUnreachable(e))?;
 
     let conn = db
         .conn
@@ -512,7 +512,8 @@ pub async fn create_pre_update_backup(
         };
 
         // Store metadata in settings
-        let db = app_handle.state::<crate::db::Database>().inner();
+        let db_state = app_handle.state::<crate::db::AppDatabase>();
+        let db = db_state.get().map_err(|e| BackupError::SettingsFailed(e))?;
         let conn = db.conn.lock().map_err(|e| BackupError::SettingsFailed(e.to_string()))?;
 
         let metadata_json = serde_json::to_string(&metadata)
@@ -552,7 +553,8 @@ pub async fn create_pre_update_backup(
         };
 
         // Store metadata in settings
-        let db = app_handle.state::<crate::db::Database>().inner();
+        let db_state = app_handle.state::<crate::db::AppDatabase>();
+        let db = db_state.get().map_err(|e| BackupError::SettingsFailed(e))?;
         let conn = db.conn.lock().map_err(|e| BackupError::SettingsFailed(e.to_string()))?;
 
         let metadata_json = serde_json::to_string(&metadata)
@@ -620,7 +622,8 @@ pub async fn rollback_to_previous_version(
     app_handle: &AppHandle,
 ) -> Result<(), RollbackError> {
     // 1. Read backup metadata from settings
-    let db = app_handle.state::<crate::db::Database>().inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get().map_err(|e| RollbackError::SettingsFailed(e))?;
     let conn = db.conn.lock()
         .map_err(|e| RollbackError::SettingsFailed(e.to_string()))?;
 
@@ -776,9 +779,9 @@ pub fn check_and_clear_rollback(conn: &Connection) -> Result<Option<String>, Str
 pub async fn get_installed_version_command(
     app_handle: AppHandle,
 ) -> Result<Option<String>, String> {
-    let db = app_handle
-        .state::<crate::db::Database>()
-        .inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get()
+        .map_err(|e| format!("Database not available: {}", e))?;
 
     let conn = db
         .conn
@@ -790,9 +793,9 @@ pub async fn get_installed_version_command(
 
 #[tauri::command]
 pub async fn detect_update_command(app_handle: AppHandle) -> Result<bool, String> {
-    let db = app_handle
-        .state::<crate::db::Database>()
-        .inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get()
+        .map_err(|e| format!("Database not available: {}", e))?;
 
     let conn = db
         .conn
@@ -833,7 +836,8 @@ pub async fn rollback_to_previous_version_command(
 pub async fn get_failed_update_versions_command(
     app_handle: AppHandle,
 ) -> Result<Vec<String>, String> {
-    let db = app_handle.state::<crate::db::Database>().inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get().map_err(|e| format!("Database not available: {}", e))?;
     let conn = db.conn.lock()
         .map_err(|e| format!("Failed to lock database: {}", e))?;
 
@@ -844,7 +848,8 @@ pub async fn get_failed_update_versions_command(
 pub async fn clear_failed_update_versions_command(
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    let db = app_handle.state::<crate::db::Database>().inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get().map_err(|e| format!("Database not available: {}", e))?;
     let conn = db.conn.lock()
         .map_err(|e| format!("Failed to lock database: {}", e))?;
 
@@ -855,7 +860,8 @@ pub async fn clear_failed_update_versions_command(
 pub async fn check_and_clear_rollback_command(
     app_handle: AppHandle,
 ) -> Result<Option<String>, String> {
-    let db = app_handle.state::<crate::db::Database>().inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get().map_err(|e| format!("Database not available: {}", e))?;
     let conn = db.conn.lock()
         .map_err(|e| format!("Failed to lock database: {}", e))?;
 
@@ -875,7 +881,8 @@ pub async fn cleanup_old_backups_command(
 /// Called by frontend after successful health checks to advance the baseline version.
 #[tauri::command]
 pub async fn set_installed_version_command(app_handle: AppHandle) -> Result<(), String> {
-    let db = app_handle.state::<crate::db::Database>().inner();
+    let db_state = app_handle.state::<crate::db::AppDatabase>();
+    let db = db_state.get().map_err(|e| format!("Database not available: {}", e))?;
     let conn = db
         .conn
         .lock()

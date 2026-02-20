@@ -160,7 +160,7 @@ fn calculate_flesch_kincaid(text: &str) -> f32 {
     let grade = 0.39 * words_per_sentence + 11.8 * syllables_per_word - 15.59;
 
     // Clamp to 1-16 range
-    grade.max(1.0).min(16.0)
+    grade.clamp(1.0, 16.0)
 }
 
 /// Calculate tone/formality score (1=casual, 10=formal)
